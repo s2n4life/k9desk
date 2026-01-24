@@ -11,6 +11,8 @@ const withPWA = withPWAInit({
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
+  turbopack: {}, // Silences the Turbopack/Webpack conflict error
+
   webpack: (config) => {
     config.cache = false;
     return config;
