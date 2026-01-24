@@ -1,0 +1,51 @@
+.container {
+    margin-bottom: var(--space-2);
+}
+
+.headline {
+    font-size: var(--font-size-sm);
+    color: var(--text-tertiary);
+    font-weight: 500;
+    margin-bottom: var(--space-2);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-3);
+}
+
+.card {
+    background: #ffffff;
+    /* Explicit white for lightness */
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    /* Darker outline for contrast */
+    border-radius: var(--radius-md);
+    padding: var(--space-2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    aspect-ratio: 2.5;
+    /* Flatter/Wider cards */
+    box-shadow: var(--shadow-sm);
+}
+
+.value {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    color: #111827;
+    /* Force dark text on white card */
+    line-height: 1.2;
+    margin-bottom: 0;
+}
+
+.label {
+    font-size: var(--font-size-xs);
+    color: #6b7280;
+    /* Force gray text on white card */
+    font-weight: 500;
+}

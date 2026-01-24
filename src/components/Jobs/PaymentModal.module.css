@@ -1,0 +1,155 @@
+.backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 100;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.modal {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    /* Fallback */
+    background: var(--bg-surface, #ffffff);
+    border-radius: 20px 20px 0 0;
+    padding: var(--space-6);
+    z-index: 9999;
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-6);
+}
+
+.header h2 {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    margin: 0;
+}
+
+.closeBtn {
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    padding: 8px;
+    margin: -8px;
+}
+
+.label {
+    display: block;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: var(--space-2);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.amountSection {
+    margin-bottom: var(--space-6);
+}
+
+.amountInputWrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: var(--space-2);
+}
+
+.currencyIcon {
+    color: var(--text-primary);
+    margin-right: var(--space-2);
+}
+
+.amountInput {
+    width: 100%;
+    border: none;
+    background: none;
+    font-size: 40px;
+    font-weight: 700;
+    color: var(--text-primary);
+    outline: none;
+    padding: 0;
+    /* Hide spin buttons */
+    appearance: none;
+    -moz-appearance: textfield;
+}
+
+.amountInput::-webkit-outer-spin-button,
+.amountInput::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.amountInput::placeholder {
+    color: var(--text-tertiary);
+}
+
+.amountInputWrapper:focus-within {
+    border-color: var(--brand-primary);
+}
+
+.methodGrid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-3);
+}
+
+.methodBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    gap: var(--space-2);
+}
+
+.methodBtn.active {
+    background: var(--brand-primary);
+    color: white;
+    border-color: var(--brand-primary);
+}
+
+.checkIcon {
+    width: 16px;
+    height: 16px;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+    }
+
+    to {
+        transform: translateY(0);
+    }
+}

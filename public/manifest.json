@@ -1,0 +1,16 @@
+{
+    "name": "K9desk",
+    "short_name": "K9desk",
+    "description": "Premium Mobile Dog Grooming Management",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#6c5ce7",
+    "icons": [
+        {
+            "src": "/favicon.ico",
+            "sizes": "any",
+            "type": "image/x-icon"
+        }
+    ]
+}

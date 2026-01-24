@@ -1,0 +1,889 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { getDB } from '@/lib/db';
+import { Settings, Service } from '@/lib/db/schema';
+import { addToSyncQueue } from '@/lib/db/sync';
+import Link from 'next/link';
+import { ChevronLeft, Save, Plus, Trash2, Edit2, ChevronDown, ChevronRight, CreditCard, Store, List, Star, MapPin, X, Check, LogOut } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
+import { useSync } from '@/hooks/useSync';
+import { useRouter } from 'next/navigation';
+import { InstallPwaPrompt } from '@/components/pwa/InstallPwaPrompt';
+import { isStandalone, shouldShowPrompt } from '@/lib/pwa-utils';
+import { PlusSquare, Smartphone, CreditCard as BillingIcon, ExternalLink, ShieldCheck } from 'lucide-react';
+
+export default function SettingsPage() {
+    const { clearLocalData } = useSync();
+    const router = useRouter();
+
+    const handleLogout = async () => {
+        if (!confirm('Are you sure you want to logout?')) return;
+
+        try {
+            // 1. Wipe local database
+            await clearLocalData();
+
+            // 2. Call server-side logout
+            await fetch('/api/auth/logout', { method: 'POST' });
+
+            // 3. Redirect to landing page and force reload
+            window.location.href = '/';
+        } catch (err) {
+            console.error('Logout failed:', err);
+            alert('Logout failed. Please try again.');
+        }
+    };
+
+    const [settings, setSettings] = useState<Settings>({
+        id: 'default',
+        updatedAt: Date.now()
+    });
+    const [services, setServices] = useState<Service[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [msg, setMsg] = useState('');
+
+    // UI State for collapsibles
+    const [isPaymentExpanded, setIsPaymentExpanded] = useState(false);
+
+    // UI State for Service Editing
+    const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
+    const [editName, setEditName] = useState('');
+    const [editPrice, setEditPrice] = useState('');
+
+    // UI State for Business Name Editing
+    const [isEditingBusinessName, setIsEditingBusinessName] = useState(false);
+
+    // UI State for Service Adding
+    const [isAddingService, setIsAddingService] = useState(false);
+    const [newName, setNewName] = useState('');
+    const [newPrice, setNewPrice] = useState('');
+
+    const [bookingBaseUrl, setBookingBaseUrl] = useState('');
+    const [slug, setSlug] = useState('');
+    const [businessId, setBusinessId] = useState('');
+    const [zipText, setZipText] = useState('');
+    const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+    const [isBillingLoading, setIsBillingLoading] = useState(false);
+
+
+
+    useEffect(() => {
+        setBookingBaseUrl(`${window.location.origin}/book/`);
+
+        const load = async () => {
+            const db = await getDB();
+            const existingSettings = await db.get('settings', 'default');
+            if (existingSettings) {
+                setSettings(existingSettings);
+                if (existingSettings.service_area_zips) {
+                    setZipText(existingSettings.service_area_zips.join(', '));
+                }
+            }
+
+            const allServices = await db.getAll('services');
+            setServices(allServices);
+
+            // Attempt to get profile to generate booking link
+            let profiles = await db.getAll('profiles');
+
+            // SELF-HEALING: If no profile exists (e.g. skipped auth or local dev), create one
+            if (profiles.length === 0) {
+                const newProfile = {
+                    id: uuidv4(),
+                    business_id: uuidv4(),
+                    email: 'demo@example.com',
+                    role: 'owner',
+                    createdAt: Date.now()
+                };
+                await db.put('profiles', newProfile);
+                profiles = [newProfile];
+            }
+
+            if (profiles.length > 0) {
+                const profile = profiles[0];
+                if (profile.business_id) {
+                    setBusinessId(profile.business_id);
+                    // Use slug if available, otherwise ID
+                    setSlug(profile.slug || profile.business_id);
+                }
+            }
+
+            setLoading(false);
+        };
+        load();
+    }, []);
+
+    const handleChange = (field: keyof Settings, value: any) => {
+        setSettings(prev => ({ ...prev, [field]: value }));
+    };
+
+
+
+    const handleSaveSettings = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        setSaving(true);
+        try {
+            // Compute work days array from business_hours
+            const dayMap: Record<string, number> = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
+            const derivedWorkDays: number[] = [];
+
+            if (settings.business_hours) {
+                Object.entries(settings.business_hours).forEach(([day, config]) => {
+                    if (config.isOpen && dayMap[day] !== undefined) {
+                        derivedWorkDays.push(dayMap[day]);
+                    }
+                });
+            } else {
+                // Fallback if no hours set yet, default to Mon-Fri
+                derivedWorkDays.push(1, 2, 3, 4, 5);
+            }
+
+            const updatedSettings = {
+                ...settings,
+                schedule_work_days: derivedWorkDays, // SYNC derived array
+                updatedAt: Date.now()
+            };
+
+            const db = await getDB();
+            await db.put('settings', updatedSettings);
+            await addToSyncQueue('UPDATE', 'SETTINGS', 'default', updatedSettings);
+
+            // Update local state to reflect the derived array immediately
+            setSettings(updatedSettings);
+
+            setMsg('Saved successfully!');
+            setTimeout(() => setMsg(''), 3000);
+        } catch (err) {
+            console.error(err);
+            setMsg('Failed to save.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // Service Handlers functions
+    const confirmAddService = async () => {
+        if (!newName) return;
+        const price = parseFloat(newPrice || '0');
+
+        const newService: Service = {
+            id: uuidv4(),
+            name: newName,
+            price,
+            createdAt: Date.now()
+        };
+
+        const db = await getDB();
+        await db.put('services', newService);
+        await addToSyncQueue('CREATE', 'SERVICE', newService.id, newService);
+        setServices(prev => [...prev, newService]);
+
+        setIsAddingService(false);
+        setNewName('');
+        setNewPrice('');
+    };
+
+    const handleDeleteService = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this service?')) return;
+        const db = await getDB();
+        await db.delete('services', id);
+        await addToSyncQueue('DELETE', 'SERVICE', id);
+        setServices(prev => prev.filter(s => s.id !== id));
+    };
+
+    const startEditService = (service: Service) => {
+        setEditingServiceId(service.id);
+        setEditName(service.name);
+        setEditPrice(service.price.toString());
+    };
+
+    const saveEditService = async () => {
+        if (!editingServiceId) return;
+        const db = await getDB();
+        const updatedService: Service = {
+            id: editingServiceId,
+            name: editName,
+            price: parseFloat(editPrice || '0'),
+            createdAt: Date.now()
+        };
+        const original = services.find(s => s.id === editingServiceId);
+        if (original) updatedService.createdAt = original.createdAt;
+
+        await db.put('services', updatedService);
+        await addToSyncQueue('UPDATE', 'SERVICE', editingServiceId, updatedService);
+        setServices(prev => prev.map(s => s.id === editingServiceId ? updatedService : s));
+        setEditingServiceId(null);
+    };
+
+    if (loading) return <div className="container" style={{ paddingTop: '2rem' }}>Loading...</div>;
+
+    return (
+        <div className="container" style={{ paddingBottom: '100px' }}>
+            <header style={{ marginBottom: 'var(--space-6)', paddingTop: 'var(--space-6)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                <Link href="/" style={{ display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}>
+                    <ChevronLeft size={24} />
+                    Back
+                </Link>
+                <h1 className="text-h2" style={{ marginBottom: 0 }}>Settings</h1>
+            </header>
+
+            {/* Billing & Subscription Section */}
+            <section className="card" style={{
+                padding: 'var(--space-6)',
+                marginBottom: 'var(--space-4)',
+                background: 'linear-gradient(135deg, var(--surface) 0%, var(--surface-sunken) 100%)',
+                border: '1px solid var(--border-subtle)',
+                position: 'relative',
+                overflow: 'hidden'
+            }}>
+                <div style={{
+                    position: 'absolute',
+                    top: '-20px',
+                    right: '-20px',
+                    opacity: 0.05,
+                    transform: 'rotate(-15deg)'
+                }}>
+                    <BillingIcon size={120} />
+                </div>
+
+                <div style={{ position: 'relative', zIndex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-4)' }}>
+                        <div>
+                            <h3 className="text-h3" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                <ShieldCheck size={20} className="text-brand-primary" />
+                                Billing & Subscription
+                            </h3>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{
+                                    padding: '2px 8px',
+                                    borderRadius: '12px',
+                                    fontSize: '12px',
+                                    fontWeight: 600,
+                                    backgroundColor: settings.subscription_status === 'active' ? 'var(--success-light)' : 'var(--surface-sunken)',
+                                    color: settings.subscription_status === 'active' ? 'var(--success)' : 'var(--text-tertiary)',
+                                    textTransform: 'capitalize'
+                                }}>
+                                    {settings.subscription_status || 'Trial'}
+                                </span>
+                                {settings.subscription_status === 'trial' && settings.trial_end_date && (
+                                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                        Ends {new Date(settings.trial_end_date).toLocaleDateString()}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                        <p style={{ fontSize: '14px', color: 'var(--text-secondary)', maxWidth: '90%' }}>
+                            Manage your plan, update payment methods, or download invoices through our secure billing portal.
+                        </p>
+
+                        <button
+                            onClick={async () => {
+                                setIsBillingLoading(true);
+                                try {
+                                    const res = await fetch('/api/stripe/create-portal-session', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ origin: window.location.origin })
+                                    });
+                                    const data = await res.json();
+                                    if (data.url) {
+                                        window.location.href = data.url;
+                                    } else if (data.error === 'no_customer') {
+                                        alert(data.message);
+                                    } else {
+                                        throw new Error('Failed to open portal');
+                                    }
+                                } catch (err) {
+                                    console.error(err);
+                                    alert('Could not open billing portal. Please try again or contact support.');
+                                } finally {
+                                    setIsBillingLoading(false);
+                                }
+                            }}
+                            className="btn btn-secondary"
+                            disabled={isBillingLoading}
+                            style={{
+                                width: '100%',
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                gap: '8px',
+                                background: 'white',
+                                border: '1px solid var(--border-subtle)',
+                                boxShadow: 'var(--shadow-sm)'
+                            }}
+                        >
+                            {isBillingLoading ? (
+                                <span className="animate-spin">...</span>
+                            ) : (
+                                <>
+                                    <ExternalLink size={18} />
+                                    Manage Billing & Subscription
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            {shouldShowPrompt() && (
+                <section
+                    className="card"
+                    style={{
+                        padding: 'var(--space-6)',
+                        marginBottom: 'var(--space-4)',
+                        border: '2px solid var(--brand-primary)',
+                        background: 'var(--brand-primary-light)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 'var(--space-3)',
+                        textAlign: 'center'
+                    }}
+                >
+                    <div style={{ color: 'var(--brand-primary)' }}>
+                        <Smartphone size={40} />
+                    </div>
+                    <div>
+                        <h3 className="text-h3" style={{ marginBottom: '4px', color: 'var(--brand-primary)' }}>Save to Home Screen</h3>
+                        <p className="text-p" style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Get full access and the best experience by adding K9desk to your home screen.</p>
+                    </div>
+                    <button
+                        onClick={() => setShowInstallPrompt(true)}
+                        className="btn btn-primary"
+                        style={{ width: '100%', marginTop: 'var(--space-2)' }}
+                    >
+                        Learn How
+                    </button>
+                </section>
+            )}
+
+            {/* Business Info Section */}
+            <section className="card" style={{ padding: 'var(--space-6)', marginBottom: 'var(--space-4)' }}>
+                <h3 className="text-h3" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--space-4)' }}>
+                    <Store size={20} />
+                    Business Info
+                </h3>
+                <div style={{ marginBottom: 'var(--space-4)' }}>
+                    <label style={{ display: 'block', marginBottom: 'var(--space-2)', fontWeight: 500 }}>Business Name</label>
+                    {!isEditingBusinessName && settings.businessName ? (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div className="card" style={{ flex: 1, padding: 'var(--space-4)', fontSize: 'var(--font-size-lg)', fontWeight: 600, background: 'var(--surface-sunken)', border: 'none' }}>
+                                {settings.businessName}
+                            </div>
+                            <button
+                                onClick={() => setIsEditingBusinessName(true)}
+                                style={{ marginLeft: 'var(--space-3)', color: 'var(--brand-primary)', background: 'none', border: 'none', padding: 'var(--space-2)' }}
+                            >
+                                <Edit2 size={20} />
+                            </button>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                            <input
+                                type="text"
+                                className="input"
+                                placeholder="e.g. John's Grooming"
+                                value={settings.businessName || ''}
+                                onChange={e => handleChange('businessName', e.target.value)}
+                                autoFocus={isEditingBusinessName}
+                                onBlur={() => {
+                                    handleSaveSettings();
+                                    if (settings.businessName) setIsEditingBusinessName(false);
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.currentTarget.blur();
+                                    }
+                                }}
+                            />
+                        </div>
+                    )}
+
+                </div>
+            </section>
+
+            {/* Services Section */}
+            <section className="card" style={{ padding: 'var(--space-6)', marginBottom: 'var(--space-4)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+                    <h3 className="text-h3" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 0 }}>
+                        <List size={20} />
+                        Services
+                    </h3>
+                    <button
+                        onClick={() => setIsAddingService(true)}
+                        className="btn btn-secondary"
+                        style={{
+                            padding: '0 var(--space-3)',
+                            fontSize: 'var(--font-size-sm)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            height: '40px',
+                            width: 'auto'
+                        }}
+                    >
+                        <Plus size={16} /> Add
+                    </button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                    {isAddingService && (
+                        <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 'var(--space-3)',
+                            padding: 'var(--space-3)',
+                            backgroundColor: 'var(--surface-sunken)',
+                            borderRadius: 'var(--radius-md)',
+                            animation: 'fadeIn 0.2s ease-in-out'
+                        }}>
+                            <input
+                                className="input"
+                                placeholder="Service Name"
+                                value={newName}
+                                onChange={e => setNewName(e.target.value)}
+                                style={{ width: '100%' }}
+                                autoFocus
+                            />
+                            <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+                                <div style={{ position: 'relative', flex: 1 }}>
+                                    <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: 'var(--font-size-lg)' }}>$</span>
+                                    <input
+                                        className="input input-with-icon"
+                                        type="text"
+                                        inputMode="decimal"
+                                        placeholder="0"
+                                        value={newPrice}
+                                        onChange={e => {
+                                            const val = e.target.value.replace(/[^0-9.]/g, '');
+                                            setNewPrice(val);
+                                        }}
+                                        style={{ width: '100%' }}
+                                    />
+                                </div>
+                                <div style={{ position: 'relative', width: '100px' }}>
+                                    <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: '12px' }}>min</span>
+                                    <input
+                                        className="input"
+                                        type="number"
+                                        placeholder="60"
+                                        style={{ width: '100%', paddingRight: '40px' }}
+                                        disabled
+                                    />
+                                </div>
+                                <button onClick={confirmAddService} className="btn btn-primary" style={{ width: 'auto', padding: '0 var(--space-4)', height: '60px' }}>Save</button>
+                                <button onClick={() => setIsAddingService(false)} style={{ color: 'var(--text-tertiary)', padding: 'var(--space-3)', background: 'none', border: 'none' }}>
+                                    <Trash2 size={24} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {services.length === 0 && !isAddingService && <p style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>No services added yet.</p>}
+
+                    {services.map(service => (
+                        <div key={service.id} style={{
+                            padding: 'var(--space-3)',
+                            backgroundColor: 'var(--surface-sunken)',
+                            borderRadius: 'var(--radius-md)'
+                        }}>
+                            {editingServiceId === service.id ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                                    <input
+                                        className="input"
+                                        value={editName}
+                                        onChange={e => setEditName(e.target.value)}
+                                        style={{ width: '100%' }}
+                                        placeholder="Service Name"
+                                    />
+                                    <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+                                        <div style={{ position: 'relative', flex: 1 }}>
+                                            <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: 'var(--font-size-lg)' }}>$</span>
+                                            <input
+                                                className="input input-with-icon"
+                                                type="text"
+                                                inputMode="decimal"
+                                                value={editPrice}
+                                                onChange={e => {
+                                                    const val = e.target.value.replace(/[^0-9.]/g, '');
+                                                    setEditPrice(val);
+                                                }}
+                                                style={{ width: '100%' }}
+                                            />
+                                        </div>
+                                        <button onClick={saveEditService} className="btn btn-primary" style={{ width: 'auto', padding: '0 var(--space-4)', height: '60px' }}>Save</button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <div style={{ overflow: 'hidden', marginRight: '8px' }}>
+                                        <div style={{ fontWeight: 600, fontSize: 'var(--font-size-lg)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{service.name}</div>
+                                        <div style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-base)' }}>${service.price}</div>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                                        <button onClick={() => startEditService(service)} style={{ color: 'var(--text-secondary)' }}>
+                                            <Edit2 size={16} />
+                                        </button>
+                                        <button onClick={() => handleDeleteService(service.id)} style={{ color: 'var(--error)' }}>
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            {/* Payment Settings Section (Collapsible) */}
+            <section className="card" style={{ marginBottom: 'var(--space-4)', overflow: 'hidden' }}>
+                <button
+                    onClick={() => setIsPaymentExpanded(!isPaymentExpanded)}
+                    style={{
+                        width: '100%',
+                        padding: 'var(--space-6)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        textAlign: 'left'
+                    }}
+                >
+                    <h3 className="text-h3" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 0 }}>
+                        <CreditCard size={20} />
+                        Payment Settings
+                    </h3>
+                    {isPaymentExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                </button>
+
+                {isPaymentExpanded && (
+                    <div style={{ padding: '0 var(--space-6) var(--space-6) var(--space-6)' }}>
+                        <p style={{ marginBottom: 'var(--space-4)', color: 'var(--text-secondary)', fontSize: '14px' }}>
+                            These details will be sent to customers when you request payment.
+                        </p>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: 'var(--space-2)', fontWeight: 500 }}>Venmo Handle</label>
+                                <input
+                                    type="text"
+                                    className="input"
+                                    placeholder="@YourHandle"
+                                    value={settings.venmo || ''}
+                                    onChange={e => handleChange('venmo', e.target.value)}
+                                />
+                            </div>
+
+                            <div>
+                                <label style={{ display: 'block', marginBottom: 'var(--space-2)', fontWeight: 500 }}>Zelle (Phone/Email)</label>
+                                <input
+                                    type="text"
+                                    className="input"
+                                    placeholder="555-0123 or email@example.com"
+                                    value={settings.zelle || ''}
+                                    onChange={e => handleChange('zelle', e.target.value)}
+                                />
+                            </div>
+
+                            <div>
+                                <label style={{ display: 'block', marginBottom: 'var(--space-2)', fontWeight: 500 }}>PayPal.me Link</label>
+                                <input
+                                    type="text"
+                                    className="input"
+                                    placeholder="paypal.me/user"
+                                    value={settings.paypal || ''}
+                                    onChange={e => handleChange('paypal', e.target.value)}
+                                />
+                            </div>
+
+                            <div>
+                                <label style={{ display: 'block', marginBottom: 'var(--space-2)', fontWeight: 500 }}>Cash App Tag</label>
+                                <input
+                                    type="text"
+                                    className="input"
+                                    placeholder="$Cashtag"
+                                    value={settings.cashapp || ''}
+                                    onChange={e => handleChange('cashapp', e.target.value)}
+                                />
+                            </div>
+
+                            <div>
+                                <label style={{ display: 'block', marginBottom: 'var(--space-2)', fontWeight: 500 }}>Custom Payment URL</label>
+                                <input
+                                    type="text"
+                                    className="input"
+                                    placeholder="https://my-website.com/pay"
+                                    value={settings.custom_url || ''}
+                                    onChange={e => handleChange('custom_url', e.target.value)}
+                                />
+                            </div>
+
+                            <button
+                                onClick={() => handleSaveSettings()}
+                                className="btn btn-primary"
+                                style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
+                                disabled={saving}
+                            >
+                                <Save size={18} />
+                                {saving ? 'Saving...' : 'Save Payment Settings'}
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </section>
+
+            {/* Review Settings Section */}
+            <section className="card" style={{ padding: 'var(--space-6)', marginBottom: 'var(--space-4)' }}>
+                <h3 className="text-h3" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--space-4)' }}>
+                    <Star size={20} />
+                    Review Settings
+                </h3>
+                <div>
+                    <label style={{ display: 'block', marginBottom: 'var(--space-2)', fontWeight: 500 }}>Review Link (Google, Yelp, etc)</label>
+                    <input
+                        type="text"
+                        className="input"
+                        placeholder="https://g.page/r/..."
+                        value={settings.review_url || ''}
+                        onChange={e => handleChange('review_url', e.target.value)}
+                    />
+                    <div style={{ marginTop: 'var(--space-4)' }}>
+                        <button
+                            onClick={() => handleSaveSettings()}
+                            className="btn btn-primary"
+                            style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
+                            disabled={saving}
+                        >
+                            <Save size={18} />
+                            {saving ? 'Saving...' : 'Save Review Settings'}
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            {/* Service Area & Logic (NEW) */}
+            <section className="card" style={{ padding: 'var(--space-6)', marginBottom: 'var(--space-4)' }}>
+                <h3 className="text-h3" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--space-4)' }}>
+                    <MapPin size={20} />
+                    Service Area & Schedule
+                </h3>
+
+                <div style={{ marginBottom: 'var(--space-6)' }}>
+                    <label className="text-sm font-medium mb-3 block">Weekly Schedule</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => {
+                            const dayConfig = settings.business_hours?.[day] || { start: '09:00', end: '17:00', isOpen: false };
+                            return (
+                                <div key={day} style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '12px',
+                                    padding: '12px',
+                                    backgroundColor: dayConfig.isOpen ? 'white' : 'var(--surface-sunken)',
+                                    border: '1px solid var(--border-subtle)',
+                                    borderRadius: '8px',
+                                    opacity: dayConfig.isOpen ? 1 : 0.7
+                                }}>
+                                    <div style={{ width: '100px', fontWeight: 600, textTransform: 'capitalize' }}>
+                                        {day}
+                                    </div>
+                                    <div style={{ flex: 1, display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                        {dayConfig.isOpen ? (
+                                            <>
+                                                <select
+                                                    className="input py-1 px-2 text-sm"
+                                                    value={dayConfig.start}
+                                                    onChange={e => {
+                                                        const newHours = { ...settings.business_hours };
+                                                        newHours[day] = { ...dayConfig, start: e.target.value };
+                                                        handleChange('business_hours', newHours);
+                                                    }}
+                                                >
+                                                    {[6, 7, 8, 9, 10, 11, 12].map(h => <option key={h} value={`${h < 10 ? '0' + h : h}:00`}>{h}:00 AM</option>)}
+                                                </select>
+                                                <span className="text-slate-400">-</span>
+                                                <select
+                                                    className="input py-1 px-2 text-sm"
+                                                    value={dayConfig.end}
+                                                    onChange={e => {
+                                                        const newHours = { ...settings.business_hours };
+                                                        newHours[day] = { ...dayConfig, end: e.target.value };
+                                                        handleChange('business_hours', newHours);
+                                                    }}
+                                                >
+                                                    {[12, 13, 14, 15, 16, 17, 18, 19, 20].map(h => <option key={h} value={`${h}:00`}>{h - 12}:00 PM</option>)}
+                                                </select>
+                                            </>
+                                        ) : (
+                                            <span className="text-sm text-slate-500 italic">Closed</span>
+                                        )}
+                                    </div>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="sr-only peer"
+                                            checked={dayConfig.isOpen}
+                                            onChange={e => {
+                                                const newHours = { ...settings.business_hours };
+                                                // Initialize if undefined
+                                                if (!newHours[day]) newHours[day] = { start: '09:00', end: '17:00', isOpen: false };
+
+                                                newHours[day] = { ...newHours[day], isOpen: e.target.checked };
+                                                handleChange('business_hours', newHours);
+                                            }}
+                                        />
+                                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                    </label>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                <div style={{ marginBottom: 'var(--space-4)' }}>
+                    <label className="text-sm font-medium mb-1 block">Service Area Zip Codes (Bulk Paste)</label>
+                    <p className="text-xs text-slate-500 mb-2">Paste a list of zip codes separated by commas, spaces, or new lines.</p>
+                    <textarea
+                        className="input w-full h-32 font-mono text-sm"
+                        placeholder="78701, 78702, 78704..."
+                        value={zipText}
+                        onChange={e => setZipText(e.target.value)}
+                        onBlur={(e) => {
+                            const val = e.target.value;
+                            const zips = val.match(/\d{5}/g) || [];
+                            const unique = Array.from(new Set(zips));
+                            // Update settings
+                            handleChange('service_area_zips', unique);
+                        }}
+                    />
+                    <p className="text-xs text-right text-slate-400 mt-1">
+                        {settings.service_area_zips?.length || 0} valid zips found.
+                    </p>
+                </div>
+
+                <button
+                    onClick={() => handleSaveSettings()}
+                    className="btn btn-primary w-full flex justify-center items-center gap-2"
+                    disabled={saving}
+                >
+                    <Save size={18} />
+                    {saving ? 'Saving...' : 'Save Schedule & Area'}
+                </button>
+            </section>
+
+
+
+            {/* Debug Section for Trial Testing */}
+            {process.env.NODE_ENV !== 'production' && (
+                <section className="card" style={{ padding: 'var(--space-6)', marginBottom: 'var(--space-4)', border: '2px dashed #f59e0b', backgroundColor: '#fffbeb' }}>
+                    <h3 className="text-h3" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--space-4)', color: '#b45309' }}>
+                        Debug: Trial Time Machine
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                        <button
+                            onClick={async () => {
+                                await fetch('/api/debug/time-machine', {
+                                    method: 'POST',
+                                    body: JSON.stringify({ action: 'warn_now' }),
+                                    headers: { 'Content-Type': 'application/json' }
+                                });
+                                localStorage.removeItem('crm_has_hydrated');
+                                sessionStorage.removeItem('trial_warned');
+                                window.location.reload();
+                            }}
+                            className="bg-yellow-500 text-white font-bold py-2 px-4 rounded text-sm hover:bg-yellow-600"
+                        >
+                            Warn (Day 12)
+                        </button>
+                        <button
+                            onClick={async () => {
+                                await fetch('/api/debug/time-machine', {
+                                    method: 'POST',
+                                    body: JSON.stringify({ action: 'expire_now' }),
+                                    headers: { 'Content-Type': 'application/json' }
+                                });
+                                localStorage.removeItem('crm_has_hydrated');
+                                sessionStorage.removeItem('trial_warned');
+                                window.location.reload();
+                            }}
+                            className="bg-red-500 text-white font-bold py-2 px-4 rounded text-sm hover:bg-red-600"
+                        >
+                            Expire Now
+                        </button>
+                        <button
+                            onClick={async () => {
+                                await fetch('/api/debug/time-machine', {
+                                    method: 'POST',
+                                    body: JSON.stringify({ action: 'reset' }),
+                                    headers: { 'Content-Type': 'application/json' }
+                                });
+                                localStorage.removeItem('crm_has_hydrated');
+                                sessionStorage.removeItem('trial_warned');
+                                window.location.reload();
+                            }}
+                            className="bg-green-500 text-white font-bold py-2 px-4 rounded text-sm hover:bg-green-600"
+                        >
+                            Reset
+                        </button>
+                    </div>
+                </section>
+            )}
+
+            {msg && (
+                <div style={{
+                    position: 'fixed',
+                    bottom: '20px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    backgroundColor: 'var(--surface-overlay)',
+                    padding: '8px 16px',
+                    borderRadius: '20px',
+                    boxShadow: 'var(--shadow-lg)',
+                    color: msg.includes('Failed') ? 'var(--error)' : 'var(--success)'
+                }}>
+                    {msg}
+                </div>
+            )}
+
+            {/* Logout Section */}
+            <section style={{ marginTop: 'var(--space-8)', paddingTop: 'var(--space-8)', borderTop: '1px solid var(--border-subtle)' }}>
+                <button
+                    onClick={handleLogout}
+                    className="btn"
+                    style={{
+                        width: '100%',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        gap: '8px',
+                        backgroundColor: '#fee2e2',
+                        color: '#dc2626',
+                        border: '1px solid #fca5a5',
+                        fontWeight: 600,
+                        padding: '16px',
+                        borderRadius: 'var(--radius-lg)'
+                    }}
+                >
+                    <LogOut size={20} />
+                    Log Out
+                </button>
+                <p style={{ textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '12px', marginTop: '12px' }}>
+                    Logged in as {settings.id === 'default' ? 'Owner' : settings.id}
+                </p>
+            </section>
+
+            <InstallPwaPrompt
+                isOpen={showInstallPrompt}
+                onClose={() => setShowInstallPrompt(false)}
+            />
+        </div>
+    );
+}

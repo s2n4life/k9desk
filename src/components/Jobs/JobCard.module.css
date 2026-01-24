@@ -1,0 +1,112 @@
+.jobCard {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    margin-bottom: var(--space-3);
+    position: relative;
+    overflow: hidden;
+}
+
+.touchArea {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--space-1);
+}
+
+.timeBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-weight: 600;
+    background: var(--bg-app);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+}
+
+.stateBadge {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+}
+
+.customerName {
+    font-size: var(--font-size-lg);
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.metaRow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.icon {
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+}
+
+.petNames {
+    font-weight: 500;
+}
+
+.address {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.petsContainer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.addressContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.navigateLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--font-size-sm);
+    color: var(--brand-primary);
+    font-weight: 500;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: none;
+    flex-shrink: 0;
+}
+
+.navigateLink:hover {
+    text-decoration: underline;
+}
+
+.actionBtn {
+    /* Whitespace handled by gap */
+    height: 48px;
+    font-size: var(--font-size-sm);
+}

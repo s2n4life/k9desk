@@ -1,0 +1,25 @@
+import { getDB } from './index';
+import { SyncActionType, EntityType, SyncQueueItem } from './schema';
+import { v4 as uuidv4 } from 'uuid';
+
+export async function addToSyncQueue(
+    action: SyncActionType,
+    entityType: EntityType,
+    entityId: string,
+    data?: any
+) {
+    const db = await getDB();
+    const item: SyncQueueItem = {
+        id: uuidv4(),
+        action,
+        entityType,
+        entityId,
+        data,
+        timestamp: Date.now(),
+        retryCount: 0,
+    };
+    await db.add('syncQueue', item);
+
+    // Trigger immediate sync attempt if online? 
+    // For now, we rely on the background poller or subsequent triggers.
+}

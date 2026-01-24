@@ -1,0 +1,180 @@
+@import './variables.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+    height: 100%;
+    font-family: var(--font-sans);
+    background-color: var(--bg-app);
+    color: var(--text-primary);
+    font-smooth: always;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+/* Base utilities for commonly used premium UI patterns */
+
+.container {
+    max-width: 100%;
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+    margin-left: auto;
+    margin-right: auto;
+}
+
+@media (min-width: 768px) {
+    .container {
+        max-width: 768px;
+        /* Tablet/Desktop constrained width for app-like feel */
+    }
+}
+
+/* Typography Utilities */
+.text-h1 {
+    font-size: var(--font-size-3xl);
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    background: var(--brand-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: var(--space-4);
+}
+
+.text-h2 {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    margin-bottom: var(--space-3);
+}
+
+.text-body {
+    font-size: var(--font-size-base);
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+.text-sm {
+    font-size: var(--font-size-sm);
+    color: var(--text-tertiary);
+}
+
+/* Card Utility */
+.card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: var(--space-4);
+    transition: transform var(--duration-fast) var(--ease-spring), box-shadow var(--duration-fast) ease;
+    border: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.card:active {
+    transform: scale(0.98);
+}
+
+/* Button Utility */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 56px;
+    /* Large touch target */
+    padding: 0 var(--space-6);
+    border-radius: var(--radius-full);
+    font-weight: 600;
+    font-size: var(--font-size-base);
+    transition: all var(--duration-fast) ease;
+    cursor: pointer;
+    border: none;
+    width: 100%;
+    /* Mobile first */
+}
+
+.btn-primary {
+    background: var(--brand-gradient);
+    color: var(--text-on-brand);
+    box-shadow: 0 4px 12px rgba(100, 50, 255, 0.3);
+}
+
+.btn-primary:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 6px rgba(100, 50, 255, 0.2);
+}
+
+.btn-secondary {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--text-primary);
+}
+
+.btn-icon {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 50%;
+}
+
+/* Layout Hacks */
+.main-layout {
+    padding-bottom: 80px;
+    /* Space for bottom nav */
+    min-height: 100vh;
+}
+
+/* Accessibility & Mobile Input Improvements */
+input,
+textarea,
+select {
+    font-size: var(--font-size-lg) !important;
+    /* Force large text */
+    padding: var(--space-4) !important;
+    min-height: 60px;
+    /* Larger touch target */
+}
+
+/* Ensure our .card inputs also get this treatment and don't have conflicting padding */
+input.card,
+textarea.card,
+select.card {
+    width: 100%;
+    font-family: inherit;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    /* Slight border for visibility */
+}
+
+/* Make labels larger too */
+label {
+    font-size: var(--font-size-base);
+    margin-bottom: var(--space-2);
+    display: block;
+}
+
+/* Specific override for the .input class used in Settings to match */
+.input {
+    width: 100%;
+    font-size: var(--font-size-lg);
+    padding: var(--space-4);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--text-tertiary);
+    background: var(--bg-card);
+    min-height: 60px;
+}
+
+/* Utility to force left padding when an icon is present, overriding the global !important */
+.input-with-icon {
+    padding-left: 56px !important;
+}
