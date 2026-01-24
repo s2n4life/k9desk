@@ -43,6 +43,21 @@ export default function TermsOfService() {
                         <h2 className="text-xl font-semibold text-gray-900 mb-3">6. Governing Law</h2>
                         <p>These Terms shall be governed by and construed in accordance with the laws of the United States. Any disputes shall be resolved in the appropriate courts.</p>
                     </section>
+
+                    <section>
+                        <h2 className="text-xl font-semibold text-gray-900 mb-3">7. Refund Policy</h2>
+                        <p>K9Desk offers a 14-day free trial to ensure the service meets your needs. Because our products are digital services, we generally do not offer refunds once a paid subscription has commenced. However, if you believe there has been a billing error, please contact support@k9desk.com within 30 days of the charge.</p>
+                    </section>
+
+                    <section>
+                        <h2 className="text-xl font-semibold text-gray-900 mb-3">8. Cancellation Policy</h2>
+                        <p>You may cancel your subscription at any time through your Account Settings or by contacting support. Upon cancellation, you will continue to have access to the service until the end of your current billing period. No further charges will be made after cancellation.</p>
+                    </section>
+
+                    <section>
+                        <h2 className="text-xl font-semibold text-gray-900 mb-3">9. Return Policy</h2>
+                        <p>As K9Desk is a provider of digital software-as-a-service (SaaS) products, there are no physical goods to return. No return policy is applicable.</p>
+                    </section>
                 </div>
             </div>
         </div>
