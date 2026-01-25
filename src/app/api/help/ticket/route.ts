@@ -3,21 +3,19 @@ import { resolveUserContext } from '@/lib/help/context-resolver';
 import { Resend } from 'resend';
 import nodemailer from 'nodemailer';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-// Create Nodemailer Transporter for Namecheap SMTP
-const transporter = nodemailer.createTransport({
-    host: 'mail.privateemail.com',
-    port: 465,
-    secure: true, // true for 465, false for other ports
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASSWORD,
-    },
-});
-
 export async function POST(req: Request) {
     try {
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        const transporter = nodemailer.createTransport({
+            host: 'mail.privateemail.com',
+            port: 465,
+            secure: true,
+            auth: {
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASSWORD,
+            },
+        });
+
         const { subject, message } = await req.json();
 
         // 1. Resolve Account Context
