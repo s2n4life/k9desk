@@ -30,18 +30,18 @@ export default function LandingPage() {
                     <div className="lg:grid lg:grid-cols-12 lg:gap-8 items-center">
                         <div className="sm:text-center md:max-w-2xl md:mx-auto lg:col-span-7 lg:text-left lg:max-w-none">
                             <h1 className="text-4xl tracking-tight font-extrabold text-brand-primary sm:text-5xl md:text-6xl lg:text-5xl xl:text-6xl">
-                                Run Your Entire Mobile Grooming Empire From The <span className="text-brand-secondary">Front Seat.</span>
+                                Run Your Mobile Grooming Business From The <span className="text-brand-secondary">Front Seat.</span>
                             </h1>
                             <p className="mt-6 text-base text-gray-600 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-8 md:text-xl lg:mx-0 lg:max-w-2xl">
-                                Stop playing phone tag. Stop manual reminders. Stop losing money on no-shows. The premier CRM built for the 1% of Mobile Groomers who want their life back.
+                                Stop playing phone tag. Stop manual reminders. Stop losing money to no-shows.
                             </p>
-                            <div className="mt-8 sm:max-w-lg sm:mx-auto sm:text-center lg:text-left lg:mx-0">
+                            <div className="mt-8 flex flex-col items-center lg:items-center text-center sm:max-w-lg sm:mx-auto lg:mx-auto">
                                 <Link href="/signup" className="inline-flex items-center justify-center px-8 py-4 border border-transparent text-base font-medium rounded-full text-white bg-brand-secondary hover:bg-orange-600 md:text-lg md:px-10 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
-                                    START MY 14-DAY FREE TRIAL
+                                    Start Free Trial — Get My Time Back
                                     <ArrowRight className="ml-2 -mr-1 w-5 h-5" />
                                 </Link>
                                 <p className="mt-3 text-sm text-gray-500">
-                                    No credit card required. Setup takes 60 seconds.
+                                    No credit card. Set up in under 60 seconds.
                                 </p>
                             </div>
                         </div>
@@ -73,21 +73,21 @@ export default function LandingPage() {
                                 <Zap size={24} />
                             </div>
                             <h3 className="font-semibold text-lg mb-2">Driving & Texting?</h3>
-                            <p className="text-gray-600">Trying to reply to 'Can you fit Bella in?' while merging onto the highway.</p>
+                            <p className="text-gray-600">Trying to reply to “Can you fit Bella in?” while merging onto the highway.</p>
                         </div>
                         <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
                             <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-red-600">
                                 <Calendar size={24} />
                             </div>
                             <h3 className="font-semibold text-lg mb-2">Calendar Chaos?</h3>
-                            <p className="text-gray-600">Lost track of who is due? Double booked yourself? Or worse, sitting in a driveway for a no-show?</p>
+                            <p className="text-gray-600">Double bookings. Missed payments. Sitting in a driveway for a no-show.</p>
                         </div>
                         <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
                             <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-red-600">
                                 <Shield size={24} />
                             </div>
-                            <h3 className="font-semibold text-lg mb-2">Burnout is Real.</h3>
-                            <p className="text-gray-600">You aren't just a groomer. You're a scheduler, accountant, and driver. And you are exhausted.</p>
+                            <h3 className="font-semibold text-lg mb-2">Burnout Is Real.</h3>
+                            <p className="text-gray-600">You’re not just a groomer. You’re the scheduler, accountant, and driver. And you’re exhausted.</p>
                         </div>
                     </div>
                 </div>
@@ -102,7 +102,7 @@ export default function LandingPage() {
                             Meet K9desk: Your Digital Front Desk.
                         </h3>
                         <p className="mt-4 max-w-2xl text-xl text-gray-500 mx-auto">
-                            It simplifies your workflow and reduces cognitive load, so you can focus on the dogs (and the profits).
+                            It runs the busywork so you can focus on the dogs — and the money.
                         </p>
                     </div>
 
@@ -110,22 +110,22 @@ export default function LandingPage() {
                         <FeatureCard
                             icon={<Zap className="w-6 h-6 text-white" />}
                             title="1-Click Quick Texts"
-                            desc="Pre-fill reminders and updates instantly. You hit send, you stay in control. No bots, no accidents."
+                            desc="Send reminders, updates, and payment requests in seconds — without typing while driving."
                         />
                         <FeatureCard
                             icon={<Calendar className="w-6 h-6 text-white" />}
                             title="Lead Capture Agent"
-                            desc="A beautiful online booking page collects new clients. You review and book them from your Leads tab on your terms."
+                            desc="A simple booking page collects requests while you’re working. You approve and schedule them on your terms."
                         />
                         <FeatureCard
                             icon={<Shield className="w-6 h-6 text-white" />}
                             title="Revenue Tracking"
-                            desc="Log cash, Zelle, or Venmo payments in seconds. Send professional payment requests with one tap."
+                            desc="See who’s paid, who hasn’t, and what’s still outstanding — without spreadsheets or guesswork."
                         />
                         <FeatureCard
                             icon={<Star className="w-6 h-6 text-white" />}
                             title="Reputation Booster"
-                            desc="Finish the job and instantly text a review link. Turn happy customers into 5-star reviews effortlessly."
+                            desc="Finish the job and instantly send a review link. Turn happy clients into 5-star reviews automatically."
                         />
                     </div>
                 </div>
@@ -137,16 +137,16 @@ export default function LandingPage() {
                     <h2 className="text-3xl font-bold mb-12">Join The 1% of Mobile Groomers</h2>
                     <div className="grid md:grid-cols-3 gap-8">
                         <Testimonial
-                            quote="I used to spend 2 hours a night texting clients. Now I spend 2 minutes. My revenue went up 30% in month one."
-                            author="Sarah, Austin TX"
+                            quote="“I used to spend 2 hours a night texting clients. Now I spend 2 minutes. My revenue went up 30% in month one.”"
+                            author="Sarah, Mobile Groomer · Austin, TX"
                         />
                         <Testimonial
-                            quote="The best $49 I spend every month. It pays for itself with one saved no-show."
-                            author="Mike, K9 Cuts"
+                            quote="“The best $49 I spend every month. It pays for itself with one avoided no-show.”"
+                            author="Mike, Owner · K9 Cuts"
                         />
                         <Testimonial
-                            quote="Finally, an app that actually works on my phone while I'm in the van. A total game changer."
-                            author="Jessica, Paws Mobile"
+                            quote="“Finally an app that actually works on my phone while I’m in the van.”"
+                            author="Jessica, Mobile Groomer · Phoenix, AZ"
                         />
                     </div>
                 </div>
@@ -163,6 +163,9 @@ export default function LandingPage() {
                             <h2 className="text-3xl font-extrabold text-gray-900">
                                 Run Your Business
                             </h2>
+                            <p className="mt-4 text-brand-primary font-medium italic">
+                                Most groomers make this back with one avoided no-show.
+                            </p>
                             <div className="mt-4 flex justify-center items-baseline text-6xl font-extrabold text-brand-secondary">
                                 $49
                                 <span className="ml-1 text-2xl font-medium text-gray-500">/mo</span>
@@ -179,7 +182,7 @@ export default function LandingPage() {
                             </ul>
                             <div className="mt-8">
                                 <Link href="/signup" className="block w-full flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-white bg-brand-secondary hover:bg-orange-600 shadow transition">
-                                    CLAIM MY SPOT - START FREE TRIAL
+                                    Claim My Spot — Start Free Trial
                                 </Link>
                                 <p className="mt-4 text-center text-xs text-gray-500">
                                     Only 50 spots available this month.
@@ -189,6 +192,15 @@ export default function LandingPage() {
                     </div>
                 </div>
             </section>
+
+            {/* Final Trust Line */}
+            <div className="bg-white py-8 border-t border-gray-100">
+                <div className="container mx-auto px-4 text-center">
+                    <p className="text-lg font-medium text-gray-700">
+                        Built specifically for mobile groomers — not salons, not franchises.
+                    </p>
+                </div>
+            </div>
 
             {/* Footer */}
             <footer className="bg-white py-12 border-t border-gray-100">
