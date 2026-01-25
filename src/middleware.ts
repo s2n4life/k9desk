@@ -37,7 +37,7 @@ export async function middleware(request: NextRequest) {
 
     // 1. If user is NOT logged in, and tries to visit a protected route
     // Protected routes: Everything EXCEPT public paths (/, /login, /signup, /auth/*) and static assets
-    const isPublicPath = path === '/' || path === '/login' || path === '/signup' || path.startsWith('/auth')
+    const isPublicPath = path === '/' || path === '/login' || path === '/signup' || path === '/reset-password' || path.startsWith('/auth')
     const isStaticAsset = path.startsWith('/_next') || path.startsWith('/static') || path.includes('.')
 
     if (!user && !isPublicPath && !isStaticAsset) {
