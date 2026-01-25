@@ -58,7 +58,7 @@ export default function AdminDashboard() {
             <Shield size={64} style={{ color: 'var(--text-tertiary)', marginBottom: '1rem' }} />
             <h1>Access Denied</h1>
             <p>You do not have permission to view this page.</p>
-            <Link href="/" className="btn btn-primary" style={{ marginTop: '1rem', display: 'inline-block' }}>Go Home</Link>
+            <Link href="/dashboard" className="btn btn-primary" style={{ marginTop: '1rem', display: 'inline-block' }}>Go Home</Link>
         </div>
     );
 

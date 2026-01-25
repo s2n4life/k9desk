@@ -106,16 +106,28 @@ export function HelpDrawer({ isOpen, onClose }: { isOpen: boolean, onClose: () =
         }
     };
 
-    const handleTicketSubmit = (e: React.FormEvent) => {
+    const handleTicketSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
-        // Simulate API call
-        setTimeout(() => {
-            alert('Support ticket sent successfully! We will get back to you soon.');
-            setIsSubmitting(false);
+
+        try {
+            const res = await fetch('/api/help/ticket', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(ticketData)
+            });
+
+            if (!res.ok) throw new Error('Failed to send ticket');
+
+            alert('Support ticket sent successfully! We will get back to you soon. In the meantime, feel free to try talking to our K9 Assistant bot below for immediate answers!');
             setTicketData({ subject: '', message: '' });
             setView('faq');
-        }, 1500);
+        } catch (error) {
+            console.error('[HelpDrawer] Ticket error:', error);
+            alert('I had trouble sending your message. Please try again or check your internet connection.');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     // Should we show the "Email Support" button?
@@ -208,6 +220,21 @@ export function HelpDrawer({ isOpen, onClose }: { isOpen: boolean, onClose: () =
 
                     {view === 'ticket' && (
                         <form onSubmit={handleTicketSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                            <div style={{
+                                background: 'var(--brand-primary-light)',
+                                padding: 'var(--space-3)',
+                                borderRadius: 'var(--radius-md)',
+                                marginBottom: 'var(--space-2)',
+                                border: '1px solid var(--brand-primary)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px'
+                            }}>
+                                <MessageCircle size={20} color="var(--brand-primary)" />
+                                <p style={{ fontSize: '13px', color: 'var(--brand-primary)', margin: 0, fontWeight: 500 }}>
+                                    For faster answers, try chatting with our <button type="button" onClick={() => setView('bot')} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--brand-primary)', textDecoration: 'underline', fontWeight: 700, cursor: 'pointer' }}>K9 Assistant</button> first!
+                                </p>
+                            </div>
                             <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: 'var(--space-2)' }}>
                                 Facing a specific issue? Send us a message and our team will get back to you within 24 hours.
                             </p>

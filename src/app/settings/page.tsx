@@ -222,7 +222,7 @@ export default function SettingsPage() {
     return (
         <div className="container" style={{ paddingBottom: '100px' }}>
             <header style={{ marginBottom: 'var(--space-6)', paddingTop: 'var(--space-6)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                <Link href="/" style={{ display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}>
+                <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}>
                     <ChevronLeft size={24} />
                     Back
                 </Link>

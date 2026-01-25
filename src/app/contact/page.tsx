@@ -5,9 +5,9 @@ export default function ContactPage() {
     return (
         <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-3xl mx-auto bg-white p-8 rounded-xl shadow-sm">
-                <Link href="/" className="inline-flex items-center text-sm text-brand-primary mb-8 hover:underline">
+                <Link href="/dashboard" className="inline-flex items-center text-sm text-brand-primary mb-8 hover:underline">
                     <ChevronLeft size={16} className="mr-1" />
-                    Back to Home
+                    Back to Dashboard
                 </Link>
 
                 <h1 className="text-3xl font-bold text-gray-900 mb-6">Contact Us</h1>

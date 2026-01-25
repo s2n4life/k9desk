@@ -6,6 +6,7 @@ export interface UserContext {
     subscription: string;
     recentJobs: any[];
     leadsCount: number;
+    userEmail: string;
 }
 
 /**
@@ -48,7 +49,8 @@ export async function resolveUserContext(): Promise<UserContext | null> {
             businessName: business.name || 'Your Business',
             subscription: business.subscription_status || 'free',
             recentJobs: jobs || [],
-            leadsCount: leadsCount || 0
+            leadsCount: leadsCount || 0,
+            userEmail: user.email || ''
         };
     } catch (error) {
         console.error('[ContextResolver] Error:', error);
