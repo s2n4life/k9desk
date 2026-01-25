@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 
-type AuthMode = 'login' | 'signup';
+type AuthMode = 'login' | 'signup' | 'forgot-password';
 
 export default function AuthForm({ initialMode = 'login' }: { initialMode?: AuthMode }) {
     const [mode, setMode] = useState<AuthMode>(initialMode);
@@ -12,12 +12,14 @@ export default function AuthForm({ initialMode = 'login' }: { initialMode?: Auth
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [message, setMessage] = useState<string | null>(null);
     const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
+        setMessage(null);
 
         try {
             if (mode === 'signup') {
@@ -26,17 +28,20 @@ export default function AuthForm({ initialMode = 'login' }: { initialMode?: Auth
                     password,
                 });
                 if (error) throw error;
-                // Success: In a real app with email confirmation, we'd show a "Check email" message.
-                // If "Auto Confirm" is on in Supabase (dev), they are logged in.
-                // For this SaaS flow, we assume they might need to be redirected to Onboarding/Payment.
                 router.push('/dashboard');
-            } else {
+            } else if (mode === 'login') {
                 const { error } = await supabase.auth.signInWithPassword({
                     email,
                     password,
                 });
                 if (error) throw error;
                 router.push('/dashboard');
+            } else if (mode === 'forgot-password') {
+                const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                    redirectTo: `${window.location.origin}/reset-password`,
+                });
+                if (error) throw error;
+                setMessage('Password reset link sent! Please check your email.');
             }
         } catch (err: any) {
             setError(err.message);
@@ -48,14 +53,15 @@ export default function AuthForm({ initialMode = 'login' }: { initialMode?: Auth
     return (
         <div className="card" style={{ width: '100%', maxWidth: '400px', margin: '0 auto' }}>
             <div style={{ textAlign: 'center', marginBottom: 'var(--space-8)' }}>
-                {/* Optional: Add Logo Here if available */}
                 <h2 className="text-h1" style={{ fontSize: '2rem', marginBottom: 'var(--space-2)' }}>
-                    {mode === 'login' ? 'Welcome Back' : 'Create Account'}
+                    {mode === 'login' && 'Welcome Back'}
+                    {mode === 'signup' && 'Create Account'}
+                    {mode === 'forgot-password' && 'Reset Password'}
                 </h2>
                 <p className="text-body" style={{ color: 'var(--text-secondary)' }}>
-                    {mode === 'login'
-                        ? 'Sign in to access your dashboard'
-                        : 'Start your 14-day free trial'}
+                    {mode === 'login' && 'Sign in to access your dashboard'}
+                    {mode === 'signup' && 'Start your 14-day free trial'}
+                    {mode === 'forgot-password' && 'Enter your email to receive a reset link'}
                 </p>
             </div>
 
@@ -73,6 +79,20 @@ export default function AuthForm({ initialMode = 'login' }: { initialMode?: Auth
                 </div>
             )}
 
+            {message && (
+                <div style={{
+                    marginBottom: 'var(--space-4)',
+                    padding: 'var(--space-3)',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    color: '#059669',
+                    fontSize: 'var(--font-size-sm)',
+                    textAlign: 'center'
+                }}>
+                    {message}
+                </div>
+            )}
+
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                 <div>
                     <label style={{ fontWeight: 600 }}>Email Address</label>
@@ -87,18 +107,38 @@ export default function AuthForm({ initialMode = 'login' }: { initialMode?: Auth
                     />
                 </div>
 
-                <div>
-                    <label style={{ fontWeight: 600 }}>Password</label>
-                    <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        className="input"
-                        placeholder="••••••••"
-                        style={{ width: '100%' }}
-                    />
-                </div>
+                {mode !== 'forgot-password' && (
+                    <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <label style={{ fontWeight: 600 }}>Password</label>
+                            {mode === 'login' && (
+                                <button
+                                    type="button"
+                                    onClick={() => setMode('forgot-password')}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: 'var(--brand-primary)',
+                                        fontSize: 'var(--font-size-sm)',
+                                        cursor: 'pointer',
+                                        padding: 0
+                                    }}
+                                >
+                                    Forgot password?
+                                </button>
+                            )}
+                        </div>
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            className="input"
+                            placeholder="••••••••"
+                            style={{ width: '100%' }}
+                        />
+                    </div>
+                )}
 
                 <button
                     type="submit"
@@ -106,21 +146,36 @@ export default function AuthForm({ initialMode = 'login' }: { initialMode?: Auth
                     className="btn btn-primary"
                     style={{ marginTop: 'var(--space-2)' }}
                 >
-                    {loading ? 'Processing...' : (mode === 'login' ? 'Sign In' : 'Create Account')}
+                    {loading ? 'Processing...' : (
+                        mode === 'login' ? 'Sign In' : (mode === 'signup' ? 'Create Account' : 'Send Reset Link')
+                    )}
                 </button>
+
+                {mode === 'forgot-password' && (
+                    <button
+                        type="button"
+                        onClick={() => setMode('login')}
+                        className="btn btn-secondary"
+                        style={{ background: 'transparent', border: 'none' }}
+                    >
+                        Back to Login
+                    </button>
+                )}
             </form>
 
             <div style={{ marginTop: 'var(--space-6)', textAlign: 'center' }}>
                 <p className="text-sm" style={{ marginBottom: 'var(--space-2)' }}>
-                    {mode === 'login' ? "Don't have an account?" : "Already have an account?"}
+                    {mode === 'login' ? "Don't have an account?" : (mode === 'signup' ? "Already have an account?" : "")}
                 </p>
-                <button
-                    onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-                    className="btn btn-secondary"
-                    style={{ height: '44px', background: 'transparent', border: '1px solid var(--border-subtle, #e5e7eb)' }}
-                >
-                    {mode === 'login' ? 'Create free account' : 'Sign in to existing account'}
-                </button>
+                {mode !== 'forgot-password' && (
+                    <button
+                        onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+                        className="btn btn-secondary"
+                        style={{ height: '44px', background: 'transparent', border: '1px solid var(--border-subtle, #e5e7eb)' }}
+                    >
+                        {mode === 'login' ? 'Create free account' : 'Sign in to existing account'}
+                    </button>
+                )}
             </div>
         </div>
     );
