@@ -36,14 +36,24 @@ function ResetPasswordForm() {
                 // 2. Handle PKCE Flow (code in query params)
                 const code = searchParams.get('code');
                 if (code) {
-                    console.log('Detected PKCE code, exchanging for session...');
-                    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-                    if (exchangeError) {
-                        setError('Could not establish session from link. It may have expired.');
-                        setCheckingSession(false);
-                        return;
+                    // Check if we already have a session BEFORE trying to exchange the code
+                    // (Middleware might have already exchanged it)
+                    const { data: { session: checkSession } } = await supabase.auth.getSession();
+
+                    if (!checkSession?.user) {
+                        console.log('Detected PKCE code, exchanging for session...');
+                        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+                        if (exchangeError) {
+                            // Last ditch effort: check if session exists now (maybe middleware caught it mid-flight)
+                            const { data: { session: finalCheck } } = await supabase.auth.getSession();
+                            if (!finalCheck?.user) {
+                                setError('Could not establish session from link. It may have expired.');
+                                setCheckingSession(false);
+                                return;
+                            }
+                        }
                     }
-                    console.log('Session established via code');
+                    console.log('Session verified/established via code');
                 }
 
                 // 3. Verify session (handles both Implicit flow hash and PKCE session)
