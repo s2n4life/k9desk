@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 function ResetPasswordForm() {
     const [password, setPassword] = useState('');
@@ -12,64 +12,24 @@ function ResetPasswordForm() {
     const [error, setError] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
     const router = useRouter();
-    const searchParams = useSearchParams();
     const supabase = createClient();
 
     useEffect(() => {
-        const verifyFlow = async () => {
+        const verifySession = async () => {
             setCheckingSession(true);
             setError(null);
 
             try {
-                // 1. Check for errors in the URL (like expired links)
-                // Both query params and hash might contain errors
-                const hash = window.location.hash;
-                const errorParam = searchParams.get('error_description') ||
-                    new URLSearchParams(hash.substring(1)).get('error_description');
+                // The session should ALREADY be established by /auth/callback
+                // We just need to verify it here.
+                const { data: { user } } = await supabase.auth.getUser();
 
-                if (errorParam) {
-                    setError(errorParam.replace(/\+/g, ' '));
-                    setCheckingSession(false);
-                    return;
-                }
-
-                // 2. Handle PKCE Flow (code in query params)
-                const code = searchParams.get('code');
-                if (code) {
-                    // Check if we already have a session BEFORE trying to exchange the code
-                    // (Middleware might have already exchanged it)
-                    const { data: { session: checkSession } } = await supabase.auth.getSession();
-
-                    if (!checkSession?.user) {
-                        console.log('Detected PKCE code, exchanging for session...');
-                        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-                        if (exchangeError) {
-                            // Last ditch effort: check if session exists now (maybe middleware caught it mid-flight)
-                            const { data: { session: finalCheck } } = await supabase.auth.getSession();
-                            if (!finalCheck?.user) {
-                                setError('Could not establish session from link. It may have expired.');
-                                setCheckingSession(false);
-                                return;
-                            }
-                        }
-                    }
-                    console.log('Session verified/established via code');
-                }
-
-                // 3. Verify session (handles both Implicit flow hash and PKCE session)
-                // We wait a tiny bit for the Supabase client to finish parsing cookies/hash
-                let sessionVerified = false;
-                for (let i = 0; i < 5; i++) {
+                if (!user) {
+                    // Fallback check in case of slight delay
                     const { data: { session } } = await supabase.auth.getSession();
-                    if (session?.user) {
-                        sessionVerified = true;
-                        break;
+                    if (!session?.user) {
+                        setError('Auth session missing! Please request a new reset link.');
                     }
-                    await new Promise(r => setTimeout(r, 500));
-                }
-
-                if (!sessionVerified) {
-                    setError('Auth session missing! Please request a new reset link.');
                 }
             } catch (err: any) {
                 setError('An unexpected error occurred. Please try again.');
@@ -78,8 +38,8 @@ function ResetPasswordForm() {
             }
         };
 
-        verifyFlow();
-    }, [searchParams, supabase]);
+        verifySession();
+    }, [supabase]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -130,16 +90,13 @@ function ResetPasswordForm() {
                         Set New Password
                     </h2>
                     <p className="text-body" style={{ color: 'var(--text-secondary)' }}>
-                        {checkingSession ? 'Verifying your identity...' : 'Enter your new password below'}
+                        {checkingSession ? 'Verifying session...' : 'Enter your new password below'}
                     </p>
                 </div>
 
                 {checkingSession ? (
                     <div style={{ textAlign: 'center', padding: 'var(--space-8)' }}>
                         <div className="spinner" style={{ margin: '0 auto' }}></div>
-                        <p style={{ marginTop: 'var(--space-4)', color: 'var(--text-muted)', fontSize: '14px' }}>
-                            Securing your account...
-                        </p>
                     </div>
                 ) : error ? (
                     <div style={{ textAlign: 'center' }}>
@@ -156,13 +113,10 @@ function ResetPasswordForm() {
                         <button
                             onClick={() => window.location.href = '/login'}
                             className="btn btn-secondary"
-                            style={{ width: '100%', marginBottom: 'var(--space-2)' }}
+                            style={{ width: '100%' }}
                         >
                             Back to Login
                         </button>
-                        <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                            Check if you are using the most recent email.
-                        </p>
                     </div>
                 ) : message ? (
                     <div style={{

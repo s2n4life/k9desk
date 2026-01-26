@@ -89,10 +89,11 @@ export async function proxy(request: NextRequest) {
     }
 
     // 3. LOGGED IN REDIRECTS
-    const hasAuthCode = request.nextUrl.searchParams.has('code') ||
+    const hasAuthCode = (request.nextUrl.searchParams.has('code') ||
         request.nextUrl.searchParams.has('error') ||
         request.nextUrl.hash.includes('access_token') ||
-        request.nextUrl.hash.includes('recovery');
+        request.nextUrl.hash.includes('recovery')) &&
+        path !== '/auth/callback';
 
     if (user && !hasAuthCode && (path === '/login' || path === '/signup' || path === '/')) {
         return NextResponse.redirect(new URL('/dashboard', request.url))
