@@ -9,8 +9,7 @@ import { SubscriptionManager } from "@/components/Subscription/SubscriptionManag
 export function AppShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
 
-    // Define public paths where app logic shouldn't run
-    const isPublicPage = pathname === '/' || pathname === '/login' || pathname === '/signup' || pathname?.startsWith('/book/') || pathname === '/payment/success';
+    const isPublicPage = pathname === '/' || pathname === '/login' || pathname === '/signup' || pathname === '/reset-password' || pathname?.startsWith('/auth/') || pathname?.startsWith('/book/') || pathname === '/payment/success';
 
     if (isPublicPage) {
         return (
