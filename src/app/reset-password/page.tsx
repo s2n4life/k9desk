@@ -14,52 +14,44 @@ export default function ResetPasswordPage() {
     const router = useRouter();
 
     useEffect(() => {
-        let authListener: any;
-
         const checkSession = async () => {
             const hash = window.location.hash;
 
-            // Check for error in hash (expired link)
+            // 1. Check for errors in the URL hash (like expired links)
             if (hash.includes('error=')) {
-                if (hash.includes('expired')) {
-                    setError('This reset link has expired. Please request a new one.');
-                } else {
-                    setError('Invalid reset link. Please try again.');
-                }
+                const params = new URLSearchParams(hash.substring(1));
+                const errorDesc = params.get('error_description')?.replace(/\+/g, ' ') || 'Invalid reset link';
+                setError(errorDesc);
                 setCheckingSession(false);
                 return;
             }
 
-            // First check if we already have a user
+            // 2. Check if we have a current session (client-side Supabase handles the hash automatically)
             const { data: { user } } = await supabase.auth.getUser();
+
             if (user) {
                 setCheckingSession(false);
                 return;
             }
 
-            // If not, listen for the session to be established (Supabase auto-logs in from hash)
-            const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-                if (session?.user) {
-                    setError(null);
-                    setCheckingSession(false);
-                }
-            });
-            authListener = subscription;
-
-            // Wait a moment for hash parsing
-            setTimeout(async () => {
-                const { data: { user: finalUser } } = await supabase.auth.getUser();
-                if (!finalUser) {
-                    setError('Auth session missing! Please request a new reset link.');
-                }
+            // 3. Fallback: If no user but there IS a hash, wait just a bit for parsing
+            if (hash.includes('access_token=')) {
+                setTimeout(async () => {
+                    const { data: { user: retryUser } } = await supabase.auth.getUser();
+                    if (retryUser) {
+                        setCheckingSession(false);
+                    } else {
+                        setError('Auth session could not be established. Please try again or request a new link.');
+                        setCheckingSession(false);
+                    }
+                }, 500);
+            } else {
+                setError('Auth session missing! Please request a new reset link.');
                 setCheckingSession(false);
-            }, 3000);
+            }
         };
 
         checkSession();
-        return () => {
-            if (authListener) authListener.unsubscribe();
-        }
     }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
