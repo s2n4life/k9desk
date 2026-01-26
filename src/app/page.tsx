@@ -2,7 +2,13 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { CheckCircle2, Star, ArrowRight, Zap, Shield, Calendar, Users } from 'lucide-react';
 
-export default function LandingPage() {
+import { redirect } from 'next/navigation';
+
+export default function LandingPage({ searchParams }: { searchParams: { code?: string } }) {
+    if (searchParams?.code) {
+        redirect(`/auth/callback?code=${searchParams.code}&next=/reset-password`);
+    }
+
     return (
         <div className="flex flex-col min-h-screen bg-white text-gray-900">
 
