@@ -5,6 +5,8 @@ import { CheckCircle2, Star, ArrowRight, Zap, Shield, Calendar, Users } from 'lu
 import { redirect } from 'next/navigation';
 import { AuthRedirectHandler } from '@/components/auth/AuthRedirectHandler';
 
+export const dynamic = 'force-dynamic';
+
 export default async function LandingPage({ searchParams }: { searchParams: Promise<{ code?: string, error?: string }> }) {
     const params = await searchParams;
 

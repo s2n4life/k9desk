@@ -47,7 +47,7 @@ export async function middleware(request: NextRequest) {
 
     // 2. If user IS logged in, and tries to visit Login/Signup or landing page
     // We redirect them to the Dashboard
-    if (user && (path === '/login' || path === '/signup')) {
+    if (user && (path === '/login' || path === '/signup' || path === '/')) {
         return NextResponse.redirect(new URL('/dashboard', request.url))
     }
 
