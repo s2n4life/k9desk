@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 
@@ -8,9 +8,22 @@ export default function ResetPasswordPage() {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const [checkingSession, setCheckingSession] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
     const router = useRouter();
+
+    useEffect(() => {
+        const checkSession = async () => {
+            const { data: { user }, error: userError } = await supabase.auth.getUser();
+            if (userError || !user) {
+                console.error('Session check failed:', userError?.message);
+                setError('Auth session missing! Please request a new reset link.');
+            }
+            setCheckingSession(false);
+        };
+        checkSession();
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -117,7 +130,7 @@ export default function ResetPasswordPage() {
 
                     <button
                         type="submit"
-                        disabled={loading}
+                        disabled={loading || checkingSession || !!error}
                         className="btn btn-primary"
                         style={{ marginTop: 'var(--space-2)' }}
                     >
