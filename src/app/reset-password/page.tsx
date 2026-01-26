@@ -17,6 +17,19 @@ export default function ResetPasswordPage() {
         let authListener: any;
 
         const checkSession = async () => {
+            const hash = window.location.hash;
+
+            // Check for error in hash (expired link)
+            if (hash.includes('error=')) {
+                if (hash.includes('expired')) {
+                    setError('This reset link has expired. Please request a new one.');
+                } else {
+                    setError('Invalid reset link. Please try again.');
+                }
+                setCheckingSession(false);
+                return;
+            }
+
             // First check if we already have a user
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
@@ -40,7 +53,7 @@ export default function ResetPasswordPage() {
                     setError('Auth session missing! Please request a new reset link.');
                 }
                 setCheckingSession(false);
-            }, 1500);
+            }, 3000);
         };
 
         checkSession();
@@ -97,21 +110,27 @@ export default function ResetPasswordPage() {
                     </p>
                 </div>
 
-                {error && (
-                    <div style={{
-                        marginBottom: 'var(--space-4)',
-                        padding: 'var(--space-3)',
-                        borderRadius: 'var(--radius-md)',
-                        backgroundColor: 'rgba(220, 38, 38, 0.1)',
-                        color: '#dc2626',
-                        fontSize: 'var(--font-size-sm)',
-                        textAlign: 'center'
-                    }}>
-                        {error}
+                {error ? (
+                    <div style={{ textAlign: 'center' }}>
+                        <div style={{
+                            marginBottom: 'var(--space-4)',
+                            padding: 'var(--space-3)',
+                            borderRadius: 'var(--radius-md)',
+                            backgroundColor: 'rgba(220, 38, 38, 0.1)',
+                            color: '#dc2626',
+                            fontSize: 'var(--font-size-sm)'
+                        }}>
+                            {error}
+                        </div>
+                        <button
+                            onClick={() => window.location.href = '/login'}
+                            className="btn"
+                            style={{ fontSize: 'var(--font-size-sm)', textDecoration: 'underline' }}
+                        >
+                            Back to Login
+                        </button>
                     </div>
-                )}
-
-                {message && (
+                ) : message ? (
                     <div style={{
                         marginBottom: 'var(--space-4)',
                         padding: 'var(--space-3)',
@@ -123,44 +142,44 @@ export default function ResetPasswordPage() {
                     }}>
                         {message}
                     </div>
+                ) : !checkingSession && (
+                    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                        <div>
+                            <label style={{ fontWeight: 600 }}>New Password</label>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                className="input"
+                                placeholder="••••••••"
+                                style={{ width: '100%' }}
+                            />
+                        </div>
+
+                        <div>
+                            <label style={{ fontWeight: 600 }}>Confirm New Password</label>
+                            <input
+                                type="password"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                required
+                                className="input"
+                                placeholder="••••••••"
+                                style={{ width: '100%' }}
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="btn btn-primary"
+                            style={{ marginTop: 'var(--space-2)' }}
+                        >
+                            {loading ? 'Updating...' : 'Update Password'}
+                        </button>
+                    </form>
                 )}
-
-                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                    <div>
-                        <label style={{ fontWeight: 600 }}>New Password</label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                            className="input"
-                            placeholder="••••••••"
-                            style={{ width: '100%' }}
-                        />
-                    </div>
-
-                    <div>
-                        <label style={{ fontWeight: 600 }}>Confirm New Password</label>
-                        <input
-                            type="password"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            required
-                            className="input"
-                            placeholder="••••••••"
-                            style={{ width: '100%' }}
-                        />
-                    </div>
-
-                    <button
-                        type="submit"
-                        disabled={loading || checkingSession || !!error}
-                        className="btn btn-primary"
-                        style={{ marginTop: 'var(--space-2)' }}
-                    >
-                        {loading ? 'Updating...' : 'Update Password'}
-                    </button>
-                </form>
             </div>
         </div>
     );

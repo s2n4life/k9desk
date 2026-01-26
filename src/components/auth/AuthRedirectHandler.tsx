@@ -13,7 +13,7 @@ export function AuthRedirectHandler() {
 
         // If we have an access token directly (Implicit flow), just go to reset page
         if (hash.includes('access_token=')) {
-            router.push('/reset-password' + hash);
+            window.location.replace('/reset-password' + hash);
             return;
         }
 
