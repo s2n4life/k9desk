@@ -3,6 +3,7 @@ import { getDB } from '@/lib/db';
 import { supabase } from '@/lib/supabaseClient';
 import { SyncQueueItem } from '@/lib/db/schema';
 import { hydrateLocalDB } from '@/lib/db/hydration';
+import { captureLog } from '@/lib/admin/sentinel';
 
 // Simple "Mutex" to prevent double-syncing
 let isSyncing = false;
@@ -289,8 +290,15 @@ export function useSync() {
                         if (!error) success = true;
                         else console.error('Sync Error Delete:', JSON.stringify(error, null, 2), error);
                     }
-                } catch (err) {
+                } catch (err: any) {
                     console.error('Sync Exception:', err);
+                    await captureLog({
+                        level: 'error',
+                        message: `Sync Exception: ${err.message}`,
+                        stack_trace: err.stack,
+                        metadata: { entityType: item.entityType, action: item.action, entityId: item.entityId },
+                        business_id: businessId
+                    });
                 }
 
                 if (success) {
@@ -307,10 +315,15 @@ export function useSync() {
             }
             setStatus('idle');
 
-        } catch (e) {
-
+        } catch (e: any) {
             console.error('Sync process failed:', e);
             setStatus('error');
+            await captureLog({
+                level: 'error',
+                message: `Sync Process Failed: ${e.message}`,
+                stack_trace: e.stack,
+                metadata: { queueLength: queueLength }
+            });
         } finally {
             isSyncing = false;
         }

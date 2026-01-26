@@ -1,0 +1,222 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+import { useImpersonation } from '@/hooks/useImpersonation';
+import {
+    Users,
+    Search,
+    LogIn,
+    Clock,
+    Calendar,
+    ChevronRight,
+    Star,
+    ShieldCheck,
+    CreditCard
+} from 'lucide-react';
+import { format } from 'date-fns';
+
+type BusinessAccount = {
+    id: string;
+    name: string;
+    owner_id: string;
+    subscription_status: string;
+    trial_end_date: string;
+    created_at: string;
+    owner_email?: string;
+    owner_role?: string;
+};
+
+export default function AdminUsersPage() {
+    const [loading, setLoading] = useState(true);
+    const [accounts, setAccounts] = useState<BusinessAccount[]>([]);
+    const [search, setSearch] = useState('');
+    const { startImpersonation } = useImpersonation();
+
+    useEffect(() => {
+        const loadAccounts = async () => {
+            // Join businesses with profiles to get owner email
+            const { data, error } = await supabase
+                .from('businesses')
+                .select(`
+                    *,
+                    profiles:owner_id (email, role)
+                `)
+                .order('created_at', { ascending: false });
+
+            if (data) {
+                const mapped = data.map((b: any) => ({
+                    ...b,
+                    owner_email: b.profiles?.email,
+                    owner_role: b.profiles?.role
+                }));
+                setAccounts(mapped);
+            }
+            setLoading(false);
+        };
+
+        loadAccounts();
+    }, []);
+
+    const extendTrial = async (id: string) => {
+        const newDate = new Date();
+        newDate.setDate(newDate.getDate() + 14); // Add 14 days
+
+        const { error } = await supabase
+            .from('businesses')
+            .update({
+                trial_end_date: newDate.toISOString(),
+                subscription_status: 'trialing'
+            })
+            .eq('id', id);
+
+        if (!error) {
+            setAccounts(accounts.map(a => a.id === id ? { ...a, trial_end_date: newDate.toISOString(), subscription_status: 'trialing' } : a));
+            alert('Trial extended by 14 days!');
+        }
+    };
+
+    const compAccount = async (id: string) => {
+        if (!confirm('Are you sure you want to COMP this account? This will mark them as ACTIVE without payment.')) return;
+
+        const { error } = await supabase
+            .from('businesses')
+            .update({ subscription_status: 'active' })
+            .eq('id', id);
+
+        if (!error) {
+            setAccounts(accounts.map(a => a.id === id ? { ...a, subscription_status: 'active' } : a));
+            alert('Account COMPed successfully!');
+        }
+    };
+
+    const filteredAccounts = accounts.filter(a =>
+        a.name.toLowerCase().includes(search.toLowerCase()) ||
+        a.owner_email?.toLowerCase().includes(search.toLowerCase())
+    );
+
+    if (loading) return <div style={{ color: '#94a3b8' }}>Loading accounts...</div>;
+
+    return (
+        <div>
+            <header style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#6c5ce7', marginBottom: '8px' }}>
+                        <Users size={24} />
+                        <h1 style={{ fontSize: '1.875rem', fontWeight: 700, margin: 0, color: 'white' }}>Businesses</h1>
+                    </div>
+                    <p style={{ color: '#94a3b8', margin: 0 }}>Manage customer accounts and subscriptions.</p>
+                </div>
+
+                <div style={{ position: 'relative' }}>
+                    <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
+                    <input
+                        type="text"
+                        placeholder="Search by name or email..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        style={{
+                            backgroundColor: '#1e293b',
+                            border: '1px solid #334155',
+                            color: 'white',
+                            padding: '8px 12px 8px 36px',
+                            borderRadius: '8px',
+                            width: '300px',
+                            outline: 'none'
+                        }}
+                    />
+                </div>
+            </header>
+
+            <div className="admin-card" style={{ padding: 0 }}>
+                {filteredAccounts.map(account => {
+                    const isTrialing = account.subscription_status === 'trialing' || account.subscription_status === 'trial';
+                    const isOverdue = account.subscription_status === 'past_due' || (isTrialing && new Date(account.trial_end_date) < new Date());
+
+                    return (
+                        <div key={account.id} style={{
+                            padding: '24px',
+                            borderBottom: '1px solid #1e293b',
+                            display: 'grid',
+                            gridTemplateColumns: 'minmax(200px, 1.5fr) 1fr 1fr 1.5fr',
+                            alignItems: 'center',
+                            gap: '24px'
+                        }}>
+                            <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                    <span style={{ fontWeight: 600, color: 'white' }}>{account.name}</span>
+                                    {account.owner_role === 'super_admin' && (
+                                        <div title="Super Admin" style={{ color: '#6c5ce7', display: 'flex', alignItems: 'center' }}>
+                                            <ShieldCheck size={16} />
+                                        </div>
+                                    )}
+                                </div>
+                                <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>{account.owner_email}</div>
+                                <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '4px' }}>Joined {format(new Date(account.created_at), 'MMM d, yyyy')}</div>
+                            </div>
+
+                            <div>
+                                <div style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    padding: '4px 12px',
+                                    borderRadius: '12px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    backgroundColor: account.subscription_status === 'active' ? '#10b98120' : isOverdue ? '#ef444420' : '#6c5ce720',
+                                    color: account.subscription_status === 'active' ? '#10b981' : isOverdue ? '#ef4444' : '#6c5ce7',
+                                    textTransform: 'uppercase'
+                                }}>
+                                    {account.subscription_status}
+                                </div>
+                            </div>
+
+                            <div style={{ fontSize: '0.875rem' }}>
+                                {isTrialing ? (
+                                    <div style={{ color: isOverdue ? '#ef4444' : '#94a3b8' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <Clock size={14} /> Trial Ends:
+                                        </div>
+                                        <div style={{ fontWeight: 500 }}>{format(new Date(account.trial_end_date), 'MMM d')}</div>
+                                    </div>
+                                ) : (
+                                    <div style={{ color: '#94a3b8' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <Calendar size={14} /> Active Since:
+                                        </div>
+                                        <div style={{ fontWeight: 500 }}>{format(new Date(account.created_at), 'MMM d')}</div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                <button
+                                    onClick={() => extendTrial(account.id)}
+                                    className="btn-admin-primary"
+                                    style={{ padding: '6px 12px', fontSize: '0.75rem', backgroundColor: '#334155' }}
+                                >
+                                    Extend Trial
+                                </button>
+                                <button
+                                    onClick={() => compAccount(account.id)}
+                                    className="btn-admin-primary"
+                                    style={{ padding: '6px 12px', fontSize: '0.75rem', backgroundColor: '#334155' }}
+                                >
+                                    Comp Account
+                                </button>
+                                <button
+                                    onClick={() => startImpersonation(account.id)}
+                                    className="btn-admin-primary"
+                                    style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                >
+                                    <LogIn size={14} /> Login As
+                                </button>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}

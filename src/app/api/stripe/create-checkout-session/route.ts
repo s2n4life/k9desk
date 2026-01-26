@@ -17,6 +17,27 @@ export async function POST(req: Request) {
             return new NextResponse('Unauthorized', { status: 401 });
         }
 
+        // 3. Check if payments are enabled globally
+        const { data: config } = await supabase
+            .from('system_configs')
+            .select('value')
+            .eq('key', 'payments_enabled')
+            .single();
+
+        if (config?.value === false) {
+            // Check if user is admin (admin bypass)
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .single();
+
+            const isAdmin = profile?.role === 'super_admin' || profile?.role === 'support_admin';
+            if (!isAdmin) {
+                return new NextResponse('Payments are temporarily disabled for maintenance.', { status: 403 });
+            }
+        }
+
         // Get Business ID (Optional, but good for metadata)
         const { data: business } = await supabase
             .from('businesses')

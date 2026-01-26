@@ -5,6 +5,7 @@ import { Navigation } from "@/components/Navigation/Navigation";
 import { OnboardingManager } from "@/components/Onboarding/OnboardingManager";
 import { SyncManager } from "@/components/SyncManager";
 import { SubscriptionManager } from "@/components/Subscription/SubscriptionManager";
+import { ImpersonationBanner } from "@/components/Admin/ImpersonationBanner";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -21,7 +22,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
     return (
         <>
-            <main className="main-layout container">
+            <ImpersonationBanner />
+            <main className="main-layout container" style={{ marginTop: pathname.startsWith('/admin') ? 0 : 'auto' }}>
                 {children}
                 <OnboardingManager />
                 <SyncManager />
