@@ -17,9 +17,9 @@ export function AuthRedirectHandler() {
             return;
         }
 
-        // If we have a code (PKCE flow), go to callback for exchange
+        // If we have a code (PKCE flow), go to reset page
         if (code) {
-            router.push(`/auth/callback?code=${code}&next=/reset-password`);
+            window.location.replace(`/reset-password?code=${code}`);
         }
     }, [searchParams, router]);
 

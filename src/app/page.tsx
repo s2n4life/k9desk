@@ -8,11 +8,8 @@ import { AuthRedirectHandler } from '@/components/auth/AuthRedirectHandler';
 export const dynamic = 'force-dynamic';
 
 export default async function LandingPage({ searchParams }: { searchParams: Promise<{ code?: string, error?: string }> }) {
-    const params = await searchParams;
-
-    if (params?.code) {
-        redirect(`/auth/callback?code=${params.code}&next=/reset-password`);
-    }
+    // Let AuthRedirectHandler manage auth parameters client-side
+    // This avoids server-side redirects that might lose hash data or hit route-handling issues
 
     return (
         <div className="flex flex-col min-h-screen bg-white text-gray-900">
