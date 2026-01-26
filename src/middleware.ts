@@ -46,8 +46,13 @@ export async function middleware(request: NextRequest) {
     }
 
     // 2. If user IS logged in, and tries to visit Login/Signup or landing page
-    // We redirect them to the Dashboard
-    if (user && (path === '/login' || path === '/signup' || path === '/')) {
+    // We redirect them to the Dashboard, UNLESS there is an auth code/recovery in the URL
+    const hasAuthCode = request.nextUrl.searchParams.has('code') ||
+        request.nextUrl.searchParams.has('error') ||
+        request.nextUrl.hash.includes('access_token') ||
+        request.nextUrl.hash.includes('recovery');
+
+    if (user && !hasAuthCode && (path === '/login' || path === '/signup' || path === '/')) {
         return NextResponse.redirect(new URL('/dashboard', request.url))
     }
 
