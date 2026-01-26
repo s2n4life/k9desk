@@ -14,15 +14,39 @@ export default function ResetPasswordPage() {
     const router = useRouter();
 
     useEffect(() => {
+        let authListener: any;
+
         const checkSession = async () => {
-            const { data: { user }, error: userError } = await supabase.auth.getUser();
-            if (userError || !user) {
-                console.error('Session check failed:', userError?.message);
-                setError('Auth session missing! Please request a new reset link.');
+            // First check if we already have a user
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                setCheckingSession(false);
+                return;
             }
-            setCheckingSession(false);
+
+            // If not, listen for the session to be established (Supabase auto-logs in from hash)
+            const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+                if (session?.user) {
+                    setError(null);
+                    setCheckingSession(false);
+                }
+            });
+            authListener = subscription;
+
+            // Wait a moment for hash parsing
+            setTimeout(async () => {
+                const { data: { user: finalUser } } = await supabase.auth.getUser();
+                if (!finalUser) {
+                    setError('Auth session missing! Please request a new reset link.');
+                }
+                setCheckingSession(false);
+            }, 1500);
         };
+
         checkSession();
+        return () => {
+            if (authListener) authListener.unsubscribe();
+        }
     }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {

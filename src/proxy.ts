@@ -32,21 +32,61 @@ export async function proxy(request: NextRequest) {
     )
 
     const { data: { user } } = await supabase.auth.getUser()
-
     const path = request.nextUrl.pathname
 
-    // 1. If user is NOT logged in, and tries to visit a protected route
-    // Protected routes: Everything EXCEPT public paths (/, /login, /signup, /auth/*) and static assets
-    const isPublicPath = path === '/' || path === '/login' || path === '/signup' || path === '/reset-password' || path.startsWith('/auth')
+    // 1. PUBLIC vs PROTECTED
+    const isPublicPath = path === '/' || path === '/login' || path === '/signup' || path === '/reset-password' || path.startsWith('/auth') || path.startsWith('/book/')
     const isStaticAsset = path.startsWith('/_next') || path.startsWith('/static') || path.includes('.')
 
+    // 2. GLOBAL MAINTENANCE MODE (Phase 1)
+    if (!isStaticAsset && !path.startsWith('/admin')) {
+        const { data: config } = await supabase
+            .from('system_configs')
+            .select('value')
+            .eq('key', 'maintenance_mode')
+            .single();
+
+        if (config?.value === true) {
+            // Check if user is admin (Admins can bypass maintenance)
+            let isAdmin = false;
+            if (user) {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('role')
+                    .eq('id', user.id)
+                    .single();
+                isAdmin = profile?.role === 'super_admin' || profile?.role === 'support_admin';
+            }
+
+            if (!isAdmin && path !== '/maintenance') {
+                return NextResponse.redirect(new URL('/maintenance', request.url))
+            }
+        }
+    }
+
     if (!user && !isPublicPath && !isStaticAsset) {
-        // Redirect to Login
         return NextResponse.redirect(new URL('/login', request.url))
     }
 
-    // 2. If user IS logged in, and tries to visit Login/Signup or landing page
-    // We redirect them to the Dashboard, UNLESS there is an auth code/recovery in the URL
+    // 2. ADMIN LOCKDOWN
+    if (path.startsWith('/admin')) {
+        if (!user) return NextResponse.redirect(new URL('/login', request.url))
+
+        // Fetch user role
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single()
+
+        const isAuthorized = profile?.role === 'super_admin' || profile?.role === 'support_admin'
+
+        if (!isAuthorized) {
+            return NextResponse.redirect(new URL('/dashboard', request.url))
+        }
+    }
+
+    // 3. LOGGED IN REDIRECTS
     const hasAuthCode = request.nextUrl.searchParams.has('code') ||
         request.nextUrl.searchParams.has('error') ||
         request.nextUrl.hash.includes('access_token') ||

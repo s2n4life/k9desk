@@ -8,11 +8,16 @@ export function AuthRedirectHandler() {
     const searchParams = useSearchParams();
 
     useEffect(() => {
-        // Look for code in query params OR hash (Supabase recovery sometimes uses hash)
-        const code = searchParams.get('code') ||
-            window.location.hash.match(/access_token=([^&]*)/)?.[1] ||
-            window.location.hash.match(/code=([^&]*)/)?.[1];
+        const hash = window.location.hash;
+        const code = searchParams.get('code');
 
+        // If we have an access token directly (Implicit flow), just go to reset page
+        if (hash.includes('access_token=')) {
+            router.push('/reset-password' + hash);
+            return;
+        }
+
+        // If we have a code (PKCE flow), go to callback for exchange
         if (code) {
             router.push(`/auth/callback?code=${code}&next=/reset-password`);
         }
