@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabaseClient';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { createClient } from '@/utils/supabase/client';
+import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -12,53 +12,75 @@ export default function ResetPasswordPage() {
     const [error, setError] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const supabase = createClient();
 
     useEffect(() => {
-        const checkSession = async () => {
-            const hash = window.location.hash;
+        const verifyFlow = async () => {
+            setCheckingSession(true);
+            setError(null);
 
-            // 1. Check for errors in the URL hash (like expired links)
-            if (hash.includes('error=')) {
-                const params = new URLSearchParams(hash.substring(1));
-                const errorDesc = params.get('error_description')?.replace(/\+/g, ' ') || 'Invalid reset link';
-                setError(errorDesc);
-                setCheckingSession(false);
-                return;
-            }
+            try {
+                // 1. Check for errors in the URL (like expired links)
+                // Both query params and hash might contain errors
+                const hash = window.location.hash;
+                const errorParam = searchParams.get('error_description') ||
+                    new URLSearchParams(hash.substring(1)).get('error_description');
 
-            // 2. Check if we have a current session (client-side Supabase handles the hash automatically)
-            const { data: { user } } = await supabase.auth.getUser();
+                if (errorParam) {
+                    setError(errorParam.replace(/\+/g, ' '));
+                    setCheckingSession(false);
+                    return;
+                }
 
-            if (user) {
-                setCheckingSession(false);
-                return;
-            }
-
-            // 3. Fallback: If no user but there IS a hash, wait just a bit for parsing
-            if (hash.includes('access_token=')) {
-                setTimeout(async () => {
-                    const { data: { user: retryUser } } = await supabase.auth.getUser();
-                    if (retryUser) {
+                // 2. Handle PKCE Flow (code in query params)
+                const code = searchParams.get('code');
+                if (code) {
+                    console.log('Detected PKCE code, exchanging for session...');
+                    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+                    if (exchangeError) {
+                        setError('Could not establish session from link. It may have expired.');
                         setCheckingSession(false);
-                    } else {
-                        setError('Auth session could not be established. Please try again or request a new link.');
-                        setCheckingSession(false);
+                        return;
                     }
-                }, 500);
-            } else {
-                setError('Auth session missing! Please request a new reset link.');
+                    console.log('Session established via code');
+                }
+
+                // 3. Verify session (handles both Implicit flow hash and PKCE session)
+                // We wait a tiny bit for the Supabase client to finish parsing cookies/hash
+                let sessionVerified = false;
+                for (let i = 0; i < 5; i++) {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (session?.user) {
+                        sessionVerified = true;
+                        break;
+                    }
+                    await new Promise(r => setTimeout(r, 500));
+                }
+
+                if (!sessionVerified) {
+                    setError('Auth session missing! Please request a new reset link.');
+                }
+            } catch (err: any) {
+                setError('An unexpected error occurred. Please try again.');
+            } finally {
                 setCheckingSession(false);
             }
         };
 
-        checkSession();
-    }, []);
+        verifyFlow();
+    }, [searchParams, supabase]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (password !== confirmPassword) {
             setError('Passwords do not match');
+            return;
+        }
+
+        if (password.length < 6) {
+            setError('Password must be at least 6 characters');
             return;
         }
 
@@ -75,7 +97,7 @@ export default function ResetPasswordPage() {
             setMessage('Password updated successfully! Redirecting to login...');
             setTimeout(() => {
                 router.push('/login');
-            }, 2000);
+            }, 2500);
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -98,11 +120,18 @@ export default function ResetPasswordPage() {
                         Set New Password
                     </h2>
                     <p className="text-body" style={{ color: 'var(--text-secondary)' }}>
-                        Enter your new password below
+                        {checkingSession ? 'Verifying your identity...' : 'Enter your new password below'}
                     </p>
                 </div>
 
-                {error ? (
+                {checkingSession ? (
+                    <div style={{ textAlign: 'center', padding: 'var(--space-8)' }}>
+                        <div className="spinner" style={{ margin: '0 auto' }}></div>
+                        <p style={{ marginTop: 'var(--space-4)', color: 'var(--text-muted)', fontSize: '14px' }}>
+                            Securing your account...
+                        </p>
+                    </div>
+                ) : error ? (
                     <div style={{ textAlign: 'center' }}>
                         <div style={{
                             marginBottom: 'var(--space-4)',
@@ -116,11 +145,14 @@ export default function ResetPasswordPage() {
                         </div>
                         <button
                             onClick={() => window.location.href = '/login'}
-                            className="btn"
-                            style={{ fontSize: 'var(--font-size-sm)', textDecoration: 'underline' }}
+                            className="btn btn-secondary"
+                            style={{ width: '100%', marginBottom: 'var(--space-2)' }}
                         >
                             Back to Login
                         </button>
+                        <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                            Check if you are using the most recent email.
+                        </p>
                     </div>
                 ) : message ? (
                     <div style={{
@@ -134,7 +166,7 @@ export default function ResetPasswordPage() {
                     }}>
                         {message}
                     </div>
-                ) : !checkingSession && (
+                ) : (
                     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                         <div>
                             <label style={{ fontWeight: 600 }}>New Password</label>
@@ -146,6 +178,7 @@ export default function ResetPasswordPage() {
                                 className="input"
                                 placeholder="••••••••"
                                 style={{ width: '100%' }}
+                                minLength={6}
                             />
                         </div>
 
@@ -159,6 +192,7 @@ export default function ResetPasswordPage() {
                                 className="input"
                                 placeholder="••••••••"
                                 style={{ width: '100%' }}
+                                minLength={6}
                             />
                         </div>
 
@@ -174,5 +208,17 @@ export default function ResetPasswordPage() {
                 )}
             </div>
         </div>
+    );
+}
+
+export default function ResetPasswordPage() {
+    return (
+        <Suspense fallback={
+            <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="spinner"></div>
+            </div>
+        }>
+            <ResetPasswordForm />
+        </Suspense>
     );
 }
