@@ -4,9 +4,11 @@ import { CheckCircle2, Star, ArrowRight, Zap, Shield, Calendar, Users } from 'lu
 
 import { redirect } from 'next/navigation';
 
-export default function LandingPage({ searchParams }: { searchParams: { code?: string } }) {
-    if (searchParams?.code) {
-        redirect(`/auth/callback?code=${searchParams.code}&next=/reset-password`);
+export default async function LandingPage({ searchParams }: { searchParams: Promise<{ code?: string, error?: string }> }) {
+    const params = await searchParams;
+
+    if (params?.code) {
+        redirect(`/auth/callback?code=${params.code}&next=/reset-password`);
     }
 
     return (
