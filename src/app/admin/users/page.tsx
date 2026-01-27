@@ -65,9 +65,12 @@ export default function AdminUsersPage() {
     }, []);
 
     const extendTrial = async (id: string, days: number) => {
-        // Find the account to get current trial end date and Stripe info
+        // Find the account to get current trial end date
         const account = accounts.find(a => a.id === id);
-        if (!account) return;
+        if (!account) {
+            alert('Account not found');
+            return;
+        }
 
         // Calculate new date from EXISTING trial end, not from today
         const currentTrialEnd = new Date(account.trial_end_date);
@@ -75,22 +78,6 @@ export default function AdminUsersPage() {
         newDate.setDate(newDate.getDate() + days);
 
         try {
-            // Update Stripe subscription if it exists
-            if (account.stripe_subscription_id) {
-                const response = await fetch('/api/admin/extend-trial', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        subscriptionId: account.stripe_subscription_id,
-                        trialEndTimestamp: Math.floor(newDate.getTime() / 1000) // Stripe uses Unix timestamp
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to update Stripe subscription');
-                }
-            }
-
             // Update Supabase
             const { error } = await supabase
                 .from('businesses')
@@ -100,12 +87,14 @@ export default function AdminUsersPage() {
                 })
                 .eq('id', id);
 
-            if (!error) {
-                setAccounts(accounts.map(a => a.id === id ? { ...a, trial_end_date: newDate.toISOString(), subscription_status: 'trialing' } : a));
-                alert(`Trial extended by ${days} days! New end date: ${newDate.toLocaleDateString()}`);
-            } else {
+            if (error) {
+                console.error('Supabase error:', error);
                 throw error;
             }
+
+            // Update local state
+            setAccounts(accounts.map(a => a.id === id ? { ...a, trial_end_date: newDate.toISOString(), subscription_status: 'trialing' } : a));
+            alert(`Trial extended by ${days} days! New end date: ${newDate.toLocaleDateString()}`);
         } catch (err) {
             console.error('Error extending trial:', err);
             alert('Failed to extend trial. Please try again.');
