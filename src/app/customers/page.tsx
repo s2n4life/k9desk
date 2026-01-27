@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getDB } from '@/lib/db';
 import { Customer, Pet, Job } from '@/lib/db/schema';
+import { useDataLoader } from '@/hooks/useDataLoader';
 import Link from 'next/link';
 import { ChevronRight, Dog, Search, Calendar, History, Users } from 'lucide-react';
 
@@ -14,13 +15,13 @@ export default function CustomersPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState<'customers' | 'jobs'>('customers');
     const [jobDisplayLimit, setJobDisplayLimit] = useState(10);
+    const { loadJobs, loadCustomers, loadPets } = useDataLoader();
 
     useEffect(() => {
         const loadData = async () => {
-            const db = await getDB();
-            const allCustomers = await db.getAll('customers');
-            const allPets = await db.getAll('pets');
-            const allJobs = await db.getAll('jobs');
+            const allCustomers = await loadCustomers();
+            const allPets = await loadPets();
+            const allJobs = await loadJobs();
 
             const petMap: Record<string, Pet[]> = {};
             allPets.forEach(p => {

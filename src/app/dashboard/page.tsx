@@ -64,6 +64,8 @@ import { Header } from '@/components/Navigation/Header';
 //   return false;
 // }
 
+import { useDataLoader } from '@/hooks/useDataLoader';
+
 export default function TodayPage() {
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -82,18 +84,18 @@ export default function TodayPage() {
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
 
-  const router = useRouter(); // Added hook
+  const router = useRouter();
+  const { loadJobs, loadCustomers, loadPets } = useDataLoader();
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
 
   const loadData = async () => {
 
     try {
-      // await seedDataIfEmpty(); // DISABLED: Real users start empty
-      const db = await getDB();
-      const allJobs = await db.getAll('jobs');
-      const allCustomers = await db.getAll('customers');
-      const allPets = await db.getAll('pets');
+      // Load data using impersonation-aware hook
+      const allJobs = await loadJobs();
+      const allCustomers = await loadCustomers();
+      const allPets = await loadPets();
 
       // Index customers and pets for easy lookup
       const custMap: Record<string, Customer> = {};

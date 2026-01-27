@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { AppShell } from "@/components/Layout/AppShell";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { ImpersonationProvider } from "@/contexts/ImpersonationContext";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
@@ -30,9 +31,11 @@ export default function RootLayout({
       <body suppressHydrationWarning>
 
         <NotificationProvider>
-          <AppShell>
-            {children}
-          </AppShell>
+          <ImpersonationProvider>
+            <AppShell>
+              {children}
+            </AppShell>
+          </ImpersonationProvider>
         </NotificationProvider>
       </body>
     </html>

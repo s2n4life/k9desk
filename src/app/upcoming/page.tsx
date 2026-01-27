@@ -7,6 +7,7 @@ import { getDB } from '@/lib/db';
 import { Job, Customer, Pet, JobState } from '@/lib/db/schema';
 import { JobStateMachine } from '@/lib/jobs/stateMachine';
 import { triggerSMSAction } from '@/lib/sms';
+import { useDataLoader } from '@/hooks/useDataLoader';
 
 import { Header } from '@/components/Navigation/Header';
 
@@ -15,15 +16,15 @@ export default function UpcomingPage() {
     const [groupedJobs, setGroupedJobs] = useState<Record<string, Job[]>>({});
     const [customers, setCustomers] = useState<Record<string, Customer>>({});
     const [pets, setPets] = useState<Record<string, Pet>>({});
+    const { loadJobs, loadCustomers, loadPets } = useDataLoader();
 
     const todayStr = format(new Date(), 'yyyy-MM-dd');
 
     const loadData = async () => {
         try {
-            const db = await getDB();
-            const allJobs = await db.getAll('jobs');
-            const allCustomers = await db.getAll('customers');
-            const allPets = await db.getAll('pets');
+            const allJobs = await loadJobs();
+            const allCustomers = await loadCustomers();
+            const allPets = await loadPets();
 
             // Optimizations: Map for O(1) lookups
             const custMap: Record<string, Customer> = {};

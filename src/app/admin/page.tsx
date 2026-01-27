@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { Shield, Users, DollarSign, Activity, AlertTriangle, LogIn, TrendingUp, Clock, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 type StatCardProps = {
     label: string;
@@ -37,6 +38,7 @@ function StatCard({ label, value, icon: Icon, trend, trendUp, color }: StatCardP
 }
 
 export default function AdminDashboard() {
+    const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({
         mrr: 0,
@@ -134,7 +136,7 @@ export default function AdminDashboard() {
                                     <p style={{ fontWeight: 600, margin: '0 0 4px 0', fontSize: '0.875rem' }}>Failed Stripe Webhook</p>
                                     <p style={{ color: '#94a3b8', margin: 0, fontSize: '0.75rem' }}>Occured 4 times in the last hour</p>
                                 </div>
-                                <button className="btn-admin-primary" style={{ padding: '6px 12px', fontSize: '0.75rem' }}>Investigate</button>
+                                <button onClick={() => router.push('/admin/bugs')} className="btn-admin-primary" style={{ padding: '6px 12px', fontSize: '0.75rem' }}>Investigate</button>
                             </div>
                         ) : (
                             <p style={{ color: '#94a3b8', textAlign: 'center', padding: '24px' }}>No active alerts. Systems healthy.</p>
