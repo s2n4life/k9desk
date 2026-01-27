@@ -52,6 +52,8 @@ export default function AdminDashboard() {
     const [recentErrorLogs, setRecentErrorLogs] = useState<any[]>([]);
 
     useEffect(() => {
+        let channel: any;
+
         const loadStats = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
@@ -66,7 +68,6 @@ export default function AdminDashboard() {
                     .limit(5);
 
                 setRecentErrorLogs(errorLogs || []);
-
                 setStats(prev => ({
                     ...prev,
                     recentErrors: errorLogs?.length || 0
@@ -76,22 +77,19 @@ export default function AdminDashboard() {
             await fetchLogs();
 
             // Set up real-time subscription
-            const channel = supabase
-                .channel('schema-db-changes')
+            channel = supabase
+                .channel('admin-dashboard-logs')
                 .on(
                     'postgres_changes',
-                    {
-                        event: '*',
-                        schema: 'public',
-                        table: 'system_logs'
-                    },
-                    () => {
+                    { event: '*', schema: 'public', table: 'system_logs' },
+                    (payload) => {
+                        console.log('[Dashboard] Log change detected:', payload.eventType);
                         fetchLogs();
                     }
                 )
                 .subscribe();
 
-            // Mock stats for now (Phase 2 will aggregate from daily_metrics)
+            // Mock stats
             setStats(prev => ({
                 ...prev,
                 mrr: 12450,
@@ -102,15 +100,14 @@ export default function AdminDashboard() {
             }));
 
             setLoading(false);
-
-            return () => {
-                supabase.removeChannel(channel);
-            };
         };
 
-        const cleanup = loadStats();
+        loadStats();
+
         return () => {
-            cleanup.then(unsubscribe => unsubscribe?.());
+            if (channel) {
+                supabase.removeChannel(channel);
+            }
         };
     }, []);
 
@@ -178,20 +175,22 @@ export default function AdminDashboard() {
                     label="Active Trials"
                     value={stats.trialBusinesses}
                     icon={Clock}
-                    color="#f59e0b"
+                    trend="-2.4%"
+                    trendUp={false}
+                    color="#3b82f6"
                 />
                 <StatCard
-                    label="Churn Rate"
-                    value={`${stats.churnRate}%`}
-                    icon={Activity}
-                    trend="-0.4%"
-                    trendUp={true}
-                    color="#6366f1"
+                    label="Active Alerts"
+                    value={stats.recentErrors}
+                    icon={AlertTriangle}
+                    trend={stats.recentErrors > 0 ? "Needs review" : "Healthy"}
+                    trendUp={stats.recentErrors === 0}
+                    color={stats.recentErrors > 0 ? "#ef4444" : "#10b981"}
                 />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
-                {/* Sentinel Alerts */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
+                {/* Active Alerts List */}
                 <div className="admin-card">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                         <h3 style={{ fontSize: '1.125rem', fontWeight: 600, margin: 0 }}>The Sentinel: Active Alerts</h3>
@@ -277,6 +276,6 @@ export default function AdminDashboard() {
                     to { transform: rotate(360deg); }
                 }
             `}</style>
-        </div >
+        </div>
     );
 }
