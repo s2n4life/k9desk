@@ -86,7 +86,7 @@ export default function TicketsPage() {
                     created_at: new Date(Date.now() - 86400000).toISOString(),
                     business_id: 'b2',
                     user_id: 'u2',
-                    business_name: 'John's Mobile Grooming',
+                    business_name: 'Johns Mobile Grooming',
                     user_email: 'john@johnsmobile.com'
                 },
                 {
