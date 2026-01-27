@@ -9,7 +9,7 @@ export function createClient() {
             auth: {
                 detectSessionInUrl: false,
                 persistSession: true,
-                autoRefreshToken: true
+                autoRefreshToken: false,
             }
         }
     )

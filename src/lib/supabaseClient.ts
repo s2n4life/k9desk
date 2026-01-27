@@ -14,7 +14,7 @@ export const supabase = createBrowserClient(
         auth: {
             detectSessionInUrl: false,
             persistSession: true,
-            autoRefreshToken: true
+            autoRefreshToken: false, // Don't auto-refresh during recovery tests
         }
     }
 );

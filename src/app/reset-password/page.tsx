@@ -96,7 +96,7 @@ function ResetPasswordForm() {
             // 5. POST-RESET: Redirect and clear hash
             setTimeout(() => {
                 window.location.hash = ''; // Clear hash
-                router.push('/dashboard');
+                window.location.href = '/dashboard'; // Hard reload to dashboard
             }, 2500);
         } catch (err: any) {
             setError(err.message);

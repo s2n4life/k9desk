@@ -12,9 +12,11 @@ export function AuthRedirectHandler() {
         const code = searchParams.get('code');
         const type = searchParams.get('type');
 
-        // IGNORE RECOVERY: Only /reset-password handles recovery.
-        // We check BOTH hash and searchParams to catch Implicit and PKCE links.
+        // ABSOLUTE INTERCEPTOR: If a recovery link lands here, KILL IT.
+        // This stops home page flashes AND dashboard bounces.
         if (hash.includes('type=recovery') || type === 'recovery') {
+            console.warn('Recovery link detected on Home Page. Clearing for safety.');
+            window.history.replaceState(null, '', window.location.pathname);
             return;
         }
 
