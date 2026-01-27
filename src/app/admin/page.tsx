@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { Shield, Users, DollarSign, Activity, AlertTriangle, LogIn, TrendingUp, Clock, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { captureLog } from '@/lib/admin/sentinel';
 
 type StatCardProps = {
     label: string;
@@ -48,26 +49,33 @@ export default function AdminDashboard() {
         openTickets: 0,
         recentErrors: 0
     });
+    const [recentErrorLogs, setRecentErrorLogs] = useState<any[]>([]);
 
     useEffect(() => {
         const loadStats = async () => {
-            // In Phase 1, we still mock some stats, but we prepare the role check
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            // Fetch metrics from our new daily_metrics table (In Phase 2 we will aggregate these)
-            // For now, let's pretend we have data
-            setTimeout(() => {
-                setStats({
-                    mrr: 12450,
-                    activeBusinesses: 142,
-                    trialBusinesses: 28,
-                    churnRate: 2.1,
-                    openTickets: 5,
-                    recentErrors: 12
-                });
-                setLoading(false);
-            }, 8000); // 800ms mock delay
+            // Fetch recent error logs from system_logs
+            const { data: errorLogs } = await supabase
+                .from('system_logs')
+                .select('*')
+                .eq('level', 'error')
+                .order('created_at', { ascending: false })
+                .limit(5);
+
+            setRecentErrorLogs(errorLogs || []);
+
+            // Mock stats for now (Phase 2 will aggregate from daily_metrics)
+            setStats({
+                mrr: 12450,
+                activeBusinesses: 142,
+                trialBusinesses: 28,
+                churnRate: 2.1,
+                openTickets: 5,
+                recentErrors: errorLogs?.length || 0
+            });
+            setLoading(false);
         };
 
         loadStats();
@@ -79,11 +87,34 @@ export default function AdminDashboard() {
         </div>
     );
 
+    const testErrorEmail = async () => {
+        await captureLog({
+            level: 'error',
+            message: 'Test Error: Email Notification System',
+            stack_trace: 'This is a test error to verify email notifications are working correctly.\n  at testErrorEmail (admin/page.tsx:92)',
+            metadata: {
+                test: true,
+                triggeredBy: 'admin',
+                timestamp: new Date().toISOString()
+            }
+        });
+        alert('Test error logged! Check s2n4life@gmail.com for the notification email.');
+    };
+
     return (
         <div>
-            <header style={{ marginBottom: '32px' }}>
-                <h1 style={{ fontSize: '1.875rem', fontWeight: 700, margin: '0 0 8px 0' }}>SaaS Overview</h1>
-                <p style={{ color: '#94a3b8', margin: 0 }}>Operational health and growth metrics.</p>
+            <header style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                    <h1 style={{ fontSize: '1.875rem', fontWeight: 700, margin: '0 0 8px 0' }}>SaaS Overview</h1>
+                    <p style={{ color: '#94a3b8', margin: 0 }}>Operational health and growth metrics.</p>
+                </div>
+                <button
+                    onClick={testErrorEmail}
+                    className="btn-admin-primary"
+                    style={{ fontSize: '0.875rem' }}
+                >
+                    🧪 Test Error Email
+                </button>
             </header>
 
             {/* KPI Grid */}
@@ -129,15 +160,19 @@ export default function AdminDashboard() {
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        {stats.recentErrors > 0 ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '12px', borderRadius: '12px', backgroundColor: '#ef444410', border: '1px solid #ef444420' }}>
-                                <AlertTriangle color="#ef4444" size={24} />
-                                <div style={{ flex: 1 }}>
-                                    <p style={{ fontWeight: 600, margin: '0 0 4px 0', fontSize: '0.875rem' }}>Failed Stripe Webhook</p>
-                                    <p style={{ color: '#94a3b8', margin: 0, fontSize: '0.75rem' }}>Occured 4 times in the last hour</p>
+                        {recentErrorLogs.length > 0 ? (
+                            recentErrorLogs.slice(0, 3).map((log) => (
+                                <div key={log.id} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '12px', borderRadius: '12px', backgroundColor: '#ef444410', border: '1px solid #ef444420' }}>
+                                    <AlertTriangle color="#ef4444" size={24} />
+                                    <div style={{ flex: 1 }}>
+                                        <p style={{ fontWeight: 600, margin: '0 0 4px 0', fontSize: '0.875rem' }}>{log.message}</p>
+                                        <p style={{ color: '#94a3b8', margin: 0, fontSize: '0.75rem' }}>
+                                            {new Date(log.created_at).toLocaleString()} {log.business_id ? `• Business: ${log.business_id.slice(0, 8)}` : ''}
+                                        </p>
+                                    </div>
+                                    <button onClick={() => router.push('/admin/bugs')} className="btn-admin-primary" style={{ padding: '6px 12px', fontSize: '0.75rem' }}>Investigate</button>
                                 </div>
-                                <button onClick={() => router.push('/admin/bugs')} className="btn-admin-primary" style={{ padding: '6px 12px', fontSize: '0.75rem' }}>Investigate</button>
-                            </div>
+                            ))
                         ) : (
                             <p style={{ color: '#94a3b8', textAlign: 'center', padding: '24px' }}>No active alerts. Systems healthy.</p>
                         )}

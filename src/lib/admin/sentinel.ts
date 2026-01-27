@@ -11,6 +11,10 @@ export type SentinelLog = {
     user_id?: string;
 };
 
+// Throttle map to prevent spam (in-memory, resets on server restart)
+const emailThrottle = new Map<string, number>();
+const THROTTLE_MINUTES = 5;
+
 export async function captureLog(log: SentinelLog) {
     try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -30,6 +34,35 @@ export async function captureLog(log: SentinelLog) {
 
         const { error } = await supabase.from('system_logs').insert(payload);
         if (error) console.error('[Sentinel] Failed to push log:', error);
+
+        // Send email notification for errors only
+        if (log.level === 'error') {
+            const throttleKey = log.message.substring(0, 50); // Use first 50 chars as key
+            const lastSent = emailThrottle.get(throttleKey);
+            const now = Date.now();
+
+            if (!lastSent || now - lastSent > THROTTLE_MINUTES * 60 * 1000) {
+                emailThrottle.set(throttleKey, now);
+
+                // Send email via API route (non-blocking)
+                if (typeof window !== 'undefined') {
+                    // Client-side
+                    fetch('/api/admin/error-alert', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ error: payload })
+                    }).catch(err => console.error('[Sentinel] Email alert failed:', err));
+                } else {
+                    // Server-side - use absolute URL
+                    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3005';
+                    fetch(`${baseUrl}/api/admin/error-alert`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ error: payload })
+                    }).catch(err => console.error('[Sentinel] Email alert failed:', err));
+                }
+            }
+        }
     } catch (err) {
         console.error('[Sentinel] Critical failure in logger:', err);
     }

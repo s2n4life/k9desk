@@ -6,7 +6,8 @@ export async function addToSyncQueue(
     action: SyncActionType,
     entityType: EntityType,
     entityId: string,
-    data?: any
+    data?: any,
+    businessId?: string // Optional: Active business ID (respects impersonation)
 ) {
     const db = await getDB();
     const item: SyncQueueItem = {
@@ -17,6 +18,7 @@ export async function addToSyncQueue(
         data,
         timestamp: Date.now(),
         retryCount: 0,
+        businessId, // Store the business ID for sync processing
     };
     await db.add('syncQueue', item);
 

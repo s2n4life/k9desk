@@ -128,4 +128,5 @@ export type SyncQueueItem = {
   data?: any;
   timestamp: number;
   retryCount: number;
+  businessId?: string; // Active business ID at time of creation (respects impersonation)
 };
