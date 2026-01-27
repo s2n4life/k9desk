@@ -269,7 +269,15 @@ export default function TodayPage() {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
-        <h2 className="text-h2" style={{ marginBottom: 0 }}>Your Schedule</h2>
+        <h2 className="text-h2" style={{ marginBottom: 0 }}>
+          {jobs.length === 0
+            ? "No Jobs Scheduled Today"
+            : (() => {
+              const remaining = jobs.filter(j => ![JobState.Completed, JobState.PaymentRequested, JobState.Paid, JobState.Closed].includes(j.state)).length;
+              return remaining === 0 ? "All Jobs Completed Today!" : `${remaining} Jobs Remaining Today`;
+            })()
+          }
+        </h2>
         <Link href="/jobs/new" style={{
           color: 'var(--brand-primary)',
           background: 'var(--brand-primary-light)', // Light background for contrast
