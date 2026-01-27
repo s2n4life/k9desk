@@ -14,7 +14,16 @@ interface ImpersonationContextType {
 
 const ImpersonationContext = createContext<ImpersonationContextType | undefined>(undefined);
 
-const IMPERSONATION_KEY = 'k9desk_impersonated_id';
+export const IMPERSONATION_KEY = 'k9desk_impersonated_id';
+
+/**
+ * Returns the currently impersonated business ID from localStorage.
+ * Used for sync/hydration logic outside of React components.
+ */
+export function getActiveBusinessIdSync(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(IMPERSONATION_KEY);
+}
 
 export function ImpersonationProvider({ children }: { children: ReactNode }) {
     const [impersonatedBusinessId, setImpersonatedBusinessId] = useState<string | null>(null);

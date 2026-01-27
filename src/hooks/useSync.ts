@@ -4,18 +4,17 @@ import { supabase } from '@/lib/supabaseClient';
 import { SyncQueueItem } from '@/lib/db/schema';
 import { hydrateLocalDB } from '@/lib/db/hydration';
 import { captureLog } from '@/lib/admin/sentinel';
+import { useImpersonationContextSafe } from '@/contexts/ImpersonationContext';
 
-// Simple "Mutex" to prevent double-syncing
+// Simple "Mutex" to prevent double-syncing (Module-level for cross-component stability)
 let isSyncing = false;
 
-// TEMPORARY: Hardcoded Business ID for Phase 2 (since we don't have Auth/Business creation UI yet)
-// We need this because Supabase tables require a valid UUID for business_id
+// TEMPORARY: Hardcoded Business ID for Phase 2 
 const DEMO_BUSINESS_ID = '00000000-0000-0000-0000-000000000001';
 
-// Helper to get current session info synchronously-ish (via closure state or just passed in)
-// Ideally, transformForRemote should be async or receive the user object. 
-// Refactoring transformForRemote to be called inside the async loop with the user object.
-
+/**
+ * Shared transformation logic for remote Supabase payloads
+ */
 const transformForRemote = (entityType: string, data: any, user: any, businessId?: string) => {
     // 1. Inject Business ID (Critical for RLS/Foreign Keys)
     // Use provided businessId if available (respects impersonation), otherwise fall back to user.id
@@ -132,6 +131,23 @@ export function useSync() {
     const [lastError, setLastError] = useState<string | null>(null);
     const [isHydrating, setIsHydrating] = useState<boolean>(true); // Start true to block UI initially
 
+    const { isImpersonating, impersonatedBusinessId } = useImpersonationContextSafe();
+
+    // -- EXPORTED VERSION FOR HYDRATION --
+    // We define it inside a ref or helper to avoid staleness, but for hydration we just need a fresh run.
+    const processQueueSync = async () => {
+        if (isSyncing) return;
+        isSyncing = true;
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            // Note: Hydration processQueueSync won't have the React Context for impersonation easily
+            // but that's okay because hydration happens ONCE at startup.
+            await runSyncLoop(user, isImpersonating, impersonatedBusinessId);
+        } finally {
+            isSyncing = false;
+        }
+    };
+
     const clearLocalData = async () => {
         console.warn('[useSync] Preparing to clear local database...');
 
@@ -215,19 +231,32 @@ export function useSync() {
         }
 
         try {
-            const db = await getDB();
+            const { data: { user } } = await supabase.auth.getUser();
+            await runSyncLoop(user, isImpersonating, impersonatedBusinessId);
+        } catch (err) {
+            console.error('Process Queue Exception:', err);
+        } finally {
+            isSyncing = false;
+        }
+    };
+
+    /**
+     * The actual core sync loop. 
+     * Separated so it can be called from both the hook and the standalone hydration function.
+     */
+    const runSyncLoop = async (user: any, impersonatingActive?: boolean, impersonatedId?: string | null) => {
+        const db = await getDB();
+        try {
             // Get all items sorted by timestamp
             const queue = await db.getAllFromIndex('syncQueue', 'by-timestamp');
 
             if (queue.length === 0) {
                 setStatus('idle');
-                isSyncing = false;
                 return;
             }
 
             setStatus('syncing');
-
-            // PRIORITY SORT: Prevent Foreign Key race conditions
+            setQueueLength(queue.length);
             // 1. Settings (Business) must exist first.
             // 2. Customers & Services depend on Business.
             // 3. Pets depend on Customers.
@@ -284,14 +313,20 @@ export function useSync() {
                 // For SETTINGS, the ID in Supabase IS the User ID (Business ID)
                 // For other entities, it is the entityId
 
-                // We need the user for the transform
-                const { data: { user }, error: authError } = await supabase.auth.getUser();
-                if (authError) console.error('Sync Auth Error:', authError);
                 console.log('[Sync Debug] Current User:', user?.id, user?.email); // DEBUG LINE
 
-                // Use businessId from queue item if available (respects impersonation)
-                // Otherwise fall back to user.id
-                const businessId = item.businessId || user?.id || DEMO_BUSINESS_ID;
+                // RECOVERY LOGIC:
+                // If the item is missing a businessId (legacy), and we are currently impersonating,
+                // we assume this item should belong to the impersonated business.
+                // This fixes the "stuck data" issue when admins create jobs while impersonating.
+                let businessId = item.businessId;
+                if (!businessId && impersonatingActive && impersonatedId) {
+                    console.warn(`[Sync] Recovering missing businessId for legacy ${item.entityType} item using impersonated ID: ${impersonatedId}`);
+                    businessId = impersonatedId;
+                }
+
+                // Final fallback
+                businessId = businessId || user?.id || DEMO_BUSINESS_ID;
 
                 const targetId = item.entityType === 'SETTINGS' ? businessId : item.entityId;
 

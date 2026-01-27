@@ -48,7 +48,7 @@ export function SyncIndicator() {
     return (
         <div style={{
             position: 'fixed',
-            bottom: 'var(--space-4)',
+            bottom: 'calc(var(--space-4) + 72px + env(safe-area-inset-bottom))',
             right: 'var(--space-4)',
             zIndex: 9999,
             display: 'flex',

@@ -116,6 +116,10 @@ export default function TodayPage() {
           JobState.Completed
         ].includes(j.state)
       );
+
+      // Chronological Sort: Soonest -> Latest
+      todaysJobs.sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
+
       setJobs(todaysJobs);
 
       // KPI Calc (Last 30 days)

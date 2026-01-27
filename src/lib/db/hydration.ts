@@ -1,10 +1,15 @@
 import { getDB } from './index';
 import { supabase } from '@/lib/supabaseClient';
 import { Service, Customer, Pet, Job, Settings, Lead } from './schema';
+import { getActiveBusinessIdSync } from '@/contexts/ImpersonationContext';
 
 export async function hydrateLocalDB(userId: string) {
     if (!userId) return;
-    console.log('[Hydration] Starting hydration for user:', userId);
+
+    // Get active business ID (respects impersonation)
+    const activeBusinessId = getActiveBusinessIdSync();
+    const businessId = activeBusinessId || userId;
+    console.log('[Hydration] Starting hydration for:', businessId, userId !== businessId ? '(Impersonating)' : '');
 
     const db = await getDB();
     const now = Date.now();

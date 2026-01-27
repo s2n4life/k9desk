@@ -64,8 +64,8 @@ export default function NeedsActionPage() {
             );
 
             actionable.sort((a, b) => {
-                if (a.scheduledDate !== b.scheduledDate) return b.scheduledDate.localeCompare(a.scheduledDate);
-                return b.scheduledTime.localeCompare(a.scheduledTime);
+                if (a.scheduledDate !== b.scheduledDate) return a.scheduledDate.localeCompare(b.scheduledDate);
+                return a.scheduledTime.localeCompare(b.scheduledTime);
             });
             setJobs(actionable);
 
