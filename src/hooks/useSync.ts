@@ -177,7 +177,7 @@ export function useSync() {
         localStorage.removeItem('crm_last_user_id');
     };
 
-    // Session Management: Wipe DB if user changes
+    // Session & Context Management: Wipe DB if user/business changes
     useEffect(() => {
         const checkSession = async () => {
             if (typeof window === 'undefined') return;
@@ -186,12 +186,29 @@ export function useSync() {
             const currentUserId = user?.id;
             const lastUserId = localStorage.getItem('crm_last_user_id');
 
+            // Also track active business ID to detect context changes (Impersonation)
+            const currentBusinessId = impersonatedBusinessId || currentUserId;
+            const lastBusinessId = localStorage.getItem('crm_last_business_id');
+
+            // 1. User changed -> Wipe everything
             if (currentUserId && lastUserId && currentUserId !== lastUserId) {
                 await clearLocalData();
             }
 
+            // 2. Business context changed -> Clear local stores (not sync queue) and re-hydrate
+            if (currentBusinessId && lastBusinessId && currentBusinessId !== lastBusinessId) {
+                console.log(`[useSync] Business context changed from ${lastBusinessId} to ${currentBusinessId}. Re-hydrating...`);
+                localStorage.removeItem('crm_has_hydrated');
+                // Note: Not doing full clearLocalData here to preserve any pending sync queue items
+                // from the previous context (though switching contexts with pending items is rare).
+                const db = await getDB();
+                const stores = ['jobs', 'customers', 'pets', 'services', 'settings', 'leads'];
+                for (const s of stores) await db.clear(s as any);
+            }
+
             if (currentUserId) {
                 localStorage.setItem('crm_last_user_id', currentUserId);
+                if (currentBusinessId) localStorage.setItem('crm_last_business_id', currentBusinessId);
 
                 const hasHydrated = localStorage.getItem('crm_has_hydrated');
 
@@ -203,7 +220,7 @@ export function useSync() {
                     return;
                 }
 
-                if (!hasHydrated || currentUserId !== lastUserId) {
+                if (!hasHydrated || currentUserId !== lastUserId || currentBusinessId !== lastBusinessId) {
                     setIsHydrating(true);
                     await hydrateLocalDB(currentUserId);
                     setIsHydrating(false);
@@ -216,7 +233,7 @@ export function useSync() {
         };
 
         checkSession();
-    }, []);
+    }, [impersonatedBusinessId]);
 
     const processQueue = async () => {
         if (isSyncing) return;
