@@ -127,7 +127,7 @@ export default function AdminDashboard() {
             .eq('id', id);
 
         if (error) {
-            console.error('Failed to resolve log:', error);
+            console.error('[Dashboard] Failed to resolve log:', error.message, error.details);
             // Re-fetch on error to ensure sync
             const { data: errorLogs } = await supabase
                 .from('system_logs')
@@ -136,6 +136,7 @@ export default function AdminDashboard() {
                 .order('created_at', { ascending: false })
                 .limit(5);
             if (errorLogs) setRecentErrorLogs(errorLogs);
+            alert(`Failed to resolve log: ${error.message}`);
         }
     };
 
