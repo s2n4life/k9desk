@@ -37,9 +37,19 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            // 1. Get Effective Business ID
-            const activeId = getActiveBusinessIdSync();
-            const businessId = activeId || user.id;
+            const userId = user.id;
+            // Get active business ID (respects impersonation)
+            let businessId = getActiveBusinessIdSync();
+
+            if (!businessId) {
+                // Fetch from profile if not in localStorage yet
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('business_id')
+                    .eq('id', userId)
+                    .single();
+                businessId = profile?.business_id || userId;
+            }
 
             // 2. Fetch New Leads Count
             const { count: newLeadsCount } = await supabase
@@ -77,9 +87,22 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                     schema: 'public',
                     table: 'leads'
                 },
-                (payload) => {
+                async (payload) => {
                     const activeId = getActiveBusinessIdSync();
-                    const currentBusinessId = activeId || supabase.auth.getUser().then(res => res.data.user?.id);
+                    let currentBusinessId = activeId;
+
+                    if (!currentBusinessId) {
+                        const { data: { user } } = await supabase.auth.getUser();
+                        if (user) {
+                            // Try to get from profile if not in localStorage yet
+                            const { data: profile } = await supabase
+                                .from('profiles')
+                                .select('business_id')
+                                .eq('id', user.id)
+                                .single();
+                            currentBusinessId = profile?.business_id || user.id;
+                        }
+                    }
 
                     // Only show toast if it belongs to the active business
                     if (payload.eventType === 'INSERT') {

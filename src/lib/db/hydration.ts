@@ -7,9 +7,19 @@ export async function hydrateLocalDB(userId: string) {
     if (!userId) return;
 
     // Get active business ID (respects impersonation)
-    const activeBusinessId = getActiveBusinessIdSync();
-    const businessId = activeBusinessId || userId;
-    console.log('[Hydration] Starting hydration for:', businessId, userId !== businessId ? '(Impersonating)' : '');
+    let businessId = getActiveBusinessIdSync();
+
+    if (!businessId) {
+        // Fetch from profile if not in localStorage yet
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('business_id')
+            .eq('id', userId)
+            .single();
+        businessId = profile?.business_id || userId;
+    }
+
+    console.log('[Hydration] Starting hydration for:', businessId, userId !== businessId ? '(Using Profile/Impersonation)' : '');
 
     const db = await getDB();
     const now = Date.now();
