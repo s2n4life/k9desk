@@ -54,6 +54,7 @@ export default function SettingsPage() {
     const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
     const [editName, setEditName] = useState('');
     const [editPrice, setEditPrice] = useState('');
+    const [editDuration, setEditDuration] = useState('60');
 
     // UI State for Business Name Editing
     const [isEditingBusinessName, setIsEditingBusinessName] = useState(false);
@@ -62,6 +63,7 @@ export default function SettingsPage() {
     const [isAddingService, setIsAddingService] = useState(false);
     const [newName, setNewName] = useState('');
     const [newPrice, setNewPrice] = useState('');
+    const [newDuration, setNewDuration] = useState('60');
 
     const [bookingBaseUrl, setBookingBaseUrl] = useState('');
     const [slug, setSlug] = useState('');
@@ -199,6 +201,7 @@ export default function SettingsPage() {
             setSettings(updatedSettings);
 
             setMsg('Saved successfully!');
+            setIsPaymentExpanded(false); // Auto-collapse for better UX
             setTimeout(() => setMsg(''), 3000);
         } catch (err) {
             console.error(err);
@@ -212,11 +215,13 @@ export default function SettingsPage() {
     const confirmAddService = async () => {
         if (!newName) return;
         const price = parseFloat(newPrice || '0');
+        const duration = parseInt(newDuration || '60');
 
         const newService: Service = {
             id: uuidv4(),
             name: newName,
             price,
+            duration_minutes: duration,
             createdAt: Date.now()
         };
 
@@ -228,6 +233,7 @@ export default function SettingsPage() {
         setIsAddingService(false);
         setNewName('');
         setNewPrice('');
+        setNewDuration('60');
     };
 
     const handleDeleteService = async (id: string) => {
@@ -242,6 +248,7 @@ export default function SettingsPage() {
         setEditingServiceId(service.id);
         setEditName(service.name);
         setEditPrice(service.price.toString());
+        setEditDuration(service.duration_minutes?.toString() || '60');
     };
 
     const saveEditService = async () => {
@@ -251,6 +258,7 @@ export default function SettingsPage() {
             id: editingServiceId,
             name: editName,
             price: parseFloat(editPrice || '0'),
+            duration_minutes: parseInt(editDuration || '60'),
             createdAt: Date.now()
         };
         const original = services.find(s => s.id === editingServiceId);
@@ -298,9 +306,9 @@ export default function SettingsPage() {
                         <div>
                             <h3 className="text-h3" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                                 <ShieldCheck size={20} className="text-brand-primary" />
-                                Billing & Subscription
+                                Subscription Status
                             </h3>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                                 <span style={{
                                     padding: '2px 8px',
                                     borderRadius: '12px',
@@ -310,11 +318,19 @@ export default function SettingsPage() {
                                     color: settings.subscription_status === 'active' ? 'var(--success)' : 'var(--text-tertiary)',
                                     textTransform: 'capitalize'
                                 }}>
-                                    {settings.subscription_status || 'Trial'}
+                                    {settings.subscription_status === 'active' && !settings.stripe_subscription_id ? 'Comped Account' : (settings.subscription_status || 'Trial')}
                                 </span>
-                                {settings.subscription_status === 'trial' && settings.trial_end_date && (
-                                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                                        Ends {new Date(settings.trial_end_date).toLocaleDateString()}
+
+                                {settings.subscription_status === 'trialing' && settings.trial_end_date && (
+                                    <span style={{
+                                        padding: '2px 8px',
+                                        borderRadius: '12px',
+                                        fontSize: '12px',
+                                        fontWeight: 600,
+                                        backgroundColor: 'var(--brand-primary-light)',
+                                        color: 'var(--brand-primary)'
+                                    }}>
+                                        {Math.max(0, Math.ceil((new Date(settings.trial_end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} days left
                                     </span>
                                 )}
                             </div>
@@ -322,56 +338,105 @@ export default function SettingsPage() {
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                        <p style={{ fontSize: '14px', color: 'var(--text-secondary)', maxWidth: '90%' }}>
-                            Manage your plan, update payment methods, or download invoices through our secure billing portal.
-                        </p>
+                        {settings.subscription_status === 'active' && !settings.stripe_subscription_id ? (
+                            <div style={{
+                                padding: 'var(--space-3)',
+                                backgroundColor: 'var(--brand-primary-light)',
+                                borderRadius: 'var(--radius-md)',
+                                border: '1px dashed var(--brand-primary)'
+                            }}>
+                                <p style={{ fontSize: '14px', color: 'var(--brand-primary)', fontWeight: 500 }}>
+                                    Full access provided via Support/Comp status.
+                                </p>
+                                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                    No billing management is necessary as you are not being charged.
+                                </p>
+                            </div>
+                        ) : settings.subscription_status === 'trialing' ? (
+                            <div style={{
+                                padding: 'var(--space-3)',
+                                backgroundColor: 'var(--surface-sunken)',
+                                borderRadius: 'var(--radius-md)',
+                                border: '1px solid var(--border-subtle)'
+                            }}>
+                                <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+                                    You are currently in your 14-day free trial.
+                                </p>
+                                <p style={{ fontSize: '12px', color: 'var(--success)', fontWeight: 600, marginTop: '4px' }}>
+                                    ✓ No credit card required. You will NOT be auto-charged.
+                                </p>
+                            </div>
+                        ) : (
+                            <p style={{ fontSize: '14px', color: 'var(--text-secondary)', maxWidth: '90%' }}>
+                                Manage your plan, update payment methods, or download invoices through our secure billing portal.
+                            </p>
+                        )}
 
-                        <button
-                            onClick={async () => {
-                                setIsBillingLoading(true);
-                                try {
-                                    const res = await fetch('/api/stripe/create-portal-session', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ origin: window.location.origin })
-                                    });
-                                    const data = await res.json();
-                                    if (data.url) {
-                                        window.location.href = data.url;
-                                    } else if (data.error === 'no_customer') {
-                                        alert(data.message);
-                                    } else {
-                                        throw new Error('Failed to open portal');
+                        {(settings.stripe_customer_id || settings.stripe_subscription_id) && (
+                            <button
+                                onClick={async () => {
+                                    setIsBillingLoading(true);
+                                    try {
+                                        const res = await fetch('/api/stripe/create-portal-session', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ origin: window.location.origin })
+                                        });
+                                        const data = await res.json();
+                                        if (data.url) {
+                                            window.location.href = data.url;
+                                        } else if (data.error === 'no_customer') {
+                                            alert(data.message);
+                                        } else {
+                                            throw new Error('Failed to open portal');
+                                        }
+                                    } catch (err) {
+                                        console.error(err);
+                                        alert('Could not open billing portal. Please try again or contact support.');
+                                    } finally {
+                                        setIsBillingLoading(false);
                                     }
-                                } catch (err) {
-                                    console.error(err);
-                                    alert('Could not open billing portal. Please try again or contact support.');
-                                } finally {
-                                    setIsBillingLoading(false);
-                                }
-                            }}
-                            className="btn btn-secondary"
-                            disabled={isBillingLoading}
-                            style={{
-                                width: '100%',
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                                gap: '8px',
-                                background: 'white',
-                                border: '1px solid var(--border-subtle)',
-                                boxShadow: 'var(--shadow-sm)'
-                            }}
-                        >
-                            {isBillingLoading ? (
-                                <span className="animate-spin">...</span>
-                            ) : (
-                                <>
-                                    <ExternalLink size={18} />
-                                    Manage Billing & Subscription
-                                </>
-                            )}
-                        </button>
+                                }}
+                                className="btn btn-secondary"
+                                disabled={isBillingLoading}
+                                style={{
+                                    width: '100%',
+                                    display: 'flex',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    background: 'white',
+                                    border: '1px solid var(--border-subtle)',
+                                    boxShadow: 'var(--shadow-sm)'
+                                }}
+                            >
+                                {isBillingLoading ? (
+                                    <span className="animate-spin">...</span>
+                                ) : (
+                                    <>
+                                        <ExternalLink size={18} />
+                                        Manage Billing
+                                    </>
+                                )}
+                            </button>
+                        )}
+
+                        {!settings.stripe_subscription_id && settings.subscription_status === 'trialing' && (
+                            <Link
+                                href="/pricing"
+                                className="btn btn-primary"
+                                style={{
+                                    width: '100%',
+                                    display: 'flex',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    textDecoration: 'none'
+                                }}
+                            >
+                                Upgrade to Pro
+                            </Link>
+                        )}
                     </div>
                 </div>
             </section>
@@ -497,10 +562,10 @@ export default function SettingsPage() {
                                 autoFocus
                             />
                             <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-                                <div style={{ position: 'relative', flex: 1 }}>
+                                <div style={{ position: 'relative', flex: 1.5 }}>
                                     <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: 'var(--font-size-lg)' }}>$</span>
                                     <input
-                                        className="input input-with-icon"
+                                        className="input"
                                         type="text"
                                         inputMode="decimal"
                                         placeholder="0"
@@ -509,17 +574,22 @@ export default function SettingsPage() {
                                             const val = e.target.value.replace(/[^0-9.]/g, '');
                                             setNewPrice(val);
                                         }}
-                                        style={{ width: '100%' }}
+                                        style={{ width: '100%', paddingLeft: '32px' }}
                                     />
                                 </div>
-                                <div style={{ position: 'relative', width: '100px' }}>
-                                    <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: '12px' }}>min</span>
+                                <div style={{ position: 'relative', width: '85px' }}>
+                                    <span style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: '10px' }}>min</span>
                                     <input
                                         className="input"
-                                        type="number"
+                                        type="text"
+                                        inputMode="numeric"
                                         placeholder="60"
-                                        style={{ width: '100%', paddingRight: '40px' }}
-                                        disabled
+                                        value={newDuration}
+                                        onChange={e => {
+                                            const val = e.target.value.replace(/[^0-9]/g, '');
+                                            setNewDuration(val);
+                                        }}
+                                        style={{ width: '100%', paddingRight: '28px', paddingLeft: '8px' }}
                                     />
                                 </div>
                                 <button onClick={confirmAddService} className="btn btn-primary" style={{ width: 'auto', padding: '0 var(--space-4)', height: '60px' }}>Save</button>
@@ -548,10 +618,10 @@ export default function SettingsPage() {
                                         placeholder="Service Name"
                                     />
                                     <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-                                        <div style={{ position: 'relative', flex: 1 }}>
+                                        <div style={{ position: 'relative', flex: 1.5 }}>
                                             <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: 'var(--font-size-lg)' }}>$</span>
                                             <input
-                                                className="input input-with-icon"
+                                                className="input"
                                                 type="text"
                                                 inputMode="decimal"
                                                 value={editPrice}
@@ -559,7 +629,23 @@ export default function SettingsPage() {
                                                     const val = e.target.value.replace(/[^0-9.]/g, '');
                                                     setEditPrice(val);
                                                 }}
-                                                style={{ width: '100%' }}
+                                                style={{ width: '100%', paddingLeft: '32px' }}
+                                                placeholder="0"
+                                            />
+                                        </div>
+                                        <div style={{ position: 'relative', width: '85px' }}>
+                                            <span style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: '10px' }}>min</span>
+                                            <input
+                                                className="input"
+                                                type="text"
+                                                inputMode="numeric"
+                                                value={editDuration}
+                                                onChange={e => {
+                                                    const val = e.target.value.replace(/[^0-9]/g, '');
+                                                    setEditDuration(val);
+                                                }}
+                                                style={{ width: '100%', paddingRight: '28px', paddingLeft: '8px' }}
+                                                placeholder="60"
                                             />
                                         </div>
                                         <button onClick={saveEditService} className="btn btn-primary" style={{ width: 'auto', padding: '0 var(--space-4)', height: '60px' }}>Save</button>
