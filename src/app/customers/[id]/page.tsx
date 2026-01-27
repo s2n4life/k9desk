@@ -101,6 +101,32 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
         setPets(prev => prev.filter(p => p.id !== petId));
     };
 
+    const deleteCustomer = async () => {
+        if (!customer) return;
+        if (!confirm('Are you sure you want to delete this customer and all their pets/jobs? This cannot be undone.')) return;
+
+        const db = await getDB();
+
+        // 1. Delete associated data locally
+        const customerPets = await db.getAllFromIndex('pets', 'by-customer', customer.id);
+        for (const p of customerPets) {
+            await db.delete('pets', p.id);
+            await addToSyncQueue('DELETE', 'PET', p.id);
+        }
+
+        const customerJobs = await db.getAllFromIndex('jobs', 'by-customer', customer.id);
+        for (const j of customerJobs) {
+            await db.delete('jobs', j.id);
+            await addToSyncQueue('DELETE', 'JOB', j.id);
+        }
+
+        // 2. Delete customer
+        await db.delete('customers', customer.id);
+        await addToSyncQueue('DELETE', 'CUSTOMER', customer.id);
+
+        router.push('/customers');
+    };
+
 
     if (loading || !customer) return <div className="container" style={{ paddingTop: '2rem' }}>Loading...</div>;
 
@@ -127,7 +153,26 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                             <MapPin size={18} /> <span>{customer.address}</span>
                         </div>
                     </div>
-                    <Edit2 size={18} color="var(--text-tertiary)" />
+                    <div style={{ display: 'flex', gap: 12 }}>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setCustomerModalOpen(true);
+                            }}
+                            style={{ background: 'none', border: 'none', padding: 8 }}
+                        >
+                            <Edit2 size={18} color="var(--text-tertiary)" />
+                        </button>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                deleteCustomer();
+                            }}
+                            style={{ background: 'none', border: 'none', padding: 8 }}
+                        >
+                            <Trash2 size={18} color="var(--color-danger)" />
+                        </button>
+                    </div>
                 </div>
                 {customer.notes && (
                     <div style={{ marginTop: 'var(--space-3)', background: '#FFF4E5', padding: 'var(--space-2)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-sm)', color: '#663C00', display: 'flex', gap: 6 }}>

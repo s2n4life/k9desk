@@ -22,29 +22,34 @@ export default function AuthForm({ initialMode = 'login' }: { initialMode?: Auth
         setMessage(null);
 
         try {
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Login request timed out. Please check your internet connection.')), 15000)
+            );
+
+            let authPromise;
             if (mode === 'signup') {
-                const { error } = await supabase.auth.signUp({
-                    email,
-                    password,
-                });
-                if (error) throw error;
-                router.push('/dashboard');
+                authPromise = supabase.auth.signUp({ email, password });
             } else if (mode === 'login') {
-                const { error } = await supabase.auth.signInWithPassword({
-                    email,
-                    password,
-                });
-                if (error) throw error;
-                router.push('/dashboard');
+                authPromise = supabase.auth.signInWithPassword({ email, password });
             } else if (mode === 'forgot-password') {
-                const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                authPromise = supabase.auth.resetPasswordForEmail(email, {
                     redirectTo: 'https://k9desk.com/reset-password',
                 });
+            }
+
+            if (authPromise) {
+                const { error, data } = (await Promise.race([authPromise, timeoutPromise])) as any;
                 if (error) throw error;
-                setMessage('Password reset link sent! Please check your email.');
+
+                if (mode === 'forgot-password') {
+                    setMessage('Password reset link sent! Please check your email.');
+                } else {
+                    router.push('/dashboard');
+                }
             }
         } catch (err: any) {
-            setError(err.message);
+            console.error('Auth error:', err);
+            setError(err.message === 'Load failed' ? 'Network error: Failed to connect to server.' : err.message);
         } finally {
             setLoading(false);
         }

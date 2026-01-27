@@ -13,236 +13,214 @@ export async function hydrateLocalDB(userId: string) {
 
     const db = await getDB();
     const now = Date.now();
+    const TIMEOUT_MS = 15000; // 15s timeout for the whole process
+
+    // Timeout helper
+    const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Hydration timed out')), TIMEOUT_MS)
+    );
+
+    const runHydration = async () => {
+        try {
+            // 0. CHECK FOR PENDING SYNC QUEUE ITEMS
+            const syncQueueCount = await db.count('syncQueue');
+            if (syncQueueCount > 0) {
+                if (!navigator.onLine) {
+                    console.error('[Hydration] OFFLINE with pending sync items - skipping hydration');
+                    localStorage.setItem('crm_has_hydrated', 'true');
+                    return true;
+                }
+
+                console.log('[Hydration] Processing sync queue before clearing...');
+                const { processQueueSync } = await import('@/hooks/useSync');
+                if (processQueueSync) {
+                    await processQueueSync();
+                }
+            }
+
+            // 0b. CLEAR STORES
+            const stores = ['jobs', 'customers', 'pets', 'services', 'leads', 'settings'];
+            for (const storeName of stores) {
+                await db.clear(storeName as any);
+            }
+
+            // 1. Parallel Fetching
+            console.log('[Hydration] Fetching all data in parallel...');
+            const [
+                businessRes,
+                servicesRes,
+                customersRes,
+                petsRes,
+                jobsRes,
+                leadsRes
+            ] = await Promise.allSettled([
+                supabase.from('businesses').select('*').eq('id', businessId).order('updated_at', { ascending: false }),
+                supabase.from('services').select('*').eq('business_id', businessId),
+                supabase.from('customers').select('*').eq('business_id', businessId),
+                supabase.from('pets').select('*').eq('business_id', businessId),
+                supabase.from('jobs').select('*').eq('business_id', businessId),
+                supabase.from('leads').select('*').eq('business_id', businessId)
+            ]);
+
+            // 2. Process Business (Critical)
+            if (businessRes.status === 'fulfilled') {
+                const { data: businesses, error: businessError } = businessRes.value;
+                const business = businesses?.[0];
+                if (business) {
+                    const settings: Settings = {
+                        id: 'default',
+                        businessName: business.name,
+                        venmo: business.venmo,
+                        zelle: business.zelle,
+                        paypal: business.paypal,
+                        cashapp: business.cashapp,
+                        custom_url: business.custom_url,
+                        review_url: business.review_url,
+                        onboardingCompleted: business.onboarding_completed,
+                        subscription_status: business.subscription_status,
+                        trial_start_date: business.trial_start_date,
+                        trial_end_date: business.trial_end_date,
+                        stripe_customer_id: business.stripe_customer_id,
+                        stripe_subscription_id: business.stripe_subscription_id,
+                        updatedAt: new Date(business.updated_at || now).getTime(),
+                    };
+                    await db.put('settings', settings);
+                } else if (businessError) {
+                    console.error('[Hydration] Business fetch error:', businessError);
+                }
+            }
+
+            // 3. Process Services
+            if (servicesRes.status === 'fulfilled') {
+                const { data: services } = servicesRes.value;
+                if (services) {
+                    for (const s of services) {
+                        await db.put('services', {
+                            id: s.id,
+                            name: s.name,
+                            price: s.price,
+                            duration_minutes: s.duration_minutes,
+                            createdAt: new Date(s.created_at).getTime(),
+                        });
+                    }
+                }
+            }
+
+            // 4. Process Customers
+            if (customersRes.status === 'fulfilled') {
+                const { data: customers } = customersRes.value;
+                if (customers) {
+                    const seenPhones = new Set<string>();
+                    for (const c of customers) {
+                        const phoneKey = c.phone?.trim();
+                        if (phoneKey && seenPhones.has(phoneKey)) continue;
+                        if (phoneKey) seenPhones.add(phoneKey);
+
+                        await db.put('customers', {
+                            id: c.id,
+                            name: c.name,
+                            phone: c.phone,
+                            address: c.address,
+                            notes: c.notes,
+                            createdAt: new Date(c.created_at).getTime(),
+                            updatedAt: new Date(c.updated_at || c.created_at).getTime(),
+                        });
+                    }
+                }
+            }
+
+            // 5. Process Pets
+            if (petsRes.status === 'fulfilled') {
+                const { data: pets } = petsRes.value;
+                if (pets) {
+                    for (const p of pets) {
+                        await db.put('pets', {
+                            id: p.id,
+                            customerId: p.customer_id,
+                            name: p.name,
+                            breed: p.breed,
+                            notes: p.notes,
+                            size: p.size,
+                            age: p.age,
+                            createdAt: new Date(p.created_at).getTime(),
+                            updatedAt: new Date(p.updated_at || p.created_at).getTime(),
+                        });
+                    }
+                }
+            }
+
+            // 6. Process Jobs
+            if (jobsRes.status === 'fulfilled') {
+                const { data: jobs } = jobsRes.value;
+                if (jobs) {
+                    for (const j of jobs) {
+                        await db.put('jobs', {
+                            id: j.id,
+                            customerId: j.customer_id,
+                            petIds: j.pet_ids || [],
+                            state: j.state.toLowerCase(),
+                            scheduledDate: j.scheduled_date,
+                            scheduledTime: j.scheduled_time,
+                            address: j.address,
+                            jobNotes: j.notes,
+                            customerNotes: j.customer_notes,
+                            petNotes: j.pet_notes,
+                            payment_amount: j.payment_amount,
+                            payment_method: j.payment_method,
+                            payment_logged_at: j.payment_logged_at ? new Date(j.payment_logged_at).getTime() : undefined,
+                            createdAt: new Date(j.created_at).getTime(),
+                            updatedAt: new Date(j.updated_at || j.created_at).getTime(),
+                        });
+                    }
+                }
+            }
+
+            // 7. Process Leads
+            if (leadsRes.status === 'fulfilled') {
+                const { data: leads } = leadsRes.value;
+                if (leads) {
+                    for (const l of leads) {
+                        await db.put('leads', {
+                            id: l.id,
+                            businessId: businessId,
+                            status: l.status,
+                            ownerName: l.owner_name,
+                            ownerPhone: l.owner_phone,
+                            ownerEmail: l.owner_email,
+                            ownerAddress: l.owner_address,
+                            serviceAreaZip: l.service_area_zip,
+                            petDetails: l.pet_details,
+                            preferredDates: l.preferred_dates,
+                            serviceIds: l.service_ids,
+                            waiverSigned: l.waiver_signed,
+                            createdAt: l.created_at,
+                            notes: l.notes
+                        });
+                    }
+                }
+            }
+
+            console.log('[Hydration] Complete.');
+            localStorage.setItem('crm_has_hydrated', 'true');
+            return true;
+        } catch (error) {
+            console.error('[Hydration] Internal failure:', error);
+            throw error;
+        }
+    };
 
     try {
-        // 0. CHECK FOR PENDING SYNC QUEUE ITEMS FIRST
-        // CRITICAL: If there are unsynced items, we MUST sync them before wiping local data
-        // Otherwise we lose data if user closed tabs before sync completed
-        const syncQueueCount = await db.count('syncQueue');
-
-        if (syncQueueCount > 0) {
-            console.warn(`[Hydration] Found ${syncQueueCount} pending sync items.`);
-
-            // CRITICAL: If offline with pending items, DO NOT clear stores
-            // This would cause permanent data loss
-            if (!navigator.onLine) {
-                console.error('[Hydration] OFFLINE with pending sync items - skipping hydration to prevent data loss!');
-                console.warn('[Hydration] Using local data until online and synced.');
-                // Mark as hydrated so app can proceed with local data
-                localStorage.setItem('crm_has_hydrated', 'true');
-                return true;
-            }
-
-            console.log('[Hydration] Processing sync queue before clearing stores...');
-            // Import and process sync queue
-            // We need to process the queue synchronously here
-            const { processQueueSync } = await import('@/hooks/useSync');
-            if (processQueueSync) {
-                await processQueueSync();
-                console.log('[Hydration] Sync queue processed successfully');
-            } else {
-                console.error('[Hydration] Could not process sync queue - data may be lost!');
-            }
-        }
-
-        // 0b. CLEAR STORES TO PREVENT CONFLICTS
-        // Since we are doing a full hydration, we should start fresh to avoid 'ConstraintError'
-        // on unique indexes (like phone numbers) if local data is stale or partial.
-        const stores = ['jobs', 'customers', 'pets', 'services', 'leads', 'settings'];
-        // Note: We don't clear syncQueue here because hydration happens before we start syncing *new* changes?
-        // Actually, if we are hydrating, we assume local is irrelevant or should be overwritten.
-
-        for (const storeName of stores) {
-            await db.clear(storeName as any);
-        }
-
-        // 1. Fetch Business (Settings)
-        console.log('[Hydration] Fetching business for businessId:', businessId);
-        const { data: businesses, error: businessError } = await supabase
-            .from('businesses')
-            .select('*')
-            .eq('id', businessId)
-            .order('updated_at', { ascending: false });
-
-        const business = businesses?.[0];
-
-        if (businesses && businesses.length > 1) {
-            console.warn('[Hydration] Multiple businesses found for ID!', businessId);
-        }
-
-        console.log('[Hydration] Business query result:', business ? 'Found' : 'Not Found', businessError || '');
-        if (business) {
-            console.log('[Hydration] Business details:', {
-                id: business.id,
-                owner_id: business.owner_id,
-                name: business.name,
-                onboarding_completed: business.onboarding_completed,
-                subscription_status: business.subscription_status
-            });
-            const settings: Settings = {
-                id: 'default',
-                businessName: business.name,
-                venmo: business.venmo,
-                zelle: business.zelle,
-                paypal: business.paypal,
-                cashapp: business.cashapp,
-                custom_url: business.custom_url,
-                review_url: business.review_url,
-                onboardingCompleted: business.onboarding_completed,
-                subscription_status: business.subscription_status,
-                trial_start_date: business.trial_start_date,
-                trial_end_date: business.trial_end_date,
-                stripe_customer_id: business.stripe_customer_id,
-                stripe_subscription_id: business.stripe_subscription_id,
-                updatedAt: new Date(business.updated_at || now).getTime(),
-
-                // Keep existing schedule settings if any, or default? 
-                // Currently assuming remote overrides local empty state.
-            };
-            await db.put('settings', settings);
-        } else if (businessError && businessError.code !== 'PGRST116') {
-            console.error('[Hydration] Error fetching business:', businessError);
-        }
-
-        // 2. Fetch Services
-        const { data: services } = await supabase.from('services').select('*').eq('business_id', businessId);
-        if (services) {
-            for (const s of services) {
-                const local: Service = {
-                    id: s.id,
-                    name: s.name,
-                    price: s.price,
-                    duration_minutes: s.duration_minutes,
-                    createdAt: new Date(s.created_at).getTime(),
-                };
-                await db.put('services', local);
-            }
-        }
-
-        // 3. Fetch Customers
-        const { data: customers } = await supabase.from('customers').select('*').eq('business_id', businessId);
-        if (customers) {
-            const seenPhones = new Set<string>();
-            for (const c of customers) {
-                // Deduplicate by Phone Number to satisfying Unique Index
-                // If Supabase has dupes, we keep the first one encountered (usually oldest unless sorted)
-                const phoneKey = c.phone?.trim();
-
-                if (phoneKey && seenPhones.has(phoneKey)) {
-                    console.warn(`[Hydration] Skipping duplicate customer phone: ${phoneKey} (ID: ${c.id})`);
-                    continue;
-                }
-
-                if (phoneKey) seenPhones.add(phoneKey);
-
-                const local: Customer = {
-                    id: c.id,
-                    name: c.name,
-                    phone: c.phone,
-                    address: c.address,
-                    notes: c.notes,
-                    createdAt: new Date(c.created_at).getTime(),
-                    updatedAt: new Date(c.updated_at || c.created_at).getTime(),
-                };
-
-                try {
-                    await db.put('customers', local);
-                } catch (err) {
-                    // Start fresh fallback: if somehow still fails, log and continue
-                    console.error('[Hydration] Failed to put customer:', c.id, err);
-                }
-            }
-        }
-
-        // 4. Fetch Pets
-        const { data: pets } = await supabase.from('pets').select('*').eq('business_id', businessId);
-        if (pets) {
-            for (const p of pets) {
-                const local: Pet = {
-                    id: p.id,
-                    customerId: p.customer_id,
-                    name: p.name,
-                    breed: p.breed,
-                    notes: p.notes,
-                    size: p.size,
-                    age: p.age,
-                    createdAt: new Date(p.created_at).getTime(),
-                    updatedAt: new Date(p.updated_at || p.created_at).getTime(),
-                };
-                await db.put('pets', local);
-            }
-        }
-
-        // 5. Fetch Jobs
-        // We fetch ALL jobs for now. Scaling might require limiting to last X months.
-        const { data: jobs } = await supabase.from('jobs').select('*').eq('business_id', businessId);
-        if (jobs) {
-            for (const j of jobs) {
-                const local: Job = {
-                    id: j.id,
-                    customerId: j.customer_id,
-                    petIds: j.pet_ids || [],
-                    state: j.state.toLowerCase(), // Ensure lower case local
-                    scheduledDate: j.scheduled_date,
-                    scheduledTime: j.scheduled_time,
-                    address: j.address,
-                    jobNotes: j.notes,
-                    customerNotes: j.customer_notes,
-                    petNotes: j.pet_notes,
-                    payment_amount: j.payment_amount,
-                    payment_method: j.payment_method,
-                    payment_logged_at: j.payment_logged_at ? new Date(j.payment_logged_at).getTime() : undefined,
-                    createdAt: new Date(j.created_at).getTime(),
-                    updatedAt: new Date(j.updated_at || j.created_at).getTime(),
-                    // Services need mapping if we stored them as JSON or related table?
-                    // Currently schema has `service_ids`.
-                    // We might need to map IDs to objects if `services` field in local Job expects objects.
-                    // The Local Job schema has `services?: (Service & { petId?: string })[];`
-                    // But Supabase probably stores `service_ids`.
-                    // Let's assume we need to join or map.
-                };
-
-                // Mismatched services fix:
-                if (j.service_ids && Array.isArray(j.service_ids)) {
-                    // We would need to look up these services. 
-                    // For simplicity, we might just store the IDs or do a quick lookup if services are already loaded.
-                    // But `db.put('jobs')` runs after `services` loop, so we can access them from DB or memory.
-                }
-
-                await db.put('jobs', local);
-            }
-        }
-
-        // 6. Fetch Leads
-        const { data: leads } = await supabase.from('leads').select('*').eq('business_id', businessId);
-        if (leads) {
-            for (const l of leads) {
-                const local: Lead = {
-                    id: l.id,
-                    businessId: businessId,
-                    status: l.status,
-                    ownerName: l.owner_name,
-                    ownerPhone: l.owner_phone,
-                    ownerEmail: l.owner_email,
-                    ownerAddress: l.owner_address,
-                    serviceAreaZip: l.service_area_zip,
-                    petDetails: l.pet_details,
-                    preferredDates: l.preferred_dates,
-                    serviceIds: l.service_ids,
-                    waiverSigned: l.waiver_signed,
-                    createdAt: l.created_at, // Keep string for Lead
-                    notes: l.notes
-                }
-                await db.put('leads', local);
-            }
-        }
-
-        console.log('[Hydration] Complete.');
-        localStorage.setItem('crm_has_hydrated', 'true');
-        return true;
-
+        // Race hydration against timeout
+        return await Promise.race([runHydration(), timeout]);
     } catch (e) {
-        console.error('[Hydration] Failed:', e);
+        console.error('[Hydration] Failed or Timed out:', e);
+        // Fallback: If we fail but have some data (or even if we don't), 
+        // we might want to let the user in anyway if they've hydrated before.
+        const hasHydratedBefore = localStorage.getItem('crm_has_hydrated') === 'true';
+        if (hasHydratedBefore) {
+            console.warn('[Hydration] Using stale local data due to failure/timeout');
+            return true;
+        }
         return false;
     }
 }

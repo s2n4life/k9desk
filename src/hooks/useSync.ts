@@ -182,63 +182,69 @@ export function useSync() {
         const checkSession = async () => {
             if (typeof window === 'undefined') return;
 
-            const { data: { user } } = await supabase.auth.getUser();
-            const currentUserId = user?.id;
-            const lastUserId = localStorage.getItem('crm_last_user_id');
+            try {
+                // Add a timeout to getUser to prevent hangs on sessions
+                const sessionPromise = supabase.auth.getUser();
+                const timeoutPromise = new Promise<{ data: { user: null } }>(resolve =>
+                    setTimeout(() => resolve({ data: { user: null } }), 8000)
+                );
 
-            // Also track active business ID to detect context changes (Impersonation)
-            const currentBusinessId = impersonatedBusinessId || currentUserId;
-            const lastBusinessId = localStorage.getItem('crm_last_business_id');
+                const { data: { user } } = await Promise.race([sessionPromise, timeoutPromise]);
+                const currentUserId = user?.id;
+                const lastUserId = localStorage.getItem('crm_last_user_id');
 
-            // 1. User changed -> Wipe everything
-            if (currentUserId && lastUserId && currentUserId !== lastUserId) {
-                await clearLocalData();
-            }
+                // Also track active business ID to detect context changes (Impersonation)
+                const currentBusinessId = impersonatedBusinessId || currentUserId;
+                const lastBusinessId = localStorage.getItem('crm_last_business_id');
 
-            // 2. Business context changed -> Clear local stores (not sync queue) and re-hydrate
-            if (currentBusinessId && lastBusinessId && currentBusinessId !== lastBusinessId) {
-                console.log(`[useSync] Business context changed from ${lastBusinessId} to ${currentBusinessId}. Re-hydrating...`);
-                localStorage.removeItem('crm_has_hydrated');
-                // Note: Not doing full clearLocalData here to preserve any pending sync queue items
-                // from the previous context (though switching contexts with pending items is rare).
-                const db = await getDB();
-                const stores = ['jobs', 'customers', 'pets', 'services', 'settings', 'leads'];
-                for (const s of stores) await db.clear(s as any);
-            }
-
-            if (currentUserId) {
-                localStorage.setItem('crm_last_user_id', currentUserId);
-                if (currentBusinessId) localStorage.setItem('crm_last_business_id', currentBusinessId);
-
-                const hasHydrated = localStorage.getItem('crm_has_hydrated');
-
-                // OFFLINE RESILIENCE: 
-                // If we are offline but have hydrated before, stop blocking the UI.
-                if (!navigator.onLine && hasHydrated) {
-                    console.log('[useSync] Offline but already hydrated. Allowing access.');
-                    setIsHydrating(false);
-                    return;
+                // 1. User changed -> Wipe everything
+                if (currentUserId && lastUserId && currentUserId !== lastUserId) {
+                    await clearLocalData();
                 }
 
-                // CRITICAL: Force hydration if business ID changed (impersonation switch)
-                // This prevents data leaks between businesses
-                const businessIdChanged = currentBusinessId !== lastBusinessId;
+                // 2. Business context changed -> Clear local stores (not sync queue) and re-hydrate
+                if (currentBusinessId && lastBusinessId && currentBusinessId !== lastBusinessId) {
+                    console.log(`[useSync] Business context changed from ${lastBusinessId} to ${currentBusinessId}. Re-hydrating...`);
+                    localStorage.removeItem('crm_has_hydrated');
+                    const db = await getDB();
+                    const stores = ['jobs', 'customers', 'pets', 'services', 'settings', 'leads'];
+                    for (const s of stores) await db.clear(s as any);
+                }
 
-                if (!hasHydrated || currentUserId !== lastUserId || businessIdChanged) {
-                    console.log('[useSync] Triggering hydration:', {
-                        hasHydrated,
-                        userChanged: currentUserId !== lastUserId,
-                        businessChanged: businessIdChanged,
-                        currentBusinessId,
-                        lastBusinessId
-                    });
-                    setIsHydrating(true);
-                    await hydrateLocalDB(currentUserId);
-                    setIsHydrating(false);
+                if (currentUserId) {
+                    localStorage.setItem('crm_last_user_id', currentUserId);
+                    if (currentBusinessId) localStorage.setItem('crm_last_business_id', currentBusinessId);
+
+                    const hasHydrated = localStorage.getItem('crm_has_hydrated');
+
+                    // OFFLINE RESILIENCE: 
+                    if (!navigator.onLine && hasHydrated) {
+                        console.log('[useSync] Offline but already hydrated. Allowing access.');
+                        setIsHydrating(false);
+                        return;
+                    }
+
+                    const businessIdChanged = currentBusinessId !== lastBusinessId;
+
+                    if (!hasHydrated || currentUserId !== lastUserId || businessIdChanged) {
+                        console.log('[useSync] Triggering hydration');
+                        setIsHydrating(true);
+                        const success = await hydrateLocalDB(currentUserId);
+                        console.log('[useSync] Hydration result:', success);
+                        setIsHydrating(false);
+                    } else {
+                        setIsHydrating(false);
+                    }
                 } else {
+                    // No user found or timed out - if we have hydrated before, we might be offline
+                    const hasHydrated = localStorage.getItem('crm_has_hydrated') === 'true';
+                    if (!hasHydrated) {
+                        console.warn('[useSync] No user and no previous hydration.');
+                    }
                     setIsHydrating(false);
                 }
-            } else {
+            } catch (err) {
+                console.error('[useSync] Session check failed:', err);
                 setIsHydrating(false);
             }
         };

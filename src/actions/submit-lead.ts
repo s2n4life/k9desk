@@ -3,26 +3,28 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-// OR use Anon key if RLS allows public insert (which we set to true)
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-// Check if Service Role Key is available to bypass RLS
-const envKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-console.log('Server Action Debug: Checking Service Role Key...');
-console.log('Has SUPABASE_SERVICE_ROLE_KEY:', !!envKey);
-if (!envKey) console.warn('WARNING: SUPABASE_SERVICE_ROLE_KEY is missing. Falling back to ANON key (restricted by RLS).');
-
-const adminKey = envKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-// Initialize with Admin Key (Service Role) if available to bypass RLS completely
-const supabase = createClient(supabaseUrl, adminKey, {
-    auth: {
-        persistSession: false // Important for server-side admin clients
-    }
-});
-
 export async function submitLead(formData: any) {
+    // 1. Get Service Role Key (Server Side Only)
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    // 2. Determine which key to use (Prefer Service Role to bypass RLS)
+    const adminKey = serviceKey || supabaseAnonKey;
+
+    console.log(`[LeadSubmission] Using ${serviceKey ? 'SERVICE_ROLE' : 'ANON'} key. KeyLength: ${adminKey?.length || 0}`);
+
+    if (!serviceKey) {
+        console.warn('[LeadSubmission] WARNING: SUPABASE_SERVICE_ROLE_KEY is missing from process.env!');
+    }
+
+    // 3. Initialize Client inside the action to ensure fresh env variables
+    const supabase = createClient(supabaseUrl, adminKey, {
+        auth: {
+            persistSession: false
+        }
+    });
+
     const {
         businessId,
         ownerName,

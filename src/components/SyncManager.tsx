@@ -15,6 +15,18 @@ export function SyncManager() {
         }
     }, [status, queueLength]);
 
+    const [hydrationTime, setHydrationTime] = useState(0);
+
+    // Track hydration duration for UI feedback
+    useEffect(() => {
+        if (!isHydrating) {
+            setHydrationTime(0);
+            return;
+        }
+        const interval = setInterval(() => setHydrationTime(prev => prev + 1), 1000);
+        return () => clearInterval(interval);
+    }, [isHydrating]);
+
     if (isHydrating) {
         return (
             <div style={{
@@ -25,11 +37,13 @@ export function SyncManager() {
                 bottom: 0,
                 backgroundColor: '#ffffff',
                 zIndex: 99999,
+                padding: '20px',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: 'var(--text-primary)'
+                color: 'var(--text-primary)',
+                textAlign: 'center'
             }}>
                 <div style={{
                     width: '50px',
@@ -41,11 +55,33 @@ export function SyncManager() {
                     marginBottom: '20px'
                 }} />
                 <h2 className="text-h2">Loading K9desk...</h2>
-                <p style={{ color: 'var(--text-secondary)' }}>Syncing your data</p>
+                <p style={{ color: 'var(--text-secondary)' }}>
+                    {hydrationTime > 8 ? 'Still syncing (slow connection)...' : 'Syncing your data'}
+                </p>
+
+                {hydrationTime > 12 && (
+                    <div style={{ marginTop: '30px', animation: 'fadeIn 0.5s ease-in' }}>
+                        <p style={{ fontSize: '14px', marginBottom: '15px' }}>
+                            Data sync is taking longer than expected.
+                        </p>
+                        <button
+                            className="btn btn-secondary"
+                            onClick={() => window.location.reload()}
+                            style={{ width: '200px', marginBottom: '10px' }}
+                        >
+                            Retry Sync
+                        </button>
+                    </div>
+                )}
+
                 <style jsx>{`
                     @keyframes spin {
                         0% { transform: rotate(0deg); }
                         100% { transform: rotate(360deg); }
+                    }
+                    @keyframes fadeIn {
+                        from { opacity: 0; }
+                        to { opacity: 1; }
                     }
                 `}</style>
             </div>
