@@ -455,7 +455,7 @@ export default function TicketsPage() {
                                 </button>
                                 <button
                                     onClick={() => {
-                                        startImpersonation(selectedTicket.business_id, selectedTicket.user_id);
+                                        startImpersonation(selectedTicket.business_id);
                                         setSelectedTicket(null);
                                     }}
                                     style={{
