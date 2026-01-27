@@ -905,7 +905,7 @@ export default function SettingsPage() {
                                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                             <select
                                                 className="input"
-                                                style={{ flex: 1, padding: '12px', fontSize: '16px', height: '48px' }}
+                                                style={{ flex: 1 }}
                                                 value={dayConfig.start}
                                                 onChange={e => {
                                                     const newHours = { ...settings.business_hours };
@@ -918,7 +918,7 @@ export default function SettingsPage() {
                                             <span className="text-slate-400 font-bold">-</span>
                                             <select
                                                 className="input"
-                                                style={{ flex: 1, padding: '12px', fontSize: '16px', height: '48px' }}
+                                                style={{ flex: 1 }}
                                                 value={dayConfig.end}
                                                 onChange={e => {
                                                     const newHours = { ...settings.business_hours };
