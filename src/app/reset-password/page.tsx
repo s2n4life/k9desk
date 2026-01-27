@@ -20,30 +20,42 @@ function ResetPasswordForm() {
             setError(null);
 
             try {
-                // 1. Immediately read URL hash params
+                // 1. Immediately read URL parameters (both hash and query)
                 const hash = window.location.hash;
-                const params = new URLSearchParams(hash.substring(1));
-                const accessToken = params.get('access_token');
-                const refreshToken = params.get('refresh_token');
-                const type = params.get('type');
+                const searchParams = new URLSearchParams(window.location.search);
+                const hashParams = new URLSearchParams(hash.substring(1));
 
-                console.log('Recovery Page Loaded. Hash type:', type);
+                // Get tokens from either hash (Implicit) or search (PKCE)
+                const accessToken = hashParams.get('access_token');
+                const refreshToken = hashParams.get('refresh_token');
+                const type = hashParams.get('type');
+                const pkceCode = searchParams.get('code');
 
-                // 2. If type === "recovery" AND access_token exists:
+                console.log('Recovery Page Loaded. Hash type:', type, 'PKCE code detected:', !!pkceCode);
+
+                // 2. Handle Implicit Flow (Hash)
                 if (type === 'recovery' && accessToken) {
-                    console.log('Attempting manual setSession for recovery...');
+                    console.log('Attempting manual setSession for recovery (Implicit)...');
                     const { error: setError } = await supabase.auth.setSession({
                         access_token: accessToken,
                         refresh_token: refreshToken || '',
                     });
-
-                    if (setError) {
-                        console.error('setSession error:', setError);
-                        throw setError;
+                    if (setError) throw setError;
+                    console.log('Recovery session established via hash.');
+                }
+                // 3. Handle PKCE Flow (Query Code)
+                else if (pkceCode) {
+                    console.log('Attempting exchangeCodeForSession for recovery (PKCE)...');
+                    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(pkceCode);
+                    if (exchangeError) {
+                        // If it fails, maybe it's already exchanged? Check for user.
+                        const { data: { user } } = await supabase.auth.getUser();
+                        if (!user) throw exchangeError;
                     }
-
-                    console.log('Recovery session successfully established via hash.');
-                } else {
+                    console.log('Recovery session established via code exchange.');
+                }
+                // 4. Verification Check
+                else {
                     // 3. If no access_token or type !== recovery, check if we already have a user
                     // (maybe they refreshed after a successful setSession)
                     const { data: { user } } = await supabase.auth.getUser();

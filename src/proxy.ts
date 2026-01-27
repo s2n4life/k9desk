@@ -47,8 +47,10 @@ export async function proxy(request: NextRequest) {
 
     // Defer getUser until we know it's not a static asset or a dedicated auth route we want to leave alone
     // We explicitly exclude /auth and /reset-password from middleware auth checks to let them handle codes
+    // We ALSO skip getUser if we see a PKCE code anywhere, to prevent premature consumption
+    const hasSearchCode = request.nextUrl.searchParams.has('code');
     let user = null
-    if (!isStaticAsset && !path.startsWith('/auth') && path !== '/reset-password') {
+    if (!isStaticAsset && !path.startsWith('/auth') && path !== '/reset-password' && !hasSearchCode) {
         const { data: { user: foundUser } } = await supabase.auth.getUser()
         user = foundUser
     }

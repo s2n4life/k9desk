@@ -11,25 +11,19 @@ export function AuthRedirectHandler() {
         const hash = window.location.hash;
         const code = searchParams.get('code');
 
-        // 1. RECOVERY HANDOFF: If we see a recovery token, steer it to the reset page
+        // 1. IGNORE RECOVERY: Per ChatGPT spec, home page must NOT handle recovery
         if (hash.includes('type=recovery')) {
-            window.location.replace('/reset-password' + hash);
             return;
         }
 
-        // 2. SIGNUP HANDOFF: Similarly for signups
-        if (hash.includes('type=signup')) {
-            window.location.replace('/dashboard' + hash);
-            return;
-        }
-
-        // 3. STANDARD LOGIN (Hash-based)
+        // 2. STANDARD LOGIN (Hash-based)
+        // Only redirect to dashboard if it's a normal login (no recovery token)
         if (hash.includes('access_token=') && !hash.includes('type=recovery')) {
             window.location.replace('/dashboard' + hash);
             return;
         }
 
-        // 4. PKCE FLOW
+        // 3. PKCE FLOW (Standard)
         if (code) {
             router.push(`/auth/callback?code=${code}`);
         }
