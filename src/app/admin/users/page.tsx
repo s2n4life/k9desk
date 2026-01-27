@@ -25,6 +25,7 @@ type BusinessAccount = {
     created_at: string;
     owner_email?: string;
     owner_role?: string;
+    stripe_subscription_id?: string;
 };
 
 export default function AdminUsersPage() {
@@ -52,7 +53,8 @@ export default function AdminUsersPage() {
                 const mapped = data.map((b: any) => ({
                     ...b,
                     owner_email: b.profiles?.email,
-                    owner_role: b.profiles?.role
+                    owner_role: b.profiles?.role,
+                    stripe_subscription_id: b.stripe_subscription_id
                 }));
                 setAccounts(mapped);
             }
@@ -63,20 +65,50 @@ export default function AdminUsersPage() {
     }, []);
 
     const extendTrial = async (id: string, days: number) => {
-        const newDate = new Date();
+        // Find the account to get current trial end date and Stripe info
+        const account = accounts.find(a => a.id === id);
+        if (!account) return;
+
+        // Calculate new date from EXISTING trial end, not from today
+        const currentTrialEnd = new Date(account.trial_end_date);
+        const newDate = new Date(currentTrialEnd);
         newDate.setDate(newDate.getDate() + days);
 
-        const { error } = await supabase
-            .from('businesses')
-            .update({
-                trial_end_date: newDate.toISOString(),
-                subscription_status: 'trialing'
-            })
-            .eq('id', id);
+        try {
+            // Update Stripe subscription if it exists
+            if (account.stripe_subscription_id) {
+                const response = await fetch('/api/admin/extend-trial', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        subscriptionId: account.stripe_subscription_id,
+                        trialEndTimestamp: Math.floor(newDate.getTime() / 1000) // Stripe uses Unix timestamp
+                    })
+                });
 
-        if (!error) {
-            setAccounts(accounts.map(a => a.id === id ? { ...a, trial_end_date: newDate.toISOString(), subscription_status: 'trialing' } : a));
-            alert(`Trial extended by ${days} days!`);
+                if (!response.ok) {
+                    throw new Error('Failed to update Stripe subscription');
+                }
+            }
+
+            // Update Supabase
+            const { error } = await supabase
+                .from('businesses')
+                .update({
+                    trial_end_date: newDate.toISOString(),
+                    subscription_status: 'trialing'
+                })
+                .eq('id', id);
+
+            if (!error) {
+                setAccounts(accounts.map(a => a.id === id ? { ...a, trial_end_date: newDate.toISOString(), subscription_status: 'trialing' } : a));
+                alert(`Trial extended by ${days} days! New end date: ${newDate.toLocaleDateString()}`);
+            } else {
+                throw error;
+            }
+        } catch (err) {
+            console.error('Error extending trial:', err);
+            alert('Failed to extend trial. Please try again.');
         }
     };
 
