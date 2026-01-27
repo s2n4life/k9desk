@@ -454,14 +454,10 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="relative">
-                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500 pointer-events-none z-10">
-                                <Calendar size={20} />
-                            </div>
                             <select
-                                className="w-full p-4 pl-14 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-lg font-medium shadow-sm appearance-none cursor-pointer hover:border-blue-300 relative z-0"
+                                className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-lg font-medium shadow-sm appearance-none cursor-pointer hover:border-blue-300"
                                 value={selectedDate}
                                 onChange={e => updateSchedule(e.target.value, selectedTime)}
-                                style={{ paddingLeft: '3.5rem' }} // Force padding inline to ensure it works
                             >
                                 <option value="">Select Date</option>
                                 {availableDates.map(d => (
@@ -474,15 +470,11 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
                         </div>
 
                         <div className="relative">
-                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500 pointer-events-none z-10">
-                                <Clock size={20} />
-                            </div>
                             <select
-                                className="w-full p-4 pl-14 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-lg font-medium shadow-sm appearance-none cursor-pointer hover:border-blue-300 disabled:bg-slate-50 disabled:text-slate-400 relative z-0"
+                                className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-lg font-medium shadow-sm appearance-none cursor-pointer hover:border-blue-300 disabled:bg-slate-50 disabled:text-slate-400"
                                 value={selectedTime}
                                 onChange={e => updateSchedule(selectedDate, e.target.value)}
                                 disabled={!selectedDate}
-                                style={{ paddingLeft: '3.5rem' }} // Force padding inline
                             >
                                 <option value="">Select Time</option>
                                 {availableTimes.map(t => (

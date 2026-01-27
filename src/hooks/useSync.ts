@@ -220,7 +220,18 @@ export function useSync() {
                     return;
                 }
 
-                if (!hasHydrated || currentUserId !== lastUserId || currentBusinessId !== lastBusinessId) {
+                // CRITICAL: Force hydration if business ID changed (impersonation switch)
+                // This prevents data leaks between businesses
+                const businessIdChanged = currentBusinessId !== lastBusinessId;
+
+                if (!hasHydrated || currentUserId !== lastUserId || businessIdChanged) {
+                    console.log('[useSync] Triggering hydration:', {
+                        hasHydrated,
+                        userChanged: currentUserId !== lastUserId,
+                        businessChanged: businessIdChanged,
+                        currentBusinessId,
+                        lastBusinessId
+                    });
                     setIsHydrating(true);
                     await hydrateLocalDB(currentUserId);
                     setIsHydrating(false);
