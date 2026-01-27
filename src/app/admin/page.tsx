@@ -116,6 +116,14 @@ export default function AdminDashboard() {
 
     const resolveLog = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
+
+        // Optimistic UI update
+        setRecentErrorLogs(prev => prev.filter(log => log.id !== id));
+        setStats(prev => ({
+            ...prev,
+            recentErrors: Math.max(0, prev.recentErrors - 1)
+        }));
+
         const { error } = await supabase
             .from('system_logs')
             .delete()
@@ -123,8 +131,15 @@ export default function AdminDashboard() {
 
         if (error) {
             console.error('Failed to resolve log:', error);
+            // Re-fetch on error to ensure sync
+            const { data: errorLogs } = await supabase
+                .from('system_logs')
+                .select('*')
+                .eq('level', 'error')
+                .order('created_at', { ascending: false })
+                .limit(5);
+            if (errorLogs) setRecentErrorLogs(errorLogs);
         }
-        // Subscriptions will handle the UI update
     };
 
     if (loading) return (
