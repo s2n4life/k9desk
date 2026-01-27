@@ -11,19 +11,25 @@ export function AuthRedirectHandler() {
         const hash = window.location.hash;
         const code = searchParams.get('code');
 
-        // IF THIS IS A RECOVERY ATTEMPT, DO NOTHING. 
-        // Let the /reset-password page or the /auth/callback route handle it.
-        if (hash.includes('type=recovery') || hash.includes('type=signup')) {
+        // 1. RECOVERY HANDOFF: If we see a recovery token, steer it to the reset page
+        if (hash.includes('type=recovery')) {
+            window.location.replace('/reset-password' + hash);
             return;
         }
 
-        // Only handle standard redirects if we are on the home page
-        // and we have a valid code or token that isn't recovery related.
+        // 2. SIGNUP HANDOFF: Similarly for signups
+        if (hash.includes('type=signup')) {
+            window.location.replace('/dashboard' + hash);
+            return;
+        }
+
+        // 3. STANDARD LOGIN (Hash-based)
         if (hash.includes('access_token=') && !hash.includes('type=recovery')) {
             window.location.replace('/dashboard' + hash);
             return;
         }
 
+        // 4. PKCE FLOW
         if (code) {
             router.push(`/auth/callback?code=${code}`);
         }
