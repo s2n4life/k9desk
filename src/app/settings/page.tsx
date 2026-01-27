@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { getDB } from '@/lib/db';
 import { Settings, Service } from '@/lib/db/schema';
 import { addToSyncQueue } from '@/lib/db/sync';
+import { supabase } from '@/lib/supabaseClient';
 import Link from 'next/link';
 import { ChevronLeft, Save, Plus, Trash2, Edit2, ChevronDown, ChevronRight, CreditCard, Store, List, Star, MapPin, X, Check, LogOut } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
@@ -73,40 +74,82 @@ export default function SettingsPage() {
         setBookingBaseUrl(`${window.location.origin}/book/`);
 
         const load = async () => {
-            const db = await getDB();
-            const existingSettings = await db.get('settings', 'default');
-            if (existingSettings) {
-                setSettings(existingSettings);
-                if (existingSettings.service_area_zips) {
-                    setZipText(existingSettings.service_area_zips.join(', '));
+            // Check if admin is impersonating
+            const impersonatedBusinessId = localStorage.getItem('k9desk_impersonated_id');
+
+            if (impersonatedBusinessId) {
+                // IMPERSONATION MODE: Load data from Supabase for the impersonated business
+                const { data: business, error: bizError } = await supabase
+                    .from('businesses')
+                    .select('*')
+                    .eq('id', impersonatedBusinessId)
+                    .single();
+
+                if (business) {
+                    // Map business data to settings format
+                    setSettings({
+                        id: 'default',
+                        businessName: business.name,
+                        subscription_status: business.subscription_status,
+                        trial_end_date: business.trial_end_date,
+                        updatedAt: Date.now(),
+                        // Add other fields as needed
+                    });
+                    setBusinessId(business.id);
+                    setSlug(business.slug || business.id);
                 }
-            }
 
-            const allServices = await db.getAll('services');
-            setServices(allServices);
+                // Load services from Supabase
+                const { data: remoteServices } = await supabase
+                    .from('services')
+                    .select('*')
+                    .eq('business_id', impersonatedBusinessId);
 
-            // Attempt to get profile to generate booking link
-            let profiles = await db.getAll('profiles');
+                if (remoteServices) {
+                    setServices(remoteServices.map((s: any) => ({
+                        id: s.id,
+                        name: s.name,
+                        price: s.price,
+                        createdAt: new Date(s.created_at).getTime()
+                    })));
+                }
+            } else {
+                // NORMAL MODE: Load from IndexedDB
+                const db = await getDB();
+                const existingSettings = await db.get('settings', 'default');
+                if (existingSettings) {
+                    setSettings(existingSettings);
+                    if (existingSettings.service_area_zips) {
+                        setZipText(existingSettings.service_area_zips.join(', '));
+                    }
+                }
 
-            // SELF-HEALING: If no profile exists (e.g. skipped auth or local dev), create one
-            if (profiles.length === 0) {
-                const newProfile = {
-                    id: uuidv4(),
-                    business_id: uuidv4(),
-                    email: 'demo@example.com',
-                    role: 'owner',
-                    createdAt: Date.now()
-                };
-                await db.put('profiles', newProfile);
-                profiles = [newProfile];
-            }
+                const allServices = await db.getAll('services');
+                setServices(allServices);
 
-            if (profiles.length > 0) {
-                const profile = profiles[0];
-                if (profile.business_id) {
-                    setBusinessId(profile.business_id);
-                    // Use slug if available, otherwise ID
-                    setSlug(profile.slug || profile.business_id);
+                // Attempt to get profile to generate booking link
+                let profiles = await db.getAll('profiles');
+
+                // SELF-HEALING: If no profile exists (e.g. skipped auth or local dev), create one
+                if (profiles.length === 0) {
+                    const newProfile = {
+                        id: uuidv4(),
+                        business_id: uuidv4(),
+                        email: 'demo@example.com',
+                        role: 'owner',
+                        createdAt: Date.now()
+                    };
+                    await db.put('profiles', newProfile);
+                    profiles = [newProfile];
+                }
+
+                if (profiles.length > 0) {
+                    const profile = profiles[0];
+                    if (profile.business_id) {
+                        setBusinessId(profile.business_id);
+                        // Use slug if available, otherwise ID
+                        setSlug(profile.slug || profile.business_id);
+                    }
                 }
             }
 
