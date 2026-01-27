@@ -61,6 +61,9 @@ export function ImpersonationProvider({ children }: { children: ReactNode }) {
                 if (profile) {
                     setIsAdmin(profile.role === 'super_admin' || profile.role === 'support_admin');
                     setUserBusinessId(profile.business_id);
+                    if (profile.business_id) {
+                        localStorage.setItem(USER_BUSINESS_ID_KEY, profile.business_id);
+                    }
                 }
             }
         };

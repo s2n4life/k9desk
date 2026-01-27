@@ -63,7 +63,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                 .from('jobs')
                 .select('*', { count: 'exact', head: true })
                 .eq('business_id', business.id)
-                .in('state', [JobState.PaymentRequested, JobState.Paid]);
+                .in('state', [JobState.Completed, JobState.PaymentRequested, JobState.Paid]);
             // Note: 'Paid' is actionable? User said "PaymentRequested or Paid" in NeedsAction page?
             // Checking NeedsAction page logic: 
             // const actionable = allJobs.filter(j => j.state === JobState.Paid || j.state === JobState.PaymentRequested);

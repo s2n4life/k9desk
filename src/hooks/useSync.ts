@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { SyncQueueItem } from '@/lib/db/schema';
 import { hydrateLocalDB } from '@/lib/db/hydration';
 import { captureLog } from '@/lib/admin/sentinel';
-import { useImpersonationContextSafe } from '@/contexts/ImpersonationContext';
+import { useImpersonationContextSafe, getActiveBusinessIdSync } from '@/contexts/ImpersonationContext';
 
 // Simple "Mutex" to prevent double-syncing (Module-level for cross-component stability)
 let isSyncing = false;
@@ -333,16 +333,19 @@ export function useSync() {
                 console.log('[Sync Debug] Current User:', user?.id, user?.email); // DEBUG LINE
 
                 // RECOVERY LOGIC:
-                // If the item is missing a businessId (legacy), and we are currently impersonating,
-                // we assume this item should belong to the impersonated business.
-                // This fixes the "stuck data" issue when admins create jobs while impersonating.
+                // If the item is missing a businessId (legacy), we use the currently active business context.
+                // This handles cases where items were created before we added strict businessId tracking,
+                // or if the user is currently impersonating.
                 let businessId = item.businessId;
-                if (!businessId && impersonatingActive && impersonatedId) {
-                    console.warn(`[Sync] Recovering missing businessId for legacy ${item.entityType} item using impersonated ID: ${impersonatedId}`);
-                    businessId = impersonatedId;
+                if (!businessId) {
+                    const activeId = getActiveBusinessIdSync();
+                    if (activeId) {
+                        console.warn(`[Sync] Recovering missing businessId for legacy ${item.entityType} item using active context: ${activeId}`);
+                        businessId = activeId;
+                    }
                 }
 
-                // Final fallback
+                // Final fallback sequence: Item's ID -> Active ID -> Auth UID -> Global Demo ID
                 businessId = businessId || user?.id || DEMO_BUSINESS_ID;
 
                 const targetId = item.entityType === 'SETTINGS' ? businessId : item.entityId;
