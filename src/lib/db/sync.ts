@@ -22,6 +22,8 @@ export async function addToSyncQueue(
     };
     await db.add('syncQueue', item);
 
-    // Trigger immediate sync attempt if online? 
-    // For now, we rely on the background poller or subsequent triggers.
+    // Trigger immediate sync attempt if online
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('trigger-sync'));
+    }
 }

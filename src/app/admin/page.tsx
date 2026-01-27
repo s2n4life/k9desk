@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { Shield, Users, DollarSign, Activity, AlertTriangle, LogIn, TrendingUp, Clock, AlertCircle } from 'lucide-react';
+import { Shield, Users, DollarSign, Activity, AlertTriangle, LogIn, TrendingUp, Clock, AlertCircle, Check } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { captureLog } from '@/lib/admin/sentinel';
 
 type StatCardProps = {
     label: string;
@@ -56,29 +57,75 @@ export default function AdminDashboard() {
             if (!user) return;
 
             // Fetch recent error logs from system_logs
-            const { data: errorLogs } = await supabase
-                .from('system_logs')
-                .select('*')
-                .eq('level', 'error')
-                .order('created_at', { ascending: false })
-                .limit(5);
+            const fetchLogs = async () => {
+                const { data: errorLogs } = await supabase
+                    .from('system_logs')
+                    .select('*')
+                    .eq('level', 'error')
+                    .order('created_at', { ascending: false })
+                    .limit(5);
 
-            setRecentErrorLogs(errorLogs || []);
+                setRecentErrorLogs(errorLogs || []);
+
+                setStats(prev => ({
+                    ...prev,
+                    recentErrors: errorLogs?.length || 0
+                }));
+            };
+
+            await fetchLogs();
+
+            // Set up real-time subscription
+            const channel = supabase
+                .channel('schema-db-changes')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'system_logs'
+                    },
+                    () => {
+                        fetchLogs();
+                    }
+                )
+                .subscribe();
 
             // Mock stats for now (Phase 2 will aggregate from daily_metrics)
-            setStats({
+            setStats(prev => ({
+                ...prev,
                 mrr: 12450,
                 activeBusinesses: 142,
                 trialBusinesses: 28,
                 churnRate: 2.1,
-                openTickets: 5,
-                recentErrors: errorLogs?.length || 0
-            });
+                openTickets: 5
+            }));
+
             setLoading(false);
+
+            return () => {
+                supabase.removeChannel(channel);
+            };
         };
 
-        loadStats();
+        const cleanup = loadStats();
+        return () => {
+            cleanup.then(unsubscribe => unsubscribe?.());
+        };
     }, []);
+
+    const resolveLog = async (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        const { error } = await supabase
+            .from('system_logs')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Failed to resolve log:', error);
+        }
+        // Subscriptions will handle the UI update
+    };
 
     if (loading) return (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
@@ -147,7 +194,29 @@ export default function AdminDashboard() {
                                             {new Date(log.created_at).toLocaleString()} {log.business_id ? `• Business: ${log.business_id.slice(0, 8)}` : ''}
                                         </p>
                                     </div>
-                                    <button onClick={() => router.push('/admin/bugs')} className="btn-admin-primary" style={{ padding: '6px 12px', fontSize: '0.75rem' }}>Investigate</button>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <button
+                                            onClick={(e) => resolveLog(log.id, e)}
+                                            title="Mark as Resolved"
+                                            style={{
+                                                background: 'transparent',
+                                                border: 'none',
+                                                color: '#10b981',
+                                                cursor: 'pointer',
+                                                padding: '8px',
+                                                borderRadius: '6px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                transition: 'all 0.2s'
+                                            }}
+                                            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#10b98110')}
+                                            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                                        >
+                                            <Check size={18} />
+                                        </button>
+                                        <button onClick={() => router.push('/admin/bugs')} className="btn-admin-primary" style={{ padding: '6px 12px', fontSize: '0.75rem' }}>Investigate</button>
+                                    </div>
                                 </div>
                             ))
                         ) : (
@@ -193,6 +262,6 @@ export default function AdminDashboard() {
                     to { transform: rotate(360deg); }
                 }
             `}</style>
-        </div>
+        </div >
     );
 }

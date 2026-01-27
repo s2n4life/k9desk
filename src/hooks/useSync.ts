@@ -204,19 +204,28 @@ export function useSync() {
 
     const processQueue = async () => {
         if (isSyncing) return;
+
+        // Use flag immediately to prevent concurrent triggers
+        isSyncing = true;
+
         if (!navigator.onLine) {
             setStatus('offline');
+            isSyncing = false;
             return;
         }
-
-        isSyncing = true;
-        setStatus('syncing');
-
 
         try {
             const db = await getDB();
             // Get all items sorted by timestamp
             const queue = await db.getAllFromIndex('syncQueue', 'by-timestamp');
+
+            if (queue.length === 0) {
+                setStatus('idle');
+                isSyncing = false;
+                return;
+            }
+
+            setStatus('syncing');
 
             // PRIORITY SORT: Prevent Foreign Key race conditions
             // 1. Settings (Business) must exist first.
@@ -377,15 +386,17 @@ export function useSync() {
         // 1. Run on mount
         processQueue();
 
-        // 2. Run when online status changes
-        const handleOnline = () => processQueue();
-        window.addEventListener('online', handleOnline);
+        // 2. Run when online status changes or manual trigger
+        const handleSyncTrigger = () => processQueue();
+        window.addEventListener('online', handleSyncTrigger);
+        window.addEventListener('trigger-sync', handleSyncTrigger);
 
         // 3. Poll every 30 seconds
-        const interval = setInterval(processQueue, 5000);
+        const interval = setInterval(processQueue, 30000);
 
         return () => {
-            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('online', handleSyncTrigger);
+            window.removeEventListener('trigger-sync', handleSyncTrigger);
             clearInterval(interval);
         };
     }, []);
