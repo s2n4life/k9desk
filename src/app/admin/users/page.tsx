@@ -5,14 +5,15 @@ import { supabase } from '@/lib/supabaseClient';
 import { useImpersonation } from '@/hooks/useImpersonation';
 import {
     Users,
-    Search,
     LogIn,
     Clock,
     Calendar,
     ChevronRight,
     Star,
     ShieldCheck,
-    CreditCard
+    CreditCard,
+    Filter,
+    ArrowUpDown
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -32,6 +33,8 @@ export default function AdminUsersPage() {
     const [loading, setLoading] = useState(true);
     const [accounts, setAccounts] = useState<BusinessAccount[]>([]);
     const [search, setSearch] = useState('');
+    const [statusFilter, setStatusFilter] = useState<string>('all');
+    const [sortBy, setSortBy] = useState<string>('created_desc');
     const [showExtendModal, setShowExtendModal] = useState(false);
     const [selectedAccount, setSelectedAccount] = useState<BusinessAccount | null>(null);
     const [extensionDays, setExtensionDays] = useState<number>(14);
@@ -115,26 +118,52 @@ export default function AdminUsersPage() {
         }
     };
 
-    const filteredAccounts = accounts.filter(a =>
+    // Filter and sort accounts
+    let processedAccounts = accounts.filter(a =>
         a.name.toLowerCase().includes(search.toLowerCase()) ||
         a.owner_email?.toLowerCase().includes(search.toLowerCase())
     );
+
+    // Apply status filter
+    if (statusFilter !== 'all') {
+        processedAccounts = processedAccounts.filter(a => {
+            if (statusFilter === 'trialing') {
+                return a.subscription_status === 'trialing' || a.subscription_status === 'trial';
+            }
+            return a.subscription_status === statusFilter;
+        });
+    }
+
+    // Apply sorting
+    processedAccounts.sort((a, b) => {
+        switch (sortBy) {
+            case 'name_asc':
+                return a.name.localeCompare(b.name);
+            case 'name_desc':
+                return b.name.localeCompare(a.name);
+            case 'created_asc':
+                return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+            case 'created_desc':
+                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            case 'trial_end':
+                return new Date(a.trial_end_date).getTime() - new Date(b.trial_end_date).getTime();
+            default:
+                return 0;
+        }
+    });
 
     if (loading) return <div style={{ color: '#94a3b8' }}>Loading accounts...</div>;
 
     return (
         <div>
-            <header style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#6c5ce7', marginBottom: '8px' }}>
-                        <Users size={24} />
-                        <h1 style={{ fontSize: '1.875rem', fontWeight: 700, margin: 0, color: 'white' }}>Businesses</h1>
-                    </div>
-                    <p style={{ color: '#94a3b8', margin: 0 }}>Manage customer accounts and subscriptions.</p>
+            <header style={{ marginBottom: '32px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#6c5ce7', marginBottom: '8px' }}>
+                    <Users size={24} />
+                    <h1 style={{ fontSize: '1.875rem', fontWeight: 700, margin: 0, color: 'white' }}>Customers</h1>
                 </div>
+                <p style={{ color: '#94a3b8', margin: 0, marginBottom: '24px' }}>Manage customer accounts and subscriptions.</p>
 
-                <div style={{ position: 'relative' }}>
-                    <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                     <input
                         type="text"
                         placeholder="Search by name or email..."
@@ -144,17 +173,63 @@ export default function AdminUsersPage() {
                             backgroundColor: '#1e293b',
                             border: '1px solid #334155',
                             color: 'white',
-                            padding: '8px 12px 8px 36px',
+                            padding: '8px 12px',
                             borderRadius: '8px',
                             width: '300px',
                             outline: 'none'
                         }}
                     />
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Filter size={16} style={{ color: '#94a3b8' }} />
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            style={{
+                                backgroundColor: '#1e293b',
+                                border: '1px solid #334155',
+                                color: 'white',
+                                padding: '8px 12px',
+                                borderRadius: '8px',
+                                outline: 'none',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            <option value="all">All Status</option>
+                            <option value="trialing">Trialing</option>
+                            <option value="active">Active</option>
+                            <option value="past_due">Past Due</option>
+                            <option value="canceled">Canceled</option>
+                        </select>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <ArrowUpDown size={16} style={{ color: '#94a3b8' }} />
+                        <select
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value)}
+                            style={{
+                                backgroundColor: '#1e293b',
+                                border: '1px solid #334155',
+                                color: 'white',
+                                padding: '8px 12px',
+                                borderRadius: '8px',
+                                outline: 'none',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            <option value="created_desc">Newest First</option>
+                            <option value="created_asc">Oldest First</option>
+                            <option value="name_asc">Name (A-Z)</option>
+                            <option value="name_desc">Name (Z-A)</option>
+                            <option value="trial_end">Trial End Date</option>
+                        </select>
+                    </div>
                 </div>
             </header>
 
             <div className="admin-card" style={{ padding: 0 }}>
-                {filteredAccounts.map(account => {
+                {processedAccounts.map(account => {
                     const isTrialing = account.subscription_status === 'trialing' || account.subscription_status === 'trial';
                     const isOverdue = account.subscription_status === 'past_due' || (isTrialing && new Date(account.trial_end_date) < new Date());
 
