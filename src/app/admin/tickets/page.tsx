@@ -73,8 +73,8 @@ export default function TicketsPage() {
                     created_at: new Date(Date.now() - 3600000).toISOString(),
                     business_id: 'b1',
                     user_id: 'u1',
-                    business_name: \"Scrub A Dub Grooming\",
-                    user_email: \"owner@scrubadub.com\"
+                    business_name: 'Scrub A Dub Grooming',
+                    user_email: 'owner@scrubadub.com'
                 },
                 {
                     id: '2',
@@ -86,8 +86,8 @@ export default function TicketsPage() {
                     created_at: new Date(Date.now() - 86400000).toISOString(),
                     business_id: 'b2',
                     user_id: 'u2',
-                    business_name: \"John's Mobile Grooming\",
-                    user_email: \"john@johnsmobile.com\"
+                    business_name: 'John's Mobile Grooming',
+                    user_email: 'john@johnsmobile.com'
                 },
                 {
                     id: '3',
@@ -99,8 +99,8 @@ export default function TicketsPage() {
                     created_at: new Date(Date.now() - 172800000).toISOString(),
                     business_id: 'b3',
                     user_id: 'u3',
-                    business_name: \"Pampered Paws\",
-                    user_email: \"contact@pamperedpaws.com\"
+                    business_name: 'Pampered Paws',
+                    user_email: 'contact@pamperedpaws.com'
                 }
             ]);
         }
