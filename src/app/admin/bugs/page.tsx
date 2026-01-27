@@ -14,7 +14,8 @@ import {
     ChevronUp,
     Bell,
     BellOff,
-    Mail
+    Mail,
+    Check
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -90,6 +91,21 @@ export default function BugsPage() {
         if (confirm('Are you sure you want to clear all system logs?')) {
             await supabase.from('system_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
             setLogs([]);
+        }
+    };
+
+    const resolveLog = async (id: string, e: React.MouseEvent) => {
+        e.stopPropagation(); // Don't trigger the expansion
+
+        const { error } = await supabase
+            .from('system_logs')
+            .delete()
+            .eq('id', id);
+
+        if (!error) {
+            setLogs(logs.filter(l => l.id !== id));
+        } else {
+            console.error('Failed to resolve log:', error);
         }
     };
 
@@ -191,7 +207,29 @@ export default function BugsPage() {
                                             {format(new Date(log.created_at), 'HH:mm:ss.SSS')} • {log.business_id ? `Business: ${log.business_id.slice(0, 8)}` : 'System'}
                                         </div>
                                     </div>
-                                    {expandedLog === log.id ? <ChevronUp size={18} color="#64748b" /> : <ChevronDown size={18} color="#64748b" />}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <button
+                                            onClick={(e) => resolveLog(log.id, e)}
+                                            title="Mark as Resolved (Delete)"
+                                            style={{
+                                                background: 'transparent',
+                                                border: 'none',
+                                                color: '#10b981',
+                                                cursor: 'pointer',
+                                                padding: '8px',
+                                                borderRadius: '6px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                transition: 'all 0.2s'
+                                            }}
+                                            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#10b98110')}
+                                            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                                        >
+                                            <Check size={18} />
+                                        </button>
+                                        {expandedLog === log.id ? <ChevronUp size={18} color="#64748b" /> : <ChevronDown size={18} color="#64748b" />}
+                                    </div>
                                 </div>
 
                                 {expandedLog === log.id && (

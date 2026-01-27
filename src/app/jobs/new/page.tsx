@@ -9,13 +9,16 @@ import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { Modal } from '@/components/UI/Modal';
 import { addToSyncQueue } from '@/lib/db/sync';
-import { createClient } from '@/utils/supabase/client'; // Added
+import { createClient } from '@/utils/supabase/client';
+import { useImpersonationContextSafe } from '@/contexts/ImpersonationContext';
+import { checkStorageQuota } from '@/lib/storage-monitor';
 import { Suspense } from 'react';
 
 const NewJobContent = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
     const leadId = searchParams.get('leadId');
+    const { getActiveBusinessId } = useImpersonationContextSafe();
 
     // -- Data --
     const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
@@ -526,7 +529,6 @@ const NewJobContent = () => {
         }
 
         // 0. Check Storage Quota
-        const { checkStorageQuota } = await import('@/lib/storage-monitor');
         const { hasRisk, remaining } = await checkStorageQuota();
         if (hasRisk && remaining < 1024 * 1024) { // Only block if < 1MB
             alert('Your browser storage is extremely full. Please clear space to ensure data is saved.');
@@ -536,15 +538,12 @@ const NewJobContent = () => {
         const db = await getDB();
         const jobId = uuidv4();
 
+        // Get active business ID for impersonation support
+        const activeBusinessId = await getActiveBusinessId();
+
         // Snapshot notes
         const customer = allCustomers.find(c => c.id === selectedCustomerId);
         const myPets = allPets.filter(p => selectedPetIds.includes(p.id));
-
-        // Using impersonation context if available
-        const { useImpersonationContextSafe } = await import('@/contexts/ImpersonationContext');
-        // We can't use hook here, but we can get it from context if we were inside a component?
-        // Actually we are inside NewJobContent component, so we can use hook at top level.
-        // Let's refactor to use hook at top level.
 
         await db.put('jobs', {
             id: jobId,
@@ -562,8 +561,7 @@ const NewJobContent = () => {
             updatedAt: Date.now()
         });
 
-        // Pass businessId if available (we will need to get it from hook)
-        // For now, let's just make sure addToSyncQueue is called with the context variable we need to add
+        // Pass businessId if available (from context)
         await addToSyncQueue('CREATE', 'JOB', jobId, {
             id: jobId,
             customerId: selectedCustomerId,
@@ -577,7 +575,7 @@ const NewJobContent = () => {
             customerNotes: customer?.notes,
             petNotes: myPets.map(p => `${p.name}: ${p.notes}`).join('\n'),
             updatedAt: Date.now()
-        });
+        }, activeBusinessId || undefined);
 
         // -- AUTO-UPDATE LEAD STATUS --
         if (leadId) {
