@@ -8,10 +8,10 @@ import { clsx } from 'clsx';
 import { useNotification } from '@/contexts/NotificationContext';
 
 const NAV_ITEMS = [
+    { href: '/leads', label: 'Leads', icon: UserPlus },
     { href: '/dashboard', label: 'Today', icon: Calendar },
     { href: '/upcoming', label: 'Upcoming', icon: Clock },
     { href: '/needs-action', label: 'Needs Action', icon: AlertCircle },
-    { href: '/leads', label: 'Leads', icon: UserPlus },
     { href: '/customers', label: 'Customers', icon: Users },
 ];
 

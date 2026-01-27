@@ -268,8 +268,15 @@ export default function TodayPage() {
         />
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
-        <h2 className="text-h2" style={{ marginBottom: 0 }}>
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        textAlign: 'center',
+        marginBottom: 'var(--space-6)',
+        marginTop: 'var(--space-2)'
+      }}>
+        <h2 className="text-h2" style={{ marginBottom: 'var(--space-4)', width: '100%' }}>
           {jobs.length === 0
             ? "No Jobs Scheduled Today"
             : (() => {
@@ -280,19 +287,24 @@ export default function TodayPage() {
         </h2>
         <Link href="/jobs/new" style={{
           color: 'var(--brand-primary)',
-          background: 'var(--brand-primary-light)', // Light background for contrast
-          padding: '6px 12px',
-          borderRadius: '16px',
-          fontSize: 'var(--font-size-sm)',
-          fontWeight: 600,
+          background: 'var(--brand-primary-light)',
+          padding: '12px 24px',
+          borderRadius: '30px',
+          fontSize: 'var(--font-size-base)',
+          fontWeight: 700,
           display: 'flex',
           alignItems: 'center',
-          gap: 4,
-          textDecoration: 'none'
+          justifyContent: 'center',
+          gap: 8,
+          textDecoration: 'none',
+          width: 'fit-content',
+          boxShadow: '0 2px 8px rgba(108, 92, 231, 0.2)',
+          border: '1px solid rgba(108, 92, 231, 0.1)'
         }}>
-          <Plus size={16} /> Add Job
+          <Plus size={20} /> Add Job
         </Link>
       </div>
+
 
       {jobs.length === 0 ? (
         <div className="card" style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--text-tertiary)' }}>
