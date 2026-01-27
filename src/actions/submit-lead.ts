@@ -31,7 +31,7 @@ export async function submitLead(formData: any) {
         ownerPhone,
         ownerEmail,
         ownerAddress, // Added address
-        service_area_zip,
+        serviceAreaZip,
         petDetails,
         preferredDates,
         serviceIds, // Added serviceIds
@@ -53,7 +53,7 @@ export async function submitLead(formData: any) {
                     owner_phone: ownerPhone,
                     owner_email: ownerEmail,
                     owner_address: ownerAddress, // Insert address
-                    service_area_zip: service_area_zip,
+                    service_area_zip: serviceAreaZip,
                     pet_details: petDetails,
                     preferred_dates: preferredDates,
                     service_ids: serviceIds || [], // Insert serviceIds
