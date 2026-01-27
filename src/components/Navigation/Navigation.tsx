@@ -19,8 +19,8 @@ export function Navigation() {
     const pathname = usePathname();
     const { leadsCount, needsActionCount } = useNotification();
 
-    // Hide navigation on public booking pages
-    if (pathname?.startsWith('/book/')) return null;
+    // Hide navigation on public booking pages and admin pages
+    if (pathname?.startsWith('/book/') || pathname?.startsWith('/admin')) return null;
 
     return (
         <nav className={styles.nav}>

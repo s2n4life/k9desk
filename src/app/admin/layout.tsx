@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Shield, Users, LayoutDashboard, Bug, Ticket, Settings, LogOut, ChevronRight } from 'lucide-react';
 import { clsx } from 'clsx';
 import { supabase } from '@/lib/supabaseClient';
+import { useEffect, useState } from 'react';
 
 const ADMIN_NAV_ITEMS = [
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -16,6 +17,77 @@ const ADMIN_NAV_ITEMS = [
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
+    const router = useRouter();
+    const [isAuthorized, setIsAuthorized] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        async function checkAdminAccess() {
+            try {
+                // 1. Check if user is logged in
+                const { data: { user } } = await supabase.auth.getUser();
+
+                if (!user) {
+                    console.warn('No user found, redirecting to dashboard');
+                    router.replace('/dashboard');
+                    return;
+                }
+
+                // 2. Check if user has super_admin role
+                const { data: profile, error } = await supabase
+                    .from('profiles')
+                    .select('role')
+                    .eq('id', user.id)
+                    .single();
+
+                if (error || !profile) {
+                    console.error('Error fetching profile:', error);
+                    router.replace('/dashboard');
+                    return;
+                }
+
+                if (profile.role !== 'super_admin') {
+                    console.warn('User is not a super_admin, access denied');
+                    router.replace('/dashboard');
+                    return;
+                }
+
+                // User is authorized!
+                setIsAuthorized(true);
+            } catch (err) {
+                console.error('Admin access check failed:', err);
+                router.replace('/dashboard');
+            } finally {
+                setIsLoading(false);
+            }
+        }
+
+        checkAdminAccess();
+    }, [router]);
+
+    // Show loading state while checking authorization
+    if (isLoading) {
+        return (
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '100vh',
+                backgroundColor: '#0f172a',
+                color: '#94a3b8'
+            }}>
+                <div style={{ textAlign: 'center' }}>
+                    <Shield size={48} style={{ marginBottom: '16px', color: '#6c5ce7' }} />
+                    <div>Verifying admin access...</div>
+                </div>
+            </div>
+        );
+    }
+
+    // Don't render admin content if not authorized
+    if (!isAuthorized) {
+        return null;
+    }
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
@@ -108,7 +180,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 marginLeft: '260px',
                 flex: 1,
                 padding: '40px',
-                maxWidth: '1200px'
+                width: 'calc(100% - 260px)',
+                minHeight: '100vh'
             }}>
                 {children}
             </main>

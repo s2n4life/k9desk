@@ -10,9 +10,13 @@ import { ImpersonationBanner } from "@/components/Admin/ImpersonationBanner";
 export function AppShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
 
+    // Pages that should NOT use the mobile app shell
     const isPublicPage = pathname === '/' || pathname === '/login' || pathname === '/signup' || pathname === '/reset-password' || pathname?.startsWith('/auth/') || pathname?.startsWith('/book/') || pathname === '/payment/success';
 
-    if (isPublicPage) {
+    // Admin pages should use their own layout (desktop-optimized)
+    const isAdminPage = pathname?.startsWith('/admin');
+
+    if (isPublicPage || isAdminPage) {
         return (
             <main className="w-full">
                 {children}
