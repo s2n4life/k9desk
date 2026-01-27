@@ -10,9 +10,11 @@ export function AuthRedirectHandler() {
     useEffect(() => {
         const hash = window.location.hash;
         const code = searchParams.get('code');
+        const type = searchParams.get('type');
 
         // IGNORE RECOVERY: Only /reset-password handles recovery.
-        if (hash.includes('type=recovery')) {
+        // We check BOTH hash and searchParams to catch Implicit and PKCE links.
+        if (hash.includes('type=recovery') || type === 'recovery') {
             return;
         }
 
