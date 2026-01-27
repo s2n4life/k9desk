@@ -74,6 +74,17 @@ export default function LeadsPage() {
         };
 
         fetchLeadsData();
+
+        // Listen for real-time sync events
+        const handleSync = () => {
+            console.log('[LeadsPage] Received leads-synced event, refreshing list...');
+            fetchLeadsData();
+        };
+        window.addEventListener('leads-synced', handleSync);
+
+        return () => {
+            window.removeEventListener('leads-synced', handleSync);
+        };
     }, [isImpersonating, impersonatedBusinessId]);
 
     const [activeTab, setActiveTab] = useState<'active' | 'booked' | 'archived'>('active');

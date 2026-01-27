@@ -224,3 +224,42 @@ export async function hydrateLocalDB(userId: string) {
         return false;
     }
 }
+
+export async function syncLeadsToLocal(businessId: string) {
+    if (!businessId) return;
+    const db = await getDB();
+    const { data: leads, error } = await supabase
+        .from('leads')
+        .select('*')
+        .eq('business_id', businessId);
+
+    if (error) {
+        console.error('[SyncLeads] Fetch error:', error);
+        return;
+    }
+
+    if (leads) {
+        // Clear local leads for this business to handle deletions/archiving correctly
+        await db.clear('leads');
+        for (const l of leads) {
+            await db.put('leads', {
+                id: l.id,
+                businessId: businessId,
+                status: l.status,
+                ownerName: l.owner_name,
+                ownerPhone: l.owner_phone,
+                ownerEmail: l.owner_email,
+                ownerAddress: l.owner_address,
+                serviceAreaZip: l.service_area_zip,
+                petDetails: l.pet_details,
+                preferredDates: l.preferred_dates,
+                serviceIds: l.service_ids,
+                waiverSigned: l.waiver_signed,
+                createdAt: l.created_at,
+                notes: l.notes
+            });
+        }
+        console.log(`[SyncLeads] Synced ${leads.length} leads to local DB`);
+        window.dispatchEvent(new CustomEvent('leads-synced'));
+    }
+}

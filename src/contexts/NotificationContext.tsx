@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/client';
 import { Toast } from '@/components/UI/Toast';
 import { JobState } from '@/lib/db/schema';
 import { useImpersonationContextSafe, getActiveBusinessIdSync } from './ImpersonationContext';
+import { syncLeadsToLocal } from '@/lib/db/hydration';
 
 interface NotificationContextType {
     leadsCount: number;
@@ -89,6 +90,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                                 subMessage: `${newLead.owner_name} - ${newLead.service_area_zip}`,
                                 isVisible: true
                             });
+                            // Sync new leads to local DB
+                            syncLeadsToLocal(newLead.business_id);
                         }
                     }
                     fetchCounts();
