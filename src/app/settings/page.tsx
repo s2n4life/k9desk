@@ -575,53 +575,61 @@ export default function SettingsPage() {
                             display: 'flex',
                             flexDirection: 'column',
                             gap: 'var(--space-3)',
-                            padding: 'var(--space-3)',
+                            padding: 'var(--space-4)',
                             backgroundColor: 'var(--surface-sunken)',
                             borderRadius: 'var(--radius-md)',
-                            animation: 'fadeIn 0.2s ease-in-out'
+                            animation: 'fadeIn 0.2s ease-in-out',
+                            border: '1px solid var(--brand-primary)'
                         }}>
+                            {/* Line 1: Name */}
                             <input
                                 className="input"
                                 placeholder="Service Name"
                                 value={newName}
                                 onChange={e => setNewName(e.target.value)}
-                                style={{ width: '100%' }}
+                                style={{ width: '100%', fontSize: '18px', fontWeight: 600 }}
                                 autoFocus
                             />
+
+                            {/* Line 2: Price & Duration */}
                             <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-                                <div style={{ position: 'relative', flex: 1.5 }}>
-                                    <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: 'var(--font-size-lg)' }}>$</span>
+                                <div style={{ position: 'relative', flex: 1 }}>
+                                    <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: '18px' }}>$</span>
                                     <input
                                         className="input"
                                         type="text"
                                         inputMode="decimal"
-                                        placeholder="0"
+                                        placeholder="Price"
                                         value={newPrice}
                                         onChange={e => {
                                             const val = e.target.value.replace(/[^0-9.]/g, '');
                                             setNewPrice(val);
                                         }}
-                                        style={{ width: '100%', paddingLeft: '32px' }}
+                                        style={{ width: '100%', paddingLeft: '32px', height: '54px', fontSize: '18px' }}
                                     />
                                 </div>
-                                <div style={{ position: 'relative', width: '85px' }}>
-                                    <span style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: '10px' }}>min</span>
+                                <div style={{ position: 'relative', flex: 1 }}>
+                                    <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: '14px' }}>min</span>
                                     <input
                                         className="input"
                                         type="text"
                                         inputMode="numeric"
-                                        placeholder="60"
+                                        placeholder="Duration"
                                         value={newDuration}
                                         onChange={e => {
                                             const val = e.target.value.replace(/[^0-9]/g, '');
                                             setNewDuration(val);
                                         }}
-                                        style={{ width: '100%', paddingRight: '28px', paddingLeft: '8px' }}
+                                        style={{ width: '100%', paddingRight: '44px', paddingLeft: '12px', height: '54px', fontSize: '18px' }}
                                     />
                                 </div>
-                                <button onClick={confirmAddService} className="btn btn-primary" style={{ width: 'auto', padding: '0 var(--space-4)', height: '60px' }}>Save</button>
-                                <button onClick={() => setIsAddingService(false)} style={{ color: 'var(--text-tertiary)', padding: 'var(--space-3)', background: 'none', border: 'none' }}>
-                                    <Trash2 size={24} />
+                            </div>
+
+                            {/* Line 3: Actions */}
+                            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                                <button onClick={confirmAddService} className="btn btn-primary" style={{ flex: 1, height: '54px' }}>Save Service</button>
+                                <button onClick={() => setIsAddingService(false)} className="btn btn-secondary" style={{ width: '54px', height: '54px', padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                    <X size={24} />
                                 </button>
                             </div>
                         </div>
@@ -636,17 +644,28 @@ export default function SettingsPage() {
                             borderRadius: 'var(--radius-md)'
                         }}>
                             {editingServiceId === service.id ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                                <div style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: 'var(--space-3)',
+                                    padding: 'var(--space-4)',
+                                    backgroundColor: 'var(--surface-sunken)',
+                                    borderRadius: 'var(--radius-md)',
+                                    border: '1px solid var(--brand-primary)'
+                                }}>
+                                    {/* Line 1: Name */}
                                     <input
                                         className="input"
                                         value={editName}
                                         onChange={e => setEditName(e.target.value)}
-                                        style={{ width: '100%' }}
+                                        style={{ width: '100%', fontSize: '18px', fontWeight: 600 }}
                                         placeholder="Service Name"
                                     />
+
+                                    {/* Line 2: Price & Duration */}
                                     <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-                                        <div style={{ position: 'relative', flex: 1.5 }}>
-                                            <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: 'var(--font-size-lg)' }}>$</span>
+                                        <div style={{ position: 'relative', flex: 1 }}>
+                                            <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: '18px' }}>$</span>
                                             <input
                                                 className="input"
                                                 type="text"
@@ -656,12 +675,12 @@ export default function SettingsPage() {
                                                     const val = e.target.value.replace(/[^0-9.]/g, '');
                                                     setEditPrice(val);
                                                 }}
-                                                style={{ width: '100%', paddingLeft: '32px' }}
+                                                style={{ width: '100%', paddingLeft: '32px', height: '54px', fontSize: '18px' }}
                                                 placeholder="0"
                                             />
                                         </div>
-                                        <div style={{ position: 'relative', width: '85px' }}>
-                                            <span style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: '10px' }}>min</span>
+                                        <div style={{ position: 'relative', flex: 1 }}>
+                                            <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: '14px' }}>min</span>
                                             <input
                                                 className="input"
                                                 type="text"
@@ -671,11 +690,18 @@ export default function SettingsPage() {
                                                     const val = e.target.value.replace(/[^0-9]/g, '');
                                                     setEditDuration(val);
                                                 }}
-                                                style={{ width: '100%', paddingRight: '28px', paddingLeft: '8px' }}
+                                                style={{ width: '100%', paddingRight: '44px', paddingLeft: '12px', height: '54px', fontSize: '18px' }}
                                                 placeholder="60"
                                             />
                                         </div>
-                                        <button onClick={saveEditService} className="btn btn-primary" style={{ width: 'auto', padding: '0 var(--space-4)', height: '60px' }}>Save</button>
+                                    </div>
+
+                                    {/* Line 3: Actions */}
+                                    <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                                        <button onClick={saveEditService} className="btn btn-primary" style={{ flex: 1, height: '54px' }}>Save Changes</button>
+                                        <button onClick={() => setEditingServiceId(null)} className="btn btn-secondary" style={{ width: '54px', height: '54px', padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                            <X size={24} />
+                                        </button>
                                     </div>
                                 </div>
                             ) : (
@@ -857,7 +883,8 @@ export default function SettingsPage() {
                                         {dayConfig.isOpen ? (
                                             <>
                                                 <select
-                                                    className="input py-1 px-2 text-sm"
+                                                    className="input"
+                                                    style={{ flex: 1, padding: '8px', fontSize: '14px', minWidth: '100px' }}
                                                     value={dayConfig.start}
                                                     onChange={e => {
                                                         const newHours = { ...settings.business_hours };
@@ -869,7 +896,8 @@ export default function SettingsPage() {
                                                 </select>
                                                 <span className="text-slate-400">-</span>
                                                 <select
-                                                    className="input py-1 px-2 text-sm"
+                                                    className="input"
+                                                    style={{ flex: 1, padding: '8px', fontSize: '14px', minWidth: '100px' }}
                                                     value={dayConfig.end}
                                                     onChange={e => {
                                                         const newHours = { ...settings.business_hours };
