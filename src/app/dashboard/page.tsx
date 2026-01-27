@@ -108,13 +108,14 @@ export default function TodayPage() {
 
       // Filter for Today with strict state rules
       const todaysJobs = allJobs.filter(j =>
-        j.scheduledDate === todayStr &&
-        [
-          JobState.Scheduled,
-          JobState.ReminderSent,
-          JobState.InProgress,
-          JobState.Completed
-        ].includes(j.state)
+        (j.scheduledDate === todayStr &&
+          [
+            JobState.Scheduled,
+            JobState.ReminderSent,
+            JobState.InProgress,
+            JobState.Completed
+          ].includes(j.state)) ||
+        j.state === JobState.InProgress
       );
 
       // Chronological Sort: Soonest -> Latest
@@ -194,7 +195,7 @@ export default function TodayPage() {
         await loadData();
       }
 
-      if (['SEND_REMINDER'].includes(action)) {
+      if (['SEND_REMINDER', 'SEND_REVIEW_REQUEST', 'SKIP_REVIEW'].includes(action)) {
         await JobStateMachine.transition(jobId, action);
         await loadData();
       }

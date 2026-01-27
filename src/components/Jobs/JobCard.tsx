@@ -18,9 +18,9 @@ const STATE_CONFIG: Record<JobState, { label: string; color: string; button?: st
     [JobState.Scheduled]: { label: 'Scheduled', color: 'var(--text-tertiary)', button: 'Send Reminder', action: 'SEND_REMINDER' },
     [JobState.ReminderSent]: { label: 'Sent', color: 'var(--color-info)', button: 'Start Job', action: 'MARK_IN_PROGRESS' }, // Can also be Mark Complete
     [JobState.InProgress]: { label: 'In Progress', color: 'var(--brand-secondary)', button: 'Finish Job', action: 'MARK_COMPLETE' },
-    [JobState.Completed]: { label: 'Done', color: 'var(--color-success)', button: 'Log Payment', action: 'LOG_PAYMENT' },
-    [JobState.PaymentRequested]: { label: 'Waiting for Payment', color: 'var(--color-warning)', button: 'Log Payment', action: 'LOG_PAYMENT' },
-    [JobState.Paid]: { label: 'Paid', color: 'var(--color-success)', button: 'Review', action: 'SEND_REVIEW_REQUEST' },
+    [JobState.Completed]: { label: 'Done', color: 'var(--color-success)' },
+    [JobState.PaymentRequested]: { label: 'Waiting for Payment', color: 'var(--color-warning)' },
+    [JobState.Paid]: { label: 'Paid', color: 'var(--color-success)' },
     [JobState.Closed]: { label: 'Closed', color: 'var(--text-tertiary)' },
 };
 
@@ -111,7 +111,7 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
                 </div>
             </Link>
 
-            {job.state === JobState.Completed ? (
+            {job.state === JobState.Completed || job.state === JobState.PaymentRequested ? (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
                     <button
                         className={clsx('btn', 'btn-primary')}
@@ -131,7 +131,7 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
                             onAction('REQUEST_PAYMENT');
                         }}
                     >
-                        Ask for Pay
+                        Ask for payment
                     </button>
                 </div>
             ) : job.state === JobState.Paid ? (
@@ -144,7 +144,7 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
                             onAction('SEND_REVIEW_REQUEST');
                         }}
                     >
-                        Ask Review
+                        Ask for review
                     </button>
                     <button
                         className={clsx('btn', 'btn-secondary')}

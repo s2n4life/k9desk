@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { format, parseISO, isAfter } from 'date-fns';
 import { JobCard } from '@/components/Jobs/JobCard';
 import { getDB } from '@/lib/db';
-import { Job, Customer, Pet, JobState } from '@/lib/db/schema';
+import { Job, Customer, Pet, JobState, Settings } from '@/lib/db/schema';
 import { JobStateMachine } from '@/lib/jobs/stateMachine';
 import { triggerSMSAction } from '@/lib/sms';
 import { useDataLoader } from '@/hooks/useDataLoader';
@@ -16,6 +16,7 @@ export default function UpcomingPage() {
     const [groupedJobs, setGroupedJobs] = useState<Record<string, Job[]>>({});
     const [customers, setCustomers] = useState<Record<string, Customer>>({});
     const [pets, setPets] = useState<Record<string, Pet>>({});
+    const [settings, setSettings] = useState<Settings | null>(null);
     const { loadJobs, loadCustomers, loadPets, isImpersonating, impersonatedBusinessId } = useDataLoader();
 
     const todayStr = format(new Date(), 'yyyy-MM-dd');
@@ -55,6 +56,10 @@ export default function UpcomingPage() {
             });
             setGroupedJobs(grouped);
 
+            const db = await getDB();
+            const s = await db.get('settings', 'default');
+            setSettings(s || null);
+
         } catch (error) {
             console.error('Failed to load upcoming', error);
         } finally {
@@ -78,7 +83,7 @@ export default function UpcomingPage() {
 
             if (job) {
                 const customer = customers[job.customerId];
-                if (customer) triggerSMSAction(job, customer, action);
+                if (customer) triggerSMSAction(job, customer, action, { settings });
             }
 
             await JobStateMachine.transition(jobId, action);

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { JobCard } from '@/components/Jobs/JobCard';
 import { getDB } from '@/lib/db';
-import { Job, Customer, Pet, JobState, Lead } from '@/lib/db/schema';
+import { Job, Customer, Pet, JobState, Lead, Settings } from '@/lib/db/schema';
 import { JobStateMachine } from '@/lib/jobs/stateMachine';
 import { triggerSMSAction } from '@/lib/sms';
 import { LeadCard } from '@/components/Leads/LeadCard';
@@ -20,6 +20,7 @@ export default function NeedsActionPage() {
     const [leads, setLeads] = useState<Lead[]>([]); // NEW
     const [customers, setCustomers] = useState<Record<string, Customer>>({});
     const [pets, setPets] = useState<Record<string, Pet>>({});
+    const [settings, setSettings] = useState<Settings | null>(null);
 
     // Payment Modal State
     const [paymentModalOpen, setPaymentModalOpen] = useState(false);
@@ -59,8 +60,7 @@ export default function NeedsActionPage() {
             setPets(petMap);
 
             const actionable = allJobs.filter(j =>
-                j.state === JobState.Paid ||
-                j.state === JobState.PaymentRequested
+                ACTION_STATES.includes(j.state)
             );
 
             actionable.sort((a, b) => {
@@ -71,6 +71,9 @@ export default function NeedsActionPage() {
 
             // Filter new leads
             setLeads(allLeads.filter(l => l.status === 'new'));
+
+            const s = await db.get('settings', 'default');
+            setSettings(s || null);
 
         } catch (error) {
             console.error('Failed to load actionable', error);
@@ -95,7 +98,7 @@ export default function NeedsActionPage() {
             const customer = job ? customers[job.customerId] : null;
 
             if (job && customer) {
-                triggerSMSAction(job, customer, action);
+                triggerSMSAction(job, customer, action, { settings });
             }
 
             await JobStateMachine.transition(jobId, action);
@@ -121,6 +124,7 @@ export default function NeedsActionPage() {
                     // trigger sync if we had it
                     // Local state update
                     setLeads(prev => prev.filter(l => l.id !== leadId));
+                    window.dispatchEvent(new CustomEvent('data-changed'));
                 }
             } catch (e) {
                 console.error('Failed to reject lead', e);

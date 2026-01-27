@@ -288,6 +288,7 @@ export function useSync() {
 
             if (queue.length === 0) {
                 setStatus('idle');
+                setQueueLength(0);
                 return;
             }
 
@@ -373,25 +374,28 @@ export function useSync() {
                     const payload = transformForRemote(item.entityType, item.data || {}, user, businessId);
                     console.log(`[Sync] Processing ${item.entityType} ${item.action}`, { payload });
 
-                    if (item.action === 'CREATE' || item.action === 'UPDATE') {
-                        // Settings should probably always be UPSERT or UPDATE, but if CREATE comes in:
-                        // We must ensure ID is the UUID, not 'default'.
-                        if (item.entityType === 'SETTINGS') {
-                            payload.id = businessId;
-                            // Ensure we don't accidentally send 'default' as id
+                    const syncAction = async () => {
+                        if (item.action === 'CREATE' || item.action === 'UPDATE') {
+                            if (item.entityType === 'SETTINGS') {
+                                payload.id = businessId;
+                            }
+                            return await supabase.from(tableName).upsert(payload);
+                        } else if (item.action === 'DELETE') {
+                            return await supabase.from(tableName).delete().eq('id', targetId);
                         }
+                        return { error: null };
+                    };
 
-                        // UPSERT is safer for Sync (handles retries, race conditions, and 'resync' of missing rows)
-                        const { error } = await supabase.from(tableName).upsert(payload);
-                        if (!error) success = true;
-                        else {
-                            console.error('Sync Error Upsert:', JSON.stringify(error, null, 2), error);
-                            setLastError(error.message || JSON.stringify(error));
-                        }
-                    } else if (item.action === 'DELETE') {
-                        const { error } = await supabase.from(tableName).delete().eq('id', targetId);
-                        if (!error) success = true;
-                        else console.error('Sync Error Delete:', JSON.stringify(error, null, 2), error);
+                    const timeout = new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('Request Timeout')), 12000)
+                    );
+
+                    const { error } = await Promise.race([syncAction(), timeout]) as any;
+
+                    if (!error) success = true;
+                    else {
+                        console.error('Sync Error:', JSON.stringify(error, null, 2), error);
+                        setLastError(error.message || JSON.stringify(error));
                     }
                 } catch (err: any) {
                     console.error('Sync Exception:', err);
@@ -408,6 +412,7 @@ export function useSync() {
                 if (success) {
                     console.log(`Sync Success: ${item.action} ${tableName}`);
                     await db.delete('syncQueue', item.id);
+                    setQueueLength(prev => Math.max(0, prev - 1));
                 } else {
                     // Increment retry count
                     const MAX_RETRIES = 5;

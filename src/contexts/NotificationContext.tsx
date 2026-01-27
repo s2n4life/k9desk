@@ -6,6 +6,7 @@ import { Toast } from '@/components/UI/Toast';
 import { JobState } from '@/lib/db/schema';
 import { useImpersonationContextSafe, getActiveBusinessIdSync } from './ImpersonationContext';
 import { syncLeadsToLocal } from '@/lib/db/hydration';
+import { getDB } from '@/lib/db';
 
 interface NotificationContextType {
     leadsCount: number;
@@ -51,23 +52,24 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                 businessId = profile?.business_id || userId;
             }
 
-            // 2. Fetch New Leads Count
-            const { count: newLeadsCount } = await supabase
-                .from('leads')
-                .select('*', { count: 'exact', head: true })
-                .eq('business_id', businessId)
-                .eq('status', 'new');
+            // 2. Fetch counts from local IndexedDB
+            const db = await getDB();
 
-            setLeadsCount(newLeadsCount || 0);
+            // New Leads
+            const allLeads = await db.getAll('leads');
+            const newLeadsCount = allLeads.filter(l => l.status === 'new').length;
+            setLeadsCount(newLeadsCount);
 
-            // 3. Fetch Needs Action Jobs Count
-            const { count: actionableJobsCount } = await supabase
-                .from('jobs')
-                .select('*', { count: 'exact', head: true })
-                .eq('business_id', businessId)
-                .in('state', [JobState.Completed, JobState.PaymentRequested, JobState.Paid]);
+            // Needs Action (Jobs that are Completed, PaymentRequested, or Paid)
+            const allJobs = await db.getAll('jobs');
+            const actionableJobsCount = allJobs.filter(j =>
+                j.state === JobState.Completed ||
+                j.state === JobState.PaymentRequested ||
+                j.state === JobState.Paid
+            ).length;
 
-            setNeedsActionCount(actionableJobsCount || 0);
+            // Total Needs Action = Actionable Jobs + New Leads
+            setNeedsActionCount(actionableJobsCount + newLeadsCount);
 
         } catch (error) {
             console.error('Error fetching notification counts:', error);
@@ -137,14 +139,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
         // Also refresh counts when leads are synced locally
         const handleSync = () => {
-            console.log('[NotificationContext] Leads synced event received, refreshing counts...');
+            console.log('[NotificationContext] Data changed event received, refreshing counts...');
             fetchCounts();
         };
         window.addEventListener('leads-synced', handleSync);
+        window.addEventListener('data-changed', handleSync);
 
         return () => {
             supabase.removeChannel(channel);
             window.removeEventListener('leads-synced', handleSync);
+            window.removeEventListener('data-changed', handleSync);
         };
     }, [isImpersonating, impersonatedBusinessId]);
 

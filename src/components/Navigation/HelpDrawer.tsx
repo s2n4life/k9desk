@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Search, ChevronDown, ChevronUp, MessageCircle, Send } from 'lucide-react';
+import { X, Search, ChevronDown, ChevronUp, MessageCircle, Send, Cloud, RefreshCw, AlertCircle, CloudOff } from 'lucide-react';
+import { useSync } from '@/hooks/useSync';
 import styles from './HelpDrawer.module.css';
 
 interface FAQ {
@@ -44,6 +45,7 @@ export function HelpDrawer({ isOpen, onClose }: { isOpen: boolean, onClose: () =
     const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
     const [ticketData, setTicketData] = useState({ subject: '', message: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { status, queueLength, lastError, forceSync } = useSync();
 
     // Chat Bot State
     const [messages, setMessages] = useState<{ role: 'user' | 'assistant', content: string }[]>([]);
@@ -271,7 +273,7 @@ export function HelpDrawer({ isOpen, onClose }: { isOpen: boolean, onClose: () =
                     )}
 
                     {view === 'bot' && (
-                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                        <>
                             <div className={styles.chatContainer}>
                                 {messages.length === 0 && (
                                     <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-secondary)' }}>
@@ -309,7 +311,7 @@ export function HelpDrawer({ isOpen, onClose }: { isOpen: boolean, onClose: () =
                                     <Send size={20} />
                                 </button>
                             </form>
-                        </div>
+                        </>
                     )}
                 </div>
 
@@ -326,6 +328,62 @@ export function HelpDrawer({ isOpen, onClose }: { isOpen: boolean, onClose: () =
                         </div>
                     </div>
                 )}
+
+                {/* System Status Section */}
+                <div style={{
+                    padding: 'var(--space-4) var(--space-6)',
+                    borderTop: '1px solid var(--border-subtle)',
+                    background: 'var(--surface-secondary)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px'
+                }}>
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600 }}>
+                            {status === 'syncing' ? (
+                                <RefreshCw size={14} className={styles.spin} />
+                            ) : status === 'offline' ? (
+                                <CloudOff size={14} color="var(--text-tertiary)" />
+                            ) : status === 'error' ? (
+                                <AlertCircle size={14} color="var(--color-danger)" />
+                            ) : (
+                                <Cloud size={14} color="var(--brand-primary)" />
+                            )}
+                            <span style={{ color: status === 'error' ? 'var(--color-danger)' : 'var(--text-secondary)' }}>
+                                {status === 'syncing' ? 'Syncing changes...' :
+                                    status === 'offline' ? 'Offline - changes saved locally' :
+                                        status === 'error' ? 'Sync Error' :
+                                            queueLength > 0 ? `Pending (${queueLength} items)` : 'Everything is synced'}
+                            </span>
+                        </div>
+                        <button
+                            onClick={() => forceSync()}
+                            disabled={status === 'syncing' || !navigator.onLine}
+                            style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--brand-primary)',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                cursor: (status === 'syncing' || !navigator.onLine) ? 'not-allowed' : 'pointer',
+                                opacity: (status === 'syncing' || !navigator.onLine) ? 0.5 : 1,
+                                padding: '4px 8px',
+                                borderRadius: '4px'
+                            }}
+                        >
+                            Sync Now
+                        </button>
+                    </div>
+                    {lastError && (
+                        <div style={{ fontSize: '11px', color: 'var(--color-danger)', marginTop: '2px', opacity: 0.8 }}>
+                            Last error: {lastError}
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

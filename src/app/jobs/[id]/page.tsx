@@ -178,7 +178,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     const handleAction = async (action: JobAction) => {
         if (!job) return;
         if (action === 'REQUEST_PAYMENT') {
-            await triggerSMSAction(job, customer!, 'REQUEST_PAYMENT');
+            await triggerSMSAction(job, customer!, 'REQUEST_PAYMENT', { settings });
             await JobStateMachine.transition(id, 'REQUEST_PAYMENT', {});
             loadData();
             return;
@@ -187,8 +187,8 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
             setPaymentModalOpen(true);
             return;
         }
-        if (action === 'SEND_REMINDER') {
-            await triggerSMSAction(job, customer!, 'SEND_REMINDER');
+        if (action === 'SEND_REMINDER' || action === 'SEND_REVIEW_REQUEST') {
+            await triggerSMSAction(job, customer!, action, { settings });
         }
         await JobStateMachine.transition(id, action, {});
         loadData();
@@ -198,10 +198,11 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     const getActionState = () => {
         if (!job) return null;
         if (job.state === JobState.Scheduled) return { label: 'Send Reminder Text', action: 'SEND_REMINDER' as JobAction, color: 'btn-primary' };
-        if (job.state === JobState.ReminderSent) return { label: 'Start Job', action: 'START_JOB' as JobAction, color: 'btn-primary' };
-        if (job.state === JobState.InProgress) return { label: 'Complete Job', action: 'COMPLETE_JOB' as JobAction, color: 'btn-success' };
-        if (job.state === JobState.Completed) return { label: 'Request Payment', action: 'REQUEST_PAYMENT' as JobAction, color: 'btn-primary' };
+        if (job.state === JobState.ReminderSent) return { label: 'Start Job', action: 'MARK_IN_PROGRESS' as JobAction, color: 'btn-primary' };
+        if (job.state === JobState.InProgress) return { label: 'Complete Job', action: 'MARK_COMPLETE' as JobAction, color: 'btn-success' };
+        if (job.state === JobState.Completed) return { label: 'Ask for payment', action: 'REQUEST_PAYMENT' as JobAction, color: 'btn-primary' };
         if (job.state === JobState.PaymentRequested) return { label: 'Log Payment', action: 'LOG_PAYMENT' as JobAction, color: 'btn-secondary' };
+        if (job.state === JobState.Paid) return { label: 'Ask for review', action: 'SEND_REVIEW_REQUEST' as JobAction, color: 'btn-primary' };
         return null;
     };
     const mainAction = getActionState();
@@ -371,14 +372,26 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
             {/* Main Action Button */}
             {mainAction && (
                 <div style={{ position: 'fixed', bottom: 90, left: 20, right: 20, zIndex: 10 }}>
-                    <button
-                        onClick={() => handleAction(mainAction.action)}
-                        className={`btn ${mainAction.color}`}
-                        style={{ width: '100%', padding: '16px', fontSize: 'var(--font-size-lg)', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                    >
-                        <Send size={20} />
-                        {mainAction.label}
-                    </button>
+                    <div style={{ display: 'grid', gridTemplateColumns: job.state === JobState.Paid ? '1fr 1fr' : '1fr', gap: 'var(--space-3)' }}>
+                        <button
+                            onClick={() => handleAction(mainAction.action)}
+                            className={`btn ${mainAction.color}`}
+                            style={{ width: '100%', padding: '16px', fontSize: 'var(--font-size-lg)', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                        >
+                            <Send size={20} />
+                            {mainAction.label}
+                        </button>
+                        {job.state === JobState.Paid && (
+                            <button
+                                onClick={() => handleAction('SKIP_REVIEW')}
+                                className="btn btn-secondary"
+                                style={{ width: '100%', padding: '16px', fontSize: 'var(--font-size-lg)', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                            >
+                                <X size={20} />
+                                Close
+                            </button>
+                        )}
+                    </div>
                 </div>
             )}
 

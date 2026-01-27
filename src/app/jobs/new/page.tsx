@@ -604,6 +604,7 @@ const NewJobContent = () => {
             }
         }
 
+        window.dispatchEvent(new CustomEvent('data-changed'));
         router.push('/');
     };
 

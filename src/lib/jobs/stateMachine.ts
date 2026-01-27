@@ -14,8 +14,6 @@ export type JobAction =
     | 'MARK_PAID'
     | 'SEND_REVIEW_REQUEST'
     | 'SKIP_REVIEW'
-    | 'SEND_REVIEW_REQUEST'
-    | 'SKIP_REVIEW'
     | 'SCHEDULE_NEXT'
     | 'LOG_PAYMENT';
 
@@ -51,7 +49,6 @@ export class JobStateMachine {
                 return currentState === JobState.PaymentRequested ? JobState.Paid : null;
             case 'SEND_REVIEW_REQUEST':
             case 'SKIP_REVIEW':
-            case 'SKIP_REVIEW':
                 return currentState === JobState.Paid ? JobState.Closed : null;
             case 'LOG_PAYMENT':
                 return (currentState === JobState.Completed || currentState === JobState.PaymentRequested) ? JobState.Paid : null;
@@ -83,6 +80,9 @@ export class JobStateMachine {
 
         await db.put('jobs', updatedJob);
         await addToSyncQueue('UPDATE', 'JOB', jobId, updatedJob);
+
+        // Notify UI of changes
+        window.dispatchEvent(new CustomEvent('data-changed'));
 
         // In a real implementation with sync, we would queue this change here
         // queueSync('UPDATE', 'JOB', jobId, { state: nextState });

@@ -8,15 +8,14 @@ export function SyncIndicator() {
     const { status, queueLength, lastError } = useSync();
     const [show, setShow] = useState(false);
 
-    // Only show if something is happening or wrong
+    // Only show if offline or there's an error
     useEffect(() => {
-        if (status === 'syncing' || status === 'offline' || queueLength > 0 || lastError) {
+        if (status === 'offline' || status === 'error' || lastError || queueLength > 0) {
             setShow(true);
         } else {
-            const timer = setTimeout(() => setShow(false), 2000);
-            return () => clearTimeout(timer);
+            setShow(false);
         }
-    }, [status, queueLength, lastError]);
+    }, [status, lastError, queueLength]);
 
     if (!show) return null;
 

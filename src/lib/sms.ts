@@ -1,6 +1,18 @@
 import { Job, Customer, Settings } from './db/schema';
 import { JobAction } from './jobs/stateMachine';
 
+function formatTimeTo12Hour(time: string): string {
+    if (!time) return '';
+    const [hours, minutes] = time.split(':').map(Number);
+    if (isNaN(hours) || isNaN(minutes)) return time;
+
+    const period = hours >= 12 ? 'pm' : 'am';
+    const displayHours = hours % 12 || 12;
+    const displayMinutes = minutes.toString().padStart(2, '0');
+
+    return `${displayHours}:${displayMinutes} ${period}`;
+}
+
 export function triggerSMSAction(job: Job, customer: Customer | null, action: JobAction, extraData?: any): boolean {
     if (!customer?.phone) return false;
 
@@ -11,7 +23,7 @@ export function triggerSMSAction(job: Job, customer: Customer | null, action: Jo
     const settings = extraData?.settings as Settings | undefined;
 
     if (action === 'SEND_REMINDER') {
-        const time = job.scheduledTime;
+        const time = formatTimeTo12Hour(job.scheduledTime);
         const petNames = extraData?.petNames || [];
 
         let petString = 'your pet\'s'; // Fallback

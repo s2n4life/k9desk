@@ -61,8 +61,9 @@ export default function CustomersPage() {
 
     // Filter Jobs
     const filteredJobs = jobs.filter(j => {
-        // Only show closed (Past) jobs: Paid or Closed
-        if (j.state !== 'paid' && j.state !== 'closed') return false;
+        // Only show finished or near-finished jobs: Completed, PaymentRequested, Paid or Closed
+        const finishedStates = ['completed', 'payment_requested', 'paid', 'closed'];
+        if (!finishedStates.includes(j.state)) return false;
 
         const term = searchTerm.toLowerCase();
         const customer = customers.find(c => c.id === j.customerId);
