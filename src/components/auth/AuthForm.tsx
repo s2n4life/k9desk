@@ -37,8 +37,10 @@ export default function AuthForm({ initialMode = 'login' }: { initialMode?: Auth
                 if (error) throw error;
                 router.push('/dashboard');
             } else if (mode === 'forgot-password') {
+                // Sanitize origin (strip trailing slash if present) to match whitelist exactly
+                const origin = window.location.origin.replace(/\/$/, '');
                 const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                    redirectTo: `${window.location.origin}/reset-password`,
+                    redirectTo: `${origin}/reset-password`,
                 });
                 if (error) throw error;
                 setMessage('Password reset link sent! Please check your email.');
