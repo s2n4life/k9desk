@@ -135,8 +135,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             )
             .subscribe();
 
+        // Also refresh counts when leads are synced locally
+        const handleSync = () => {
+            console.log('[NotificationContext] Leads synced event received, refreshing counts...');
+            fetchCounts();
+        };
+        window.addEventListener('leads-synced', handleSync);
+
         return () => {
             supabase.removeChannel(channel);
+            window.removeEventListener('leads-synced', handleSync);
         };
     }, [isImpersonating, impersonatedBusinessId]);
 

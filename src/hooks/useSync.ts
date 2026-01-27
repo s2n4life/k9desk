@@ -17,8 +17,10 @@ const DEMO_BUSINESS_ID = '00000000-0000-0000-0000-000000000001';
  */
 const transformForRemote = (entityType: string, data: any, user: any, businessId?: string) => {
     // 1. Inject Business ID (Critical for RLS/Foreign Keys)
-    // Use provided businessId if available (respects impersonation), otherwise fall back to user.id
-    const finalBusinessId = businessId || user?.id || DEMO_BUSINESS_ID;
+    // Use provided businessId if available (respects impersonation), 
+    // otherwise fallback to data.business_id (underscore) or data.businessId (camelCase),
+    // and finally fall back to user.id
+    const finalBusinessId = businessId || data.business_id || data.businessId || user?.id || DEMO_BUSINESS_ID;
     const remote: any = { ...data, business_id: finalBusinessId };
 
     // Inject owner email for Businesses table visibility

@@ -599,7 +599,8 @@ const NewJobContent = () => {
             if (leadToUpdate) {
                 const updatedLead = { ...leadToUpdate, status: 'scheduled' };
                 await db.put('leads', updatedLead);
-                await addToSyncQueue('UPDATE', 'LEAD', leadId, updatedLead);
+                // Ensure we pass the businessId explicitly to the sync queue
+                await addToSyncQueue('UPDATE', 'LEAD', leadId, updatedLead, activeBusinessId || undefined);
             }
         }
 

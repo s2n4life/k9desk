@@ -1,0 +1,31 @@
+[dotenv@17.2.3] injecting env (12) from .env.local -- tip: ⚙️  enable debug logging with { debug: true }
+Updating Lead Status to scheduled for ID: 0f29dba0-d67a-4e56-97d1-e4b1df4ff2d1
+Update result: [
+  {
+    "id": "0f29dba0-d67a-4e56-97d1-e4b1df4ff2d1",
+    "business_id": "1ba93133-86fa-4c06-b0ed-2ac5cc393b0c",
+    "status": "scheduled",
+    "owner_name": "David Schardt",
+    "owner_phone": "(602) 299-0448",
+    "owner_email": "s2n4life@gmail.com",
+    "service_area_zip": "60015",
+    "pet_details": [
+      {
+        "age": "7",
+        "name": "Stella",
+        "breed": "Poodle",
+        "weight": "25"
+      }
+    ],
+    "preferred_dates": [
+      "Thu, Jan 29 at 9:00 AM"
+    ],
+    "waiver_signed": true,
+    "created_at": "2026-01-27T20:05:11.27827+00:00",
+    "notes": "Call first. ",
+    "owner_address": "1915 Calvin ct",
+    "service_ids": [
+      "9fb23927-62fc-405c-9aea-87574ebe17df"
+    ]
+  }
+]
