@@ -46,9 +46,12 @@ export async function proxy(request: NextRequest) {
     const isStaticAsset = path.startsWith('/_next') || path.startsWith('/static') || path.includes('.')
 
     // Defer getUser until we know it's not a static asset or a dedicated auth route we want to leave alone
-    // We explicitly exclude /auth and /reset-password from middleware auth checks
+    // STRICT DIRECTIVE: All other routes must act as if the token does not exist.
+    // We skip getUser if this is a recovery attempt on any other route to prevent the "Dashboard Bounce".
+    const isRecovery = request.nextUrl.hash.includes('type=recovery') || request.nextUrl.searchParams.get('type') === 'recovery';
+
     let user = null
-    if (!isStaticAsset && !path.startsWith('/auth') && path !== '/reset-password') {
+    if (!isStaticAsset && !path.startsWith('/auth') && path !== '/reset-password' && !isRecovery) {
         const { data: { user: foundUser } } = await supabase.auth.getUser()
         user = foundUser
     }
