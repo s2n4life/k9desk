@@ -45,15 +45,24 @@ export async function proxy(request: NextRequest) {
     const isPublicPath = path === '/' || path === '/login' || path === '/signup' || path === '/reset-password' || path.startsWith('/auth') || path.startsWith('/book/')
     const isStaticAsset = path.startsWith('/_next') || path.startsWith('/static') || path.includes('.')
 
+    const searchParams = request.nextUrl.searchParams;
+    const hasAuthParam = searchParams.has('code') || searchParams.has('type') || searchParams.has('recovery');
+
     // Defer getUser until we know it's not a static asset or a dedicated auth route we want to leave alone
     // STRICT DIRECTIVE: All other routes must act as if the token does not exist.
-    // We skip getUser if this is a recovery attempt on any other route to prevent the "Dashboard Bounce".
-    const isRecovery = request.nextUrl.hash.includes('type=recovery') || request.nextUrl.searchParams.get('type') === 'recovery';
-
+    // If we land on the home page with ANY auth params, we REFUSE to check the user.
+    // This stops the Middleware from "accidentally" consuming the PKCE code.
     let user = null
-    if (!isStaticAsset && !path.startsWith('/auth') && path !== '/reset-password' && !isRecovery) {
+    const skipAuthCheck = isStaticAsset || path.startsWith('/auth') || path === '/reset-password' || (path === '/' && hasAuthParam);
+
+    if (!skipAuthCheck) {
         const { data: { user: foundUser } } = await supabase.auth.getUser()
         user = foundUser
+    } else if (path === '/' && (searchParams.get('type') === 'recovery' || searchParams.has('recovery'))) {
+        // PROACTIVE HANDOVER: If Supabase mis-routes a recovery link to the Home Page,
+        // we bounce it to /reset-password immediately before the page even loads.
+        // This stops the "Flash" and keeps the recovery logic isolated.
+        return NextResponse.redirect(new URL('/reset-password' + request.nextUrl.search + request.nextUrl.hash, request.url));
     }
 
     // 2. GLOBAL MAINTENANCE MODE (Phase 1)
