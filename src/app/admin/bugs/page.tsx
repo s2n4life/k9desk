@@ -11,7 +11,10 @@ import {
     Trash2,
     Maximize2,
     ChevronDown,
-    ChevronUp
+    ChevronUp,
+    Bell,
+    BellOff,
+    Mail
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -30,21 +33,58 @@ export default function BugsPage() {
     const [loading, setLoading] = useState(true);
     const [logs, setLogs] = useState<SystemLog[]>([]);
     const [expandedLog, setExpandedLog] = useState<string | null>(null);
+    const [emailsEnabled, setEmailsEnabled] = useState(false);
+    const [updatingConfig, setUpdatingConfig] = useState(false);
 
     useEffect(() => {
-        const loadLogs = async () => {
-            const { data, error } = await supabase
+        const loadData = async () => {
+            setLoading(true);
+
+            // Load Logs
+            const { data: logsData } = await supabase
                 .from('system_logs')
                 .select('*')
                 .order('created_at', { ascending: false })
                 .limit(50);
 
-            if (data) setLogs(data);
+            if (logsData) setLogs(logsData);
+
+            // Load Config
+            const { data: configData } = await supabase
+                .from('system_configs')
+                .select('value')
+                .eq('key', 'error_emails_enabled')
+                .single();
+
+            if (configData) {
+                setEmailsEnabled(configData.value);
+            }
+
             setLoading(false);
         };
 
-        loadLogs();
+        loadData();
     }, []);
+
+    const toggleEmails = async () => {
+        setUpdatingConfig(true);
+        const newValue = !emailsEnabled;
+
+        const { error } = await supabase
+            .from('system_configs')
+            .upsert({
+                key: 'error_emails_enabled',
+                value: newValue,
+                description: 'Enable/disable email notifications for system errors'
+            });
+
+        if (!error) {
+            setEmailsEnabled(newValue);
+        } else {
+            console.error('Failed to update email setting:', error);
+        }
+        setUpdatingConfig(false);
+    };
 
     const clearLogs = async () => {
         if (confirm('Are you sure you want to clear all system logs?')) {
@@ -75,23 +115,47 @@ export default function BugsPage() {
                     <p style={{ color: '#94a3b8', margin: 0 }}>Proactive system health & bug tracking.</p>
                 </div>
 
-                <button
-                    onClick={clearLogs}
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        backgroundColor: 'transparent',
-                        border: '1px solid #ef444450',
-                        color: '#ef4444',
-                        padding: '8px 16px',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        fontSize: '0.875rem'
-                    }}
-                >
-                    <Trash2 size={16} /> Clear Logs
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                        onClick={toggleEmails}
+                        disabled={updatingConfig}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            backgroundColor: emailsEnabled ? '#10b98120' : '#334155',
+                            border: `1px solid ${emailsEnabled ? '#10b98150' : '#475569'}`,
+                            color: emailsEnabled ? '#10b981' : '#94a3b8',
+                            padding: '8px 16px',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            fontSize: '0.875rem',
+                            transition: 'all 0.2s ease',
+                            opacity: updatingConfig ? 0.5 : 1
+                        }}
+                    >
+                        {emailsEnabled ? <Bell size={16} /> : <BellOff size={16} />}
+                        {emailsEnabled ? 'Email Alerts: ON' : 'Email Alerts: OFF'}
+                    </button>
+
+                    <button
+                        onClick={clearLogs}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            backgroundColor: 'transparent',
+                            border: '1px solid #ef444450',
+                            color: '#ef4444',
+                            padding: '8px 16px',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            fontSize: '0.875rem'
+                        }}
+                    >
+                        <Trash2 size={16} /> Clear Logs
+                    </button>
+                </div>
             </header>
 
             <div className="admin-card" style={{ padding: 0 }}>

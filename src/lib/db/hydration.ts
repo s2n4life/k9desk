@@ -10,7 +10,37 @@ export async function hydrateLocalDB(userId: string) {
     const now = Date.now();
 
     try {
-        // 0. CLEAR STORES TO PREVENT CONFLICTS
+        // 0. CHECK FOR PENDING SYNC QUEUE ITEMS FIRST
+        // CRITICAL: If there are unsynced items, we MUST sync them before wiping local data
+        // Otherwise we lose data if user closed tabs before sync completed
+        const syncQueueCount = await db.count('syncQueue');
+
+        if (syncQueueCount > 0) {
+            console.warn(`[Hydration] Found ${syncQueueCount} pending sync items.`);
+
+            // CRITICAL: If offline with pending items, DO NOT clear stores
+            // This would cause permanent data loss
+            if (!navigator.onLine) {
+                console.error('[Hydration] OFFLINE with pending sync items - skipping hydration to prevent data loss!');
+                console.warn('[Hydration] Using local data until online and synced.');
+                // Mark as hydrated so app can proceed with local data
+                localStorage.setItem('crm_has_hydrated', 'true');
+                return true;
+            }
+
+            console.log('[Hydration] Processing sync queue before clearing stores...');
+            // Import and process sync queue
+            // We need to process the queue synchronously here
+            const { processQueueSync } = await import('@/hooks/useSync');
+            if (processQueueSync) {
+                await processQueueSync();
+                console.log('[Hydration] Sync queue processed successfully');
+            } else {
+                console.error('[Hydration] Could not process sync queue - data may be lost!');
+            }
+        }
+
+        // 0b. CLEAR STORES TO PREVENT CONFLICTS
         // Since we are doing a full hydration, we should start fresh to avoid 'ConstraintError'
         // on unique indexes (like phone numbers) if local data is stale or partial.
         const stores = ['jobs', 'customers', 'pets', 'services', 'leads', 'settings'];

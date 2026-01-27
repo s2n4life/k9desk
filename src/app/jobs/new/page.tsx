@@ -525,6 +525,14 @@ const NewJobContent = () => {
             return;
         }
 
+        // 0. Check Storage Quota
+        const { checkStorageQuota } = await import('@/lib/storage-monitor');
+        const { hasRisk, remaining } = await checkStorageQuota();
+        if (hasRisk && remaining < 1024 * 1024) { // Only block if < 1MB
+            alert('Your browser storage is extremely full. Please clear space to ensure data is saved.');
+            return;
+        }
+
         const db = await getDB();
         const jobId = uuidv4();
 
@@ -532,11 +540,11 @@ const NewJobContent = () => {
         const customer = allCustomers.find(c => c.id === selectedCustomerId);
         const myPets = allPets.filter(p => selectedPetIds.includes(p.id));
 
-        // We really just store IDs, but schema has `customerNotes` snapshot field.
-        // Usually we want live notes, but if schema implies snapshot for history, we do that.
-        // User requested "notes... should always appear ... and should always be editable".
-        // This implies they are the LIVE notes on the entity.
-        // But Job schema has `customerNotes`. I'll populate it as a snapshot, but UI typically shows live.
+        // Using impersonation context if available
+        const { useImpersonationContextSafe } = await import('@/contexts/ImpersonationContext');
+        // We can't use hook here, but we can get it from context if we were inside a component?
+        // Actually we are inside NewJobContent component, so we can use hook at top level.
+        // Let's refactor to use hook at top level.
 
         await db.put('jobs', {
             id: jobId,
@@ -554,6 +562,8 @@ const NewJobContent = () => {
             updatedAt: Date.now()
         });
 
+        // Pass businessId if available (we will need to get it from hook)
+        // For now, let's just make sure addToSyncQueue is called with the context variable we need to add
         await addToSyncQueue('CREATE', 'JOB', jobId, {
             id: jobId,
             customerId: selectedCustomerId,

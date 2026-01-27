@@ -5,7 +5,6 @@ import { supabase } from '@/lib/supabaseClient';
 import { Shield, Users, DollarSign, Activity, AlertTriangle, LogIn, TrendingUp, Clock, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { captureLog } from '@/lib/admin/sentinel';
 
 type StatCardProps = {
     label: string;
@@ -87,34 +86,12 @@ export default function AdminDashboard() {
         </div>
     );
 
-    const testErrorEmail = async () => {
-        await captureLog({
-            level: 'error',
-            message: 'Test Error: Email Notification System',
-            stack_trace: 'This is a test error to verify email notifications are working correctly.\n  at testErrorEmail (admin/page.tsx:92)',
-            metadata: {
-                test: true,
-                triggeredBy: 'admin',
-                timestamp: new Date().toISOString()
-            }
-        });
-        alert('Test error logged! Check s2n4life@gmail.com for the notification email.');
-    };
 
     return (
         <div>
-            <header style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                    <h1 style={{ fontSize: '1.875rem', fontWeight: 700, margin: '0 0 8px 0' }}>SaaS Overview</h1>
-                    <p style={{ color: '#94a3b8', margin: 0 }}>Operational health and growth metrics.</p>
-                </div>
-                <button
-                    onClick={testErrorEmail}
-                    className="btn-admin-primary"
-                    style={{ fontSize: '0.875rem' }}
-                >
-                    🧪 Test Error Email
-                </button>
+            <header style={{ marginBottom: '32px' }}>
+                <h1 style={{ fontSize: '1.875rem', fontWeight: 700, margin: '0 0 8px 0' }}>SaaS Overview</h1>
+                <p style={{ color: '#94a3b8', margin: 0 }}>Operational health and growth metrics.</p>
             </header>
 
             {/* KPI Grid */}

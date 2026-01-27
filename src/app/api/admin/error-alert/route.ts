@@ -1,10 +1,24 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { supabase } from '@/lib/supabaseClient';
 
 export async function POST(req: Request) {
     try {
         const resend = new Resend(process.env.RESEND_API_KEY);
         const { error } = await req.json();
+
+        // Check if email alerts are enabled in system_configs
+        const { data: config } = await supabase
+            .from('system_configs')
+            .select('value')
+            .eq('key', 'error_emails_enabled')
+            .single();
+
+        // If explicitly disabled, skip email
+        if (config && config.value === false) {
+            console.log('[Error Alert API] Email alerts are disabled via configuration');
+            return NextResponse.json({ success: true, message: 'Email alerts disabled' });
+        }
 
         await resend.emails.send({
             from: 'K9Desk Sentinel <support@k9desk.com>',

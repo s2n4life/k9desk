@@ -21,6 +21,8 @@ export const viewport: Viewport = {
   userScalable: false, // Prevent zoom on inputs
 };
 
+import { SyncIndicator } from "@/components/Sync/SyncIndicator";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -34,6 +36,7 @@ export default function RootLayout({
           <ImpersonationProvider>
             <AppShell>
               {children}
+              <SyncIndicator />
             </AppShell>
           </ImpersonationProvider>
         </NotificationProvider>

@@ -16,11 +16,11 @@ const DEMO_BUSINESS_ID = '00000000-0000-0000-0000-000000000001';
 // Ideally, transformForRemote should be async or receive the user object. 
 // Refactoring transformForRemote to be called inside the async loop with the user object.
 
-const transformForRemote = (entityType: string, data: any, user: any) => {
+const transformForRemote = (entityType: string, data: any, user: any, businessId?: string) => {
     // 1. Inject Business ID (Critical for RLS/Foreign Keys)
-    // USE REAL USER ID NOW
-    const businessId = user?.id || DEMO_BUSINESS_ID;
-    const remote: any = { ...data, business_id: businessId };
+    // Use provided businessId if available (respects impersonation), otherwise fall back to user.id
+    const finalBusinessId = businessId || user?.id || DEMO_BUSINESS_ID;
+    const remote: any = { ...data, business_id: finalBusinessId };
 
     // Inject owner email for Businesses table visibility
     if (entityType === 'SETTINGS' && user?.email) {
@@ -133,8 +133,26 @@ export function useSync() {
     const [isHydrating, setIsHydrating] = useState<boolean>(true); // Start true to block UI initially
 
     const clearLocalData = async () => {
-        console.warn('[useSync] Wiping local database for security/logout.');
+        console.warn('[useSync] Preparing to clear local database...');
+
+        // CRITICAL: Check for pending sync items before clearing
         const db = await getDB();
+        const syncQueueCount = await db.count('syncQueue');
+
+        if (syncQueueCount > 0) {
+            console.warn(`[useSync] Found ${syncQueueCount} pending sync items. Processing before clearing...`);
+
+            if (navigator.onLine) {
+                // Process sync queue before clearing
+                await processQueueSync();
+                console.log('[useSync] Sync complete. Safe to clear local data.');
+            } else {
+                console.error('[useSync] OFFLINE with pending sync items - CANNOT clear data safely!');
+                throw new Error('Cannot logout while offline with unsaved changes. Please connect to internet and try again.');
+            }
+        }
+
+        console.warn('[useSync] Wiping local database for security/logout.');
         const stores = ['jobs', 'customers', 'pets', 'services', 'syncQueue', 'profiles', 'settings', 'leads'];
         for (const storeName of stores) {
             await db.clear(storeName as any);
@@ -262,12 +280,14 @@ export function useSync() {
                 if (authError) console.error('Sync Auth Error:', authError);
                 console.log('[Sync Debug] Current User:', user?.id, user?.email); // DEBUG LINE
 
-                const businessId = user?.id || DEMO_BUSINESS_ID;
+                // Use businessId from queue item if available (respects impersonation)
+                // Otherwise fall back to user.id
+                const businessId = item.businessId || user?.id || DEMO_BUSINESS_ID;
 
                 const targetId = item.entityType === 'SETTINGS' ? businessId : item.entityId;
 
                 try {
-                    const payload = transformForRemote(item.entityType, item.data || {}, user);
+                    const payload = transformForRemote(item.entityType, item.data || {}, user, businessId);
                     console.log(`[Sync] Processing ${item.entityType} ${item.action}`, { payload });
 
                     if (item.action === 'CREATE' || item.action === 'UPDATE') {
@@ -301,15 +321,39 @@ export function useSync() {
                     });
                 }
 
+
                 if (success) {
                     console.log(`Sync Success: ${item.action} ${tableName}`);
                     await db.delete('syncQueue', item.id);
                 } else {
-                    // Logic for retry count exponential backoff could go here
-                    // For now, we leave it in queue to try again next time
+                    // Increment retry count
+                    const MAX_RETRIES = 5;
+                    const updatedItem = { ...item, retryCount: (item.retryCount || 0) + 1 };
+
+                    if (updatedItem.retryCount >= MAX_RETRIES) {
+                        // Max retries exceeded - log to admin and remove from queue
+                        console.error(`[Sync] Max retries exceeded for ${item.entityType} ${item.entityId}`);
+                        await captureLog({
+                            level: 'error',
+                            message: `Sync permanently failed after ${MAX_RETRIES} attempts`,
+                            metadata: {
+                                entityType: item.entityType,
+                                action: item.action,
+                                entityId: item.entityId,
+                                data: item.data
+                            },
+                            business_id: businessId
+                        });
+                        // Remove from queue to prevent infinite retries
+                        await db.delete('syncQueue', item.id);
+                    } else {
+                        // Update retry count for next attempt
+                        await db.put('syncQueue', updatedItem);
+                        console.warn(`[Sync] Retry ${updatedItem.retryCount}/${MAX_RETRIES} for ${item.entityType} ${item.entityId}`);
+                    }
                 }
             }
-            if (queue.length > 0 && queue.every(item => !item || true)) {
+            if (queue.length > 0) {
                 // If we processed items, clear the error
                 setLastError(null);
             }
@@ -383,4 +427,98 @@ export function useSync() {
     };
 
     return { status, forceSync: processQueue, queueLength, lastError, resyncAll, isHydrating, clearLocalData };
+}
+
+// Standalone sync processor that can be called from hydration
+// This prevents data loss by ensuring pending syncs complete before wiping local data
+export async function processQueueSync() {
+    if (isSyncing) {
+        console.warn('[Sync] Already syncing, skipping duplicate call');
+        return;
+    }
+    if (!navigator.onLine) {
+        console.warn('[Sync] Offline, cannot process queue');
+        return;
+    }
+
+    isSyncing = true;
+
+    try {
+        const db = await getDB();
+        const queue = await db.getAllFromIndex('syncQueue', 'by-timestamp');
+
+        if (queue.length === 0) {
+            return;
+        }
+
+        console.log(`[Sync] Processing ${queue.length} pending items...`);
+
+        // PRIORITY SORT
+        const priorityMap: Record<string, number> = {
+            SETTINGS: 0,
+            PROFILE: 1,
+            SERVICE: 2,
+            CUSTOMER: 2,
+            LEAD: 2,
+            PET: 3,
+            JOB: 4
+        };
+
+        queue.sort((a, b) => {
+            const pA = priorityMap[a.entityType] ?? 99;
+            const pB = priorityMap[b.entityType] ?? 99;
+            return pA - pB;
+        });
+
+        const tableMap: Record<string, string> = {
+            CUSTOMER: 'customers',
+            PET: 'pets',
+            JOB: 'jobs',
+            SERVICE: 'services',
+            SETTINGS: 'businesses',
+            PROFILE: 'profiles',
+            LEAD: 'leads',
+        };
+
+        for (const item of queue) {
+            const tableName = tableMap[item.entityType];
+            if (!tableName) {
+                await db.delete('syncQueue', item.id);
+                continue;
+            }
+
+            const { data: { user } } = await supabase.auth.getUser();
+            const businessId = item.businessId || user?.id || DEMO_BUSINESS_ID;
+            const targetId = item.entityType === 'SETTINGS' ? businessId : item.entityId;
+
+            try {
+                const payload = transformForRemote(item.entityType, item.data || {}, user, businessId);
+
+                if (item.action === 'CREATE' || item.action === 'UPDATE') {
+                    if (item.entityType === 'SETTINGS') {
+                        payload.id = businessId;
+                    }
+                    const { error } = await supabase.from(tableName).upsert(payload);
+                    if (!error) {
+                        await db.delete('syncQueue', item.id);
+                    } else {
+                        console.error('Sync Error:', error);
+                    }
+                } else if (item.action === 'DELETE') {
+                    const { error } = await supabase.from(tableName).delete().eq('id', targetId);
+                    if (!error) {
+                        await db.delete('syncQueue', item.id);
+                    }
+                }
+            } catch (err) {
+                console.error('Sync Exception:', err);
+            }
+        }
+
+        console.log('[Sync] Queue processing complete');
+    } catch (e) {
+        console.error('[Sync] Failed to process queue:', e);
+    } finally {
+        isSyncing = false;
+    }
 }
