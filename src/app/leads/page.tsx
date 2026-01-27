@@ -26,7 +26,7 @@ export default function LeadsPage() {
     const [slugError, setSlugError] = useState('');
     const [msg, setMsg] = useState('');
 
-    const { loadLeads, isImpersonating, impersonatedBusinessId } = useDataLoader();
+    const { loadLeads, isImpersonating, impersonatedBusinessId, getActiveBusinessId } = useDataLoader();
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -39,13 +39,12 @@ export default function LeadsPage() {
                 const supabase = createClient();
                 const { data: { user } } = await supabase.auth.getUser();
 
-                // 2. Load Leads using impersonation-aware hook
+                // 1. Load Leads using impersonation-aware hook
                 const leadsData = await loadLeads();
                 setLeads(leadsData);
 
-                // 3. Get User's Business (for booking link - only if NOT impersonating or for the impersonated business)
-                // We'll fetch the business based on the first lead or current session
-                const activeId = localStorage.getItem('k9desk_impersonated_id') || user?.id;
+                // 2. Get User's Business (for booking link) using consolidated context logic
+                const activeId = await getActiveBusinessId();
 
                 if (activeId) {
                     const { data: business } = await supabase

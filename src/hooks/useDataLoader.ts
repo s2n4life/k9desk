@@ -12,7 +12,7 @@ import { useState, useEffect } from 'react'; // Added useEffect and useState imp
  * - When NOT impersonating: loads from IndexedDB (existing behavior)
  */
 export function useDataLoader() {
-    const { isImpersonating, impersonatedBusinessId } = useImpersonationContextSafe();
+    const { isImpersonating, impersonatedBusinessId, getActiveBusinessId } = useImpersonationContextSafe();
 
     const loadJobs = async (): Promise<Job[]> => {
         if (isImpersonating && impersonatedBusinessId) {
@@ -152,6 +152,7 @@ export function useDataLoader() {
         loadPets,
         loadLeads,
         isImpersonating,
-        impersonatedBusinessId
+        impersonatedBusinessId,
+        getActiveBusinessId
     };
 }

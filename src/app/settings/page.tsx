@@ -13,10 +13,12 @@ import { useRouter } from 'next/navigation';
 import { InstallPwaPrompt } from '@/components/pwa/InstallPwaPrompt';
 import { isStandalone, shouldShowPrompt } from '@/lib/pwa-utils';
 import { PlusSquare, Smartphone, CreditCard as BillingIcon, ExternalLink, ShieldCheck } from 'lucide-react';
+import { useImpersonation } from '@/contexts/ImpersonationContext';
 
 export default function SettingsPage() {
     const { clearLocalData } = useSync();
     const router = useRouter();
+    const { isImpersonating, impersonatedBusinessId, getActiveBusinessId } = useImpersonation();
 
     const handleLogout = async () => {
         if (!confirm('Are you sure you want to logout?')) return;
@@ -74,10 +76,10 @@ export default function SettingsPage() {
         setBookingBaseUrl(`${window.location.origin}/book/`);
 
         const load = async () => {
-            // Check if admin is impersonating
-            const impersonatedBusinessId = localStorage.getItem('k9desk_impersonated_id');
+            // Use consolidated context logic to find active business ID
+            const activeId = await getActiveBusinessId();
 
-            if (impersonatedBusinessId) {
+            if (isImpersonating && impersonatedBusinessId) {
                 // IMPERSONATION MODE: Load data from Supabase for the impersonated business
                 const { data: business, error: bizError } = await supabase
                     .from('businesses')
