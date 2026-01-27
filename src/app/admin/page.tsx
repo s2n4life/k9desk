@@ -136,7 +136,6 @@ export default function AdminDashboard() {
                 .order('created_at', { ascending: false })
                 .limit(5);
             if (errorLogs) setRecentErrorLogs(errorLogs);
-            alert(`Failed to resolve log: ${error.message}`);
         }
     };
 

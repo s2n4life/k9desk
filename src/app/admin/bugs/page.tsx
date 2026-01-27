@@ -106,7 +106,6 @@ export default function BugsPage() {
             setLogs(logs.filter(l => l.id !== id));
         } else {
             console.error('[System Logs] Failed to resolve log:', error.message, error.details);
-            alert(`Failed to resolve log: ${error.message}`);
         }
     };
 
