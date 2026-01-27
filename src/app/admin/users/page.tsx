@@ -118,6 +118,47 @@ export default function AdminUsersPage() {
         }
     };
 
+    const uncompAccount = async (id: string) => {
+        if (!confirm('Are you sure you want to Un-comp this account? This will reset them to a trial status (14 days).')) return;
+
+        const newTrialEnd = new Date();
+        newTrialEnd.setDate(newTrialEnd.getDate() + 14);
+
+        const { error } = await supabase
+            .from('businesses')
+            .update({
+                subscription_status: 'trialing',
+                trial_end_date: newTrialEnd.toISOString()
+            })
+            .eq('id', id);
+
+        if (!error) {
+            setAccounts(accounts.map(a => a.id === id ? {
+                ...a,
+                subscription_status: 'trialing',
+                trial_end_date: newTrialEnd.toISOString()
+            } : a));
+            alert('Account reset to trial successfully!');
+        }
+    };
+
+    const clearStripeId = async (id: string) => {
+        if (!confirm('Are you sure you want to CLEAR the Stripe Subscription ID from this account? This might cause issues if they are still paying via Stripe.')) return;
+
+        const { error } = await supabase
+            .from('businesses')
+            .update({ stripe_subscription_id: null })
+            .eq('id', id);
+
+        if (!error) {
+            setAccounts(accounts.map(a => a.id === id ? { ...a, stripe_subscription_id: undefined } : a));
+            alert('Stripe ID cleared successfully!');
+        } else {
+            console.error('Error clearing Stripe ID:', error);
+            alert('Failed to clear Stripe ID');
+        }
+    };
+
     // Filter and sort accounts
     let processedAccounts = accounts.filter(a =>
         a.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -288,6 +329,18 @@ export default function AdminUsersPage() {
                                         <div style={{ fontWeight: 500 }}>{format(new Date(account.created_at), 'MMM d')}</div>
                                     </div>
                                 )}
+                                {account.stripe_subscription_id && (
+                                    <div style={{ marginTop: '8px', fontSize: '0.65rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <CreditCard size={10} />
+                                        <span title={account.stripe_subscription_id}>Stripe: {account.stripe_subscription_id.substring(0, 10)}...</span>
+                                        <button
+                                            onClick={() => clearStripeId(account.id)}
+                                            style={{ background: 'none', border: 'none', color: '#6c5ce7', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                                        >
+                                            (Clear)
+                                        </button>
+                                    </div>
+                                )}
                             </div>
 
                             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
@@ -303,13 +356,23 @@ export default function AdminUsersPage() {
                                 >
                                     Extend Trial
                                 </button>
-                                <button
-                                    onClick={() => compAccount(account.id)}
-                                    className="btn-admin-primary"
-                                    style={{ padding: '6px 12px', fontSize: '0.75rem', backgroundColor: '#334155' }}
-                                >
-                                    Comp Account
-                                </button>
+                                {account.subscription_status === 'active' ? (
+                                    <button
+                                        onClick={() => uncompAccount(account.id)}
+                                        className="btn-admin-primary"
+                                        style={{ padding: '6px 12px', fontSize: '0.75rem', backgroundColor: '#dc262620', color: '#dc2626', border: '1px solid #dc2626' }}
+                                    >
+                                        Un-comp
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => compAccount(account.id)}
+                                        className="btn-admin-primary"
+                                        style={{ padding: '6px 12px', fontSize: '0.75rem', backgroundColor: '#334155' }}
+                                    >
+                                        Comp Account
+                                    </button>
+                                )}
                                 <button
                                     onClick={() => startImpersonation(account.id)}
                                     className="btn-admin-primary"
