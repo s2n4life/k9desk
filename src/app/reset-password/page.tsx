@@ -20,54 +20,43 @@ function ResetPasswordForm() {
             setError(null);
 
             try {
-                // 1. Immediately read URL parameters (both hash and query)
+                // 1. READ HASH ONLY (Standard Hub-page pattern)
                 const hash = window.location.hash;
-                const searchParams = new URLSearchParams(window.location.search);
                 const hashParams = new URLSearchParams(hash.substring(1));
 
-                // Get tokens from either hash (Implicit) or search (PKCE)
                 const accessToken = hashParams.get('access_token');
                 const refreshToken = hashParams.get('refresh_token');
                 const type = hashParams.get('type');
-                const pkceCode = searchParams.get('code');
 
-                console.log('Recovery Page Loaded. Hash type:', type, 'PKCE code detected:', !!pkceCode);
+                console.log('Reset Page Loaded. Type:', type);
 
-                // 2. Handle Implicit Flow (Hash)
-                if (type === 'recovery' && accessToken) {
-                    console.log('Attempting manual setSession for recovery (Implicit)...');
-                    const { error: setError } = await supabase.auth.setSession({
-                        access_token: accessToken,
-                        refresh_token: refreshToken || '',
-                    });
-                    if (setError) throw setError;
-                    console.log('Recovery session established via hash.');
-                }
-                // 3. Handle PKCE Flow (Query Code)
-                else if (pkceCode) {
-                    console.log('Attempting exchangeCodeForSession for recovery (PKCE)...');
-                    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(pkceCode);
-                    if (exchangeError) {
-                        // If it fails, maybe it's already exchanged? Check for user.
-                        const { data: { user } } = await supabase.auth.getUser();
-                        if (!user) throw exchangeError;
-                    }
-                    console.log('Recovery session established via code exchange.');
-                }
-                // 4. Verification Check
-                else {
-                    // 3. If no access_token or type !== recovery, check if we already have a user
-                    // (maybe they refreshed after a successful setSession)
+                // 2. ENFORCE type === "recovery"
+                if (type !== 'recovery' || !accessToken) {
+                    // Check if we already have a user (maybe they refreshed)
                     const { data: { user } } = await supabase.auth.getUser();
                     if (!user) {
-                        console.log('No recovery session and no user found.');
-                        setError('This reset link is invalid or expired. Please request a new reset link.');
-                    } else {
-                        console.log('User already verified:', user.email);
+                        setError('Invalid or expired reset link. Please request a new link.');
+                        setVerifying(false);
+                        return;
                     }
+                    // Already logged in, let them stay on the page
+                    setVerifying(false);
+                    return;
                 }
+
+                // 3. IMMEDIATELY call setSession
+                console.log('Attempting isolated setSession...');
+                const { error: setErrorResult } = await supabase.auth.setSession({
+                    access_token: accessToken,
+                    refresh_token: refreshToken || '',
+                });
+
+                if (setErrorResult) throw setErrorResult;
+
+                console.log('Recovery session established.');
+
             } catch (err: any) {
-                console.error('Recovery Flow Error:', err);
+                console.error('Session establishment failed:', err);
                 setError('This password reset link has expired. Please request a new one.');
             } finally {
                 setVerifying(false);
@@ -96,24 +85,21 @@ function ResetPasswordForm() {
 
         try {
             // 4. Update Password
-            console.log('Updating user password...');
             const { error: updateError } = await supabase.auth.updateUser({
                 password: password,
             });
 
             if (updateError) throw updateError;
 
-            setMessage('Password updated successfully! Redirecting to dashboard...');
-            console.log('Password update success.');
+            setMessage('Password updated successfully! Redirecting...');
 
-            // Success: Wait and redirect to dashboard
+            // 5. POST-RESET: Redirect and clear hash
             setTimeout(() => {
+                window.location.hash = ''; // Clear hash
                 router.push('/dashboard');
             }, 2500);
         } catch (err: any) {
-            console.error('Update password error:', err);
             setError(err.message);
-        } finally {
             setLoading(false);
         }
     };
@@ -133,7 +119,7 @@ function ResetPasswordForm() {
                         Set New Password
                     </h2>
                     <p className="text-body" style={{ color: 'var(--text-secondary)' }}>
-                        {verifying ? 'Verifying search tokens...' : error ? 'Link Resolution Failed' : 'Enter your new password below'}
+                        {verifying ? 'Verifying link...' : error ? 'Link Resolution Failed' : 'Enter your new password below'}
                     </p>
                 </div>
 
@@ -176,7 +162,7 @@ function ResetPasswordForm() {
                 ) : (
                     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                         <div>
-                            <label style={{ fontWeight: 600, display: 'block', marginBottom: 'var(--space-2)' }}>New Password</label>
+                            <label style={{ fontWeight: 600, display: 'block', marginBottom: 'var(--space-1)' }}>New Password</label>
                             <input
                                 type="password"
                                 value={password}
@@ -191,7 +177,7 @@ function ResetPasswordForm() {
                         </div>
 
                         <div>
-                            <label style={{ fontWeight: 600, display: 'block', marginBottom: 'var(--space-2)' }}>Confirm New Password</label>
+                            <label style={{ fontWeight: 600, display: 'block', marginBottom: 'var(--space-1)' }}>Confirm New Password</label>
                             <input
                                 type="password"
                                 value={confirmPassword}

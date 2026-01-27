@@ -46,11 +46,9 @@ export async function proxy(request: NextRequest) {
     const isStaticAsset = path.startsWith('/_next') || path.startsWith('/static') || path.includes('.')
 
     // Defer getUser until we know it's not a static asset or a dedicated auth route we want to leave alone
-    // We explicitly exclude /auth and /reset-password from middleware auth checks to let them handle codes
-    // We ALSO skip getUser if we see a PKCE code anywhere, to prevent premature consumption
-    const hasSearchCode = request.nextUrl.searchParams.has('code');
+    // We explicitly exclude /auth and /reset-password from middleware auth checks
     let user = null
-    if (!isStaticAsset && !path.startsWith('/auth') && path !== '/reset-password' && !hasSearchCode) {
+    if (!isStaticAsset && !path.startsWith('/auth') && path !== '/reset-password') {
         const { data: { user: foundUser } } = await supabase.auth.getUser()
         user = foundUser
     }
@@ -104,13 +102,7 @@ export async function proxy(request: NextRequest) {
     }
 
     // 3. LOGGED IN REDIRECTS
-    const hasAuthCode = (request.nextUrl.searchParams.has('code') ||
-        request.nextUrl.searchParams.has('error') ||
-        request.nextUrl.hash.includes('access_token') ||
-        request.nextUrl.hash.includes('recovery')) &&
-        path !== '/auth/callback';
-
-    if (user && !hasAuthCode && (path === '/login' || path === '/signup' || path === '/')) {
+    if (user && (path === '/login' || path === '/signup' || path === '/')) {
         return NextResponse.redirect(new URL('/dashboard', request.url))
     }
 

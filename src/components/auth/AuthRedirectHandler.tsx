@@ -10,24 +10,19 @@ export function AuthRedirectHandler() {
     useEffect(() => {
         const hash = window.location.hash;
         const code = searchParams.get('code');
-        const type = searchParams.get('type');
 
-        // 1. RECOVERY HANDOFF: If we see a recovery token (hash or query), steer it to the reset page
-        // DO NOT return here, actually redirect them.
-        if (hash.includes('type=recovery') || type === 'recovery') {
-            const target = '/reset-password' + window.location.search + hash;
-            window.location.replace(target);
+        // IGNORE RECOVERY: Only /reset-password handles recovery.
+        if (hash.includes('type=recovery')) {
             return;
         }
 
-        // 2. STANDARD LOGIN (Hash-based)
-        // Only redirect to dashboard if it's a normal login (no recovery token)
+        // 1. STANDARD LOGIN (Hash-based)
         if (hash.includes('access_token=') && !hash.includes('type=recovery')) {
             window.location.replace('/dashboard' + hash);
             return;
         }
 
-        // 3. PKCE FLOW (Standard)
+        // 2. PKCE FLOW
         if (code) {
             router.push(`/auth/callback?code=${code}`);
         }
