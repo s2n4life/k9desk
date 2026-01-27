@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Shield, Users, LayoutDashboard, Bug, Ticket, Settings, LogOut, ChevronRight } from 'lucide-react';
+import { Shield, Users, LayoutDashboard, Bug, Ticket, Settings, LogOut, ChevronRight, UserCog } from 'lucide-react';
 import { clsx } from 'clsx';
 import { supabase } from '@/lib/supabaseClient';
 import { useEffect, useState } from 'react';
@@ -11,7 +11,8 @@ const ADMIN_NAV_ITEMS = [
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/admin/tickets', label: 'Support Tickets', icon: Ticket },
     { href: '/admin/bugs', label: 'System Logs', icon: Bug },
-    { href: '/admin/users', label: 'Businesses', icon: Users },
+    { href: '/admin/users', label: 'Customer Accounts', icon: Users },
+    { href: '/admin/team', label: 'Admin Team', icon: UserCog },
     { href: '/admin/settings', label: 'Global Config', icon: Settings },
 ];
 
