@@ -4,6 +4,7 @@ import { useImpersonationContextSafe } from '@/contexts/ImpersonationContext';
 import { supabase } from '@/lib/supabaseClient';
 import { getDB } from '@/lib/db';
 import { Job, Customer, Pet, Lead } from '@/lib/db/schema';
+import { useState, useEffect } from 'react'; // Added useEffect and useState imports
 
 /**
  * Hook to load data that's aware of impersonation mode
@@ -150,6 +151,7 @@ export function useDataLoader() {
         loadCustomers,
         loadPets,
         loadLeads,
-        isImpersonating
+        isImpersonating,
+        impersonatedBusinessId
     };
 }

@@ -16,17 +16,18 @@ export default function UpcomingPage() {
     const [groupedJobs, setGroupedJobs] = useState<Record<string, Job[]>>({});
     const [customers, setCustomers] = useState<Record<string, Customer>>({});
     const [pets, setPets] = useState<Record<string, Pet>>({});
-    const { loadJobs, loadCustomers, loadPets } = useDataLoader();
+    const { loadJobs, loadCustomers, loadPets, isImpersonating, impersonatedBusinessId } = useDataLoader();
 
     const todayStr = format(new Date(), 'yyyy-MM-dd');
 
     const loadData = async () => {
         try {
+            setLoading(true);
             const allJobs = await loadJobs();
             const allCustomers = await loadCustomers();
             const allPets = await loadPets();
 
-            // Optimizations: Map for O(1) lookups
+            // Index customers and pets for easy lookup
             const custMap: Record<string, Customer> = {};
             allCustomers.forEach(c => custMap[c.id] = c);
             setCustomers(custMap);
@@ -63,7 +64,7 @@ export default function UpcomingPage() {
 
     useEffect(() => {
         loadData();
-    }, []);
+    }, [isImpersonating, impersonatedBusinessId]);
 
     const handleAction = async (jobId: string, action: any) => {
         try {

@@ -57,17 +57,17 @@ export async function hydrateLocalDB(userId: string) {
         }
 
         // 1. Fetch Business (Settings)
-        console.log('[Hydration] Fetching business for userId/ownerId:', userId);
+        console.log('[Hydration] Fetching business for businessId:', businessId);
         const { data: businesses, error: businessError } = await supabase
             .from('businesses')
             .select('*')
-            .or(`id.eq.${userId},owner_id.eq.${userId}`)
+            .eq('id', businessId)
             .order('updated_at', { ascending: false });
 
         const business = businesses?.[0];
 
         if (businesses && businesses.length > 1) {
-            console.warn('[Hydration] Multiple businesses found for user!', businesses.length);
+            console.warn('[Hydration] Multiple businesses found for ID!', businessId);
         }
 
         console.log('[Hydration] Business query result:', business ? 'Found' : 'Not Found', businessError || '');
@@ -105,7 +105,7 @@ export async function hydrateLocalDB(userId: string) {
         }
 
         // 2. Fetch Services
-        const { data: services } = await supabase.from('services').select('*').eq('business_id', userId);
+        const { data: services } = await supabase.from('services').select('*').eq('business_id', businessId);
         if (services) {
             for (const s of services) {
                 const local: Service = {
@@ -120,7 +120,7 @@ export async function hydrateLocalDB(userId: string) {
         }
 
         // 3. Fetch Customers
-        const { data: customers } = await supabase.from('customers').select('*').eq('business_id', userId);
+        const { data: customers } = await supabase.from('customers').select('*').eq('business_id', businessId);
         if (customers) {
             const seenPhones = new Set<string>();
             for (const c of customers) {
@@ -155,7 +155,7 @@ export async function hydrateLocalDB(userId: string) {
         }
 
         // 4. Fetch Pets
-        const { data: pets } = await supabase.from('pets').select('*').eq('business_id', userId);
+        const { data: pets } = await supabase.from('pets').select('*').eq('business_id', businessId);
         if (pets) {
             for (const p of pets) {
                 const local: Pet = {
@@ -175,7 +175,7 @@ export async function hydrateLocalDB(userId: string) {
 
         // 5. Fetch Jobs
         // We fetch ALL jobs for now. Scaling might require limiting to last X months.
-        const { data: jobs } = await supabase.from('jobs').select('*').eq('business_id', userId);
+        const { data: jobs } = await supabase.from('jobs').select('*').eq('business_id', businessId);
         if (jobs) {
             for (const j of jobs) {
                 const local: Job = {
@@ -199,10 +199,6 @@ export async function hydrateLocalDB(userId: string) {
                     // We might need to map IDs to objects if `services` field in local Job expects objects.
                     // The Local Job schema has `services?: (Service & { petId?: string })[];`
                     // But Supabase probably stores `service_ids`.
-                    // We will reconstruct `services` array from `service_ids` implicitly later or fetch them here?
-                    // For now, if Supabase has `service_ids` (array of strings),
-                    // and Local expects `services` (array of objects), we have a mismatch.
-                    // Checking schema: Job in Local has `services`. Job in Supabase likely has `service_ids`.
                     // Let's assume we need to join or map.
                 };
 
@@ -218,12 +214,12 @@ export async function hydrateLocalDB(userId: string) {
         }
 
         // 6. Fetch Leads
-        const { data: leads } = await supabase.from('leads').select('*').eq('business_id', userId);
+        const { data: leads } = await supabase.from('leads').select('*').eq('business_id', businessId);
         if (leads) {
             for (const l of leads) {
                 const local: Lead = {
                     id: l.id,
-                    businessId: userId,
+                    businessId: businessId,
                     status: l.status,
                     ownerName: l.owner_name,
                     ownerPhone: l.owner_phone,

@@ -8,19 +8,8 @@ import { updateBusinessSlug } from '@/actions/update-slug';
 
 import { Header } from '@/components/Navigation/Header';
 
-interface Lead {
-    id: string;
-    owner_name: string;
-    owner_phone: string;
-    owner_email: string;
-    owner_address?: string; // Added
-    service_area_zip: string;
-    pet_details: any[];
-    preferred_dates: string[];
-    created_at: string;
-    status: string;
-    notes?: string; // Added notes
-}
+import { useDataLoader } from '@/hooks/useDataLoader';
+import { Lead } from '@/lib/db/schema';
 
 export default function LeadsPage() {
     const [leads, setLeads] = useState<Lead[]>([]);
@@ -37,61 +26,56 @@ export default function LeadsPage() {
     const [slugError, setSlugError] = useState('');
     const [msg, setMsg] = useState('');
 
+    const { loadLeads, isImpersonating, impersonatedBusinessId } = useDataLoader();
+
     useEffect(() => {
-        setBookingBaseUrl(`${window.location.origin}/book/`);
+        if (typeof window !== 'undefined') {
+            setBookingBaseUrl(`${window.location.origin}/book/`);
+        }
 
-        const fetchLeads = async () => {
-            const supabase = createClient();
+        const fetchLeadsData = async () => {
+            setLoading(true);
+            try {
+                const supabase = createClient();
+                const { data: { user } } = await supabase.auth.getUser();
 
-            // 1. Get Current User
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                setLoading(false);
+                // 2. Load Leads using impersonation-aware hook
+                const leadsData = await loadLeads();
+                setLeads(leadsData);
+
+                // 3. Get User's Business (for booking link - only if NOT impersonating or for the impersonated business)
+                // We'll fetch the business based on the first lead or current session
+                const activeId = localStorage.getItem('k9desk_impersonated_id') || user?.id;
+
+                if (activeId) {
+                    const { data: business } = await supabase
+                        .from('businesses')
+                        .select('id, slug, name')
+                        .eq('id', activeId)
+                        .single();
+
+                    if (business) {
+                        setBusinessId(business.id);
+                        setBusinessName(business.name);
+                        setSlug(business.slug || business.id);
+                    }
+                }
+
                 setDebugInfo({
-                    userId: 'No User Found',
-                    businessId: 'N/A',
-                    fetchError: 'User not authenticated.'
+                    userId: user?.id || 'No User',
+                    businessId: activeId || 'No Business Found',
+                    fetchError: ''
                 });
-                return;
+            } catch (err: any) {
+                console.error('Error fetching leads:', err);
+                setDebugInfo(prev => ({ ...prev, fetchError: err.message }));
+            } finally {
+                setLoading(false);
             }
-
-            // 2. Get User's Business
-            const { data: business, error: busError } = await supabase
-                .from('businesses')
-                .select('id, slug, name')
-                .eq('owner_id', user.id)
-                .single();
-
-            if (business) {
-                setBusinessId(business.id);
-                setBusinessName(business.name);
-                // Use slug from business, or fall back to ID if not set
-                setSlug(business.slug || business.id);
-            }
-
-            // 3. Get Leads for this Business
-            let leadsFetchError = '';
-            if (business) {
-                const { data: leadsData, error } = await supabase
-                    .from('leads')
-                    .select('*')
-                    .eq('business_id', business.id)
-                    .order('created_at', { ascending: false });
-
-                if (leadsData) setLeads(leadsData);
-                if (error) leadsFetchError = error.message;
-            }
-
-            setDebugInfo({
-                userId: user.id,
-                businessId: business?.id || 'No Business Found',
-                fetchError: leadsFetchError || (busError ? busError.message : '')
-            });
-
-            setLoading(false);
         };
-        fetchLeads();
-    }, []);
+
+        fetchLeadsData();
+    }, [isImpersonating, impersonatedBusinessId]);
 
     const [activeTab, setActiveTab] = useState<'active' | 'booked' | 'archived'>('active');
 
@@ -126,7 +110,7 @@ export default function LeadsPage() {
         const lead = leads.find(l => l.id === leadId);
         if (!lead) return;
         // Navigate to Job Creation
-        window.location.href = `/jobs/new?leadId=${lead.id}&name=${encodeURIComponent(lead.owner_name)}&phone=${encodeURIComponent(lead.owner_phone)}`;
+        window.location.href = `/jobs/new?leadId=${lead.id}&name=${encodeURIComponent(lead.ownerName)}&phone=${encodeURIComponent(lead.ownerPhone)}`;
     };
 
     const handleArchive = async (leadId: string) => {
@@ -338,43 +322,16 @@ export default function LeadsPage() {
                 </div>
             ) : (
                 <div className="space-y-4">
-                    {filteredLeads.map(lead => {
-                        // Adapting Supabase snake_case lead to CamelCase Lead interface for the component
-                        // Or better yet, update component to accept snake_case or map it here.
-                        // Let's map it here to match Schema.
-                        const mappedLead = {
-                            id: lead.id,
-                            businessId: '', // Not needed for UI
-                            status: lead.status as any,
-                            ownerName: lead.owner_name,
-                            ownerPhone: lead.owner_phone,
-                            ownerEmail: lead.owner_email,
-                            ownerAddress: lead.owner_address,
-                            serviceAreaZip: lead.service_area_zip,
-                            petDetails: lead.pet_details.map((p: any) => ({
-                                name: p.name,
-                                breed: p.breed,
-                                age: p.age,
-                                weight: p.weight
-                            })),
-                            preferredDates: lead.preferred_dates || [],
-                            serviceIds: [], // Not stored in raw supabase fetch unless we SELECT it? Component doesn't show it?
-                            waiverSigned: false,
-                            createdAt: lead.created_at,
-                            notes: lead.notes
-                        };
-
-                        return (
-                            <LeadCard
-                                key={lead.id}
-                                lead={mappedLead}
-                                onAccept={handleAccept}
-                                onArchive={handleArchive}
-                                onDelete={handleDelete}
-                                isArchived={activeTab === 'archived'}
-                            />
-                        );
-                    })}
+                    {filteredLeads.map(lead => (
+                        <LeadCard
+                            key={lead.id}
+                            lead={lead}
+                            onAccept={handleAccept}
+                            onArchive={handleArchive}
+                            onDelete={handleDelete}
+                            isArchived={activeTab === 'archived'}
+                        />
+                    ))}
                 </div>
             )}
         </div>

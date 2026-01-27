@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { Toast } from '@/components/UI/Toast';
 import { JobState } from '@/lib/db/schema';
+import { useImpersonationContextSafe, getActiveBusinessIdSync } from './ImpersonationContext';
 
 interface NotificationContextType {
     leadsCount: number;
@@ -27,6 +28,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         isVisible: false
     });
 
+    const { isImpersonating, impersonatedBusinessId } = useImpersonationContextSafe();
     const supabase = createClient();
 
     const fetchCounts = async () => {
@@ -34,40 +36,25 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            // 1. Fetch Business ID (needed for leads count mostly)
-            const { data: business } = await supabase
-                .from('businesses')
-                .select('id')
-                .eq('owner_id', user.id)
-                .single();
-
-            if (!business) return;
+            // 1. Get Effective Business ID
+            const activeId = getActiveBusinessIdSync();
+            const businessId = activeId || user.id;
 
             // 2. Fetch New Leads Count
             const { count: newLeadsCount } = await supabase
                 .from('leads')
                 .select('*', { count: 'exact', head: true })
-                .eq('business_id', business.id)
+                .eq('business_id', businessId)
                 .eq('status', 'new');
 
             setLeadsCount(newLeadsCount || 0);
 
             // 3. Fetch Needs Action Jobs Count
-            // Note: Jobs table depends on policy. Assuming user can see their business's jobs.
-            // Jobs might not have business_id directly if it uses RLS via join, but usually simpler if it has business_id.
-            // Checking existing schema... Jobs usually just have business_id.
-            // If not, we query by customer -> business.
-            // Let's assume jobs have business_id for performance/RLS.
-
             const { count: actionableJobsCount } = await supabase
                 .from('jobs')
                 .select('*', { count: 'exact', head: true })
-                .eq('business_id', business.id)
+                .eq('business_id', businessId)
                 .in('state', [JobState.Completed, JobState.PaymentRequested, JobState.Paid]);
-            // Note: 'Paid' is actionable? User said "PaymentRequested or Paid" in NeedsAction page?
-            // Checking NeedsAction page logic: 
-            // const actionable = allJobs.filter(j => j.state === JobState.Paid || j.state === JobState.PaymentRequested);
-            // Yes.
 
             setNeedsActionCount(actionableJobsCount || 0);
 
@@ -90,15 +77,19 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                     table: 'leads'
                 },
                 (payload) => {
-                    // Logic: If INSERT, show toast + increment.
-                    // If UPDATE/DELETE, refresh count.
+                    const activeId = getActiveBusinessIdSync();
+                    const currentBusinessId = activeId || supabase.auth.getUser().then(res => res.data.user?.id);
+
+                    // Only show toast if it belongs to the active business
                     if (payload.eventType === 'INSERT') {
                         const newLead = payload.new as any;
-                        setToast({
-                            message: 'New Lead Received!',
-                            subMessage: `${newLead.owner_name} - ${newLead.service_area_zip}`,
-                            isVisible: true
-                        });
+                        if (newLead.business_id === activeId || (!activeId && newLead.business_id === currentBusinessId)) {
+                            setToast({
+                                message: 'New Lead Received!',
+                                subMessage: `${newLead.owner_name} - ${newLead.service_area_zip}`,
+                                isVisible: true
+                            });
+                        }
                     }
                     fetchCounts();
                 }
@@ -110,8 +101,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                     schema: 'public',
                     table: 'jobs'
                 },
-                () => {
-                    // Refresh jobs count on any job change
+                (payload) => {
+                    // Update counts if job belongs to active business
+                    // Note: Always refresh counts as full payload filtering might be complex for jobs
                     fetchCounts();
                 }
             )
@@ -120,7 +112,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         return () => {
             supabase.removeChannel(channel);
         };
-    }, []);
+    }, [isImpersonating, impersonatedBusinessId]);
 
     return (
         <NotificationContext.Provider value={{ leadsCount, needsActionCount, refreshCounts: fetchCounts }}>

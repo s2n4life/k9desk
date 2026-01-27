@@ -141,7 +141,12 @@ export function useImpersonationContextSafe() {
         isImpersonating: false,
         isAdmin: false,
         getActiveBusinessId: async () => null,
-        startImpersonation: () => { },
+        startImpersonation: (id: string) => { },
         stopImpersonation: () => { }
     };
+}
+
+// Redirecting legacy hook to use context for consistency
+export function useImpersonation() {
+    return useImpersonationContextSafe();
 }

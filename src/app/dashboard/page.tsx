@@ -85,13 +85,13 @@ export default function TodayPage() {
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
 
   const router = useRouter();
-  const { loadJobs, loadCustomers, loadPets } = useDataLoader();
+  const { loadJobs, loadCustomers, loadPets, isImpersonating, impersonatedBusinessId } = useDataLoader();
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
 
   const loadData = async () => {
-
     try {
+      setLoading(true);
       // Load data using impersonation-aware hook
       const allJobs = await loadJobs();
       const allCustomers = await loadCustomers();
@@ -136,9 +136,7 @@ export default function TodayPage() {
         reviews: jobsLast30Days.filter(j => j.state === JobState.Closed).length
       });
 
-
     } catch (error) {
-
       console.error('Failed to load data', error);
     } finally {
       setLoading(false);
@@ -147,20 +145,14 @@ export default function TodayPage() {
 
   useEffect(() => {
     loadData();
-  }, [todayStr]);
+  }, [todayStr, isImpersonating, impersonatedBusinessId]);
 
   useEffect(() => {
-    // If we are currently in standalone, mark as installed in localStorage
-    // so the browser version knows to hide the prompt too.
     if (isStandalone()) {
       markAsInstalled();
       return;
     }
-
-    // Check if app is already installed or shown recently
     if (!shouldShowPrompt()) return;
-
-    // Show after a short delay (3 seconds) to not overwhelm
     const timer = setTimeout(() => {
       setShowInstallPrompt(true);
       markPromptShown();
@@ -185,18 +177,15 @@ export default function TodayPage() {
         return;
       }
 
-      // Default SMS handling for other actions (Reminder, Review)
       if (job && customer && ['SEND_REMINDER', 'SEND_REVIEW_REQUEST'].includes(action)) {
         const db = await getDB();
         const settings = await db.get('settings', 'default');
 
         if (action === 'SEND_REVIEW_REQUEST' && !settings?.review_url) {
-          // Trigger Failsafe
           setSelectedJobId(jobId);
           setReviewLinkModalOpen(true);
           return;
         }
-
         triggerSMSAction(job, customer, action, { settings });
       }
 
@@ -209,7 +198,6 @@ export default function TodayPage() {
         await JobStateMachine.transition(jobId, action);
         await loadData();
       }
-
     } catch (e) {
       console.error('Transition failed', e);
       alert('Action failed');
@@ -218,26 +206,16 @@ export default function TodayPage() {
 
   const handleRequestPayment = async (amount: number) => {
     if (!selectedJobId) return;
-
     try {
       const job = jobs.find(j => j.id === selectedJobId);
       const customer = job ? customers[job.customerId] : null;
-
-      // 1. Get Settings for Payment Links
       const db = await getDB();
       const settings = await db.get('settings', 'default');
-
-      // 2. Update State
       await JobStateMachine.transition(selectedJobId, 'REQUEST_PAYMENT');
-
-      // 3. Send SMS
       if (job && customer) {
         triggerSMSAction(job, customer, 'REQUEST_PAYMENT', { amount, settings });
       }
-
-      // 4. Reload
       await loadData();
-
     } catch (err: any) {
       alert(err.message);
     }
@@ -305,7 +283,6 @@ export default function TodayPage() {
         </Link>
       </div>
 
-
       {jobs.length === 0 ? (
         <div className="card" style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--text-tertiary)' }}>
           <p>No jobs scheduled for today.</p>
@@ -354,20 +331,15 @@ export default function TodayPage() {
         onClose={() => setReviewLinkModalOpen(false)}
         onSave={async (url) => {
           if (selectedJobId) {
-            // 1. Save to Settings
             const db = await getDB();
             const settings = await db.get('settings', 'default') || { id: 'default', updatedAt: Date.now() };
             const newSettings = { ...settings, review_url: url, updatedAt: Date.now() };
             await db.put('settings', newSettings);
-
-            // 2. Trigger SMS
             const job = jobs.find(j => j.id === selectedJobId);
             const customer = job ? customers[job.customerId] : null;
-
             if (job && customer) {
               triggerSMSAction(job, customer, 'SEND_REVIEW_REQUEST', { settings: newSettings });
             }
-
             setReviewLinkModalOpen(false);
             setSelectedJobId(null);
           }

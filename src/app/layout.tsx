@@ -32,14 +32,14 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body suppressHydrationWarning>
 
-        <NotificationProvider>
-          <ImpersonationProvider>
+        <ImpersonationProvider>
+          <NotificationProvider>
             <AppShell>
               {children}
               <SyncIndicator />
             </AppShell>
-          </ImpersonationProvider>
-        </NotificationProvider>
+          </NotificationProvider>
+        </ImpersonationProvider>
       </body>
     </html>
   );

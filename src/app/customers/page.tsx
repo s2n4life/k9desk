@@ -15,10 +15,11 @@ export default function CustomersPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState<'customers' | 'jobs'>('customers');
     const [jobDisplayLimit, setJobDisplayLimit] = useState(10);
-    const { loadJobs, loadCustomers, loadPets } = useDataLoader();
+    const { loadJobs, loadCustomers, loadPets, isImpersonating, impersonatedBusinessId } = useDataLoader();
 
-    useEffect(() => {
-        const loadData = async () => {
+    const loadData = async () => {
+        try {
+            setLoading(true);
             const allCustomers = await loadCustomers();
             const allPets = await loadPets();
             const allJobs = await loadJobs();
@@ -37,10 +38,16 @@ export default function CustomersPage() {
                 const dateB = new Date(`${b.scheduledDate} ${b.scheduledTime}`);
                 return dateB.getTime() - dateA.getTime();
             }));
+        } catch (error) {
+            console.error('Failed to load customers data', error);
+        } finally {
             setLoading(false);
-        };
+        }
+    };
+
+    useEffect(() => {
         loadData();
-    }, []);
+    }, [isImpersonating, impersonatedBusinessId]);
 
     // Filter Customers
     const filteredCustomers = customers.filter(c => {

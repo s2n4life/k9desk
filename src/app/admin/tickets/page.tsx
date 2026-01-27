@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { useImpersonation } from '@/hooks/useImpersonation';
+import { useImpersonation } from '@/contexts/ImpersonationContext';
 import {
     Ticket,
     Search,

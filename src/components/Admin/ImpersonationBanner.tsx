@@ -1,12 +1,12 @@
 'use client';
 
-import { useImpersonation } from '@/hooks/useImpersonation';
+import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { AlertTriangle, LogOut } from 'lucide-react';
 
 export function ImpersonationBanner() {
-    const { impersonatedId, stopImpersonation } = useImpersonation();
+    const { impersonatedBusinessId, stopImpersonation } = useImpersonation();
 
-    if (!impersonatedId) return null;
+    if (!impersonatedBusinessId) return null;
 
     return (
         <div style={{
@@ -27,7 +27,7 @@ export function ImpersonationBanner() {
             boxShadow: '0 2px 10px rgba(0,0,0,0.2)'
         }}>
             <AlertTriangle size={18} />
-            <span>ADMIN MODE: Impersonating Business ID: {impersonatedId.slice(0, 8)}...</span>
+            <span>ADMIN MODE: Impersonating Business ID: {impersonatedBusinessId.slice(0, 8)}...</span>
             <button
                 onClick={stopImpersonation}
                 style={{
