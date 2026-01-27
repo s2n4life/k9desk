@@ -12,7 +12,8 @@ import { useSync } from '@/hooks/useSync';
 import { useRouter } from 'next/navigation';
 import { InstallPwaPrompt } from '@/components/pwa/InstallPwaPrompt';
 import { isStandalone, shouldShowPrompt } from '@/lib/pwa-utils';
-import { PlusSquare, Smartphone, CreditCard as BillingIcon, ExternalLink, ShieldCheck } from 'lucide-react';
+import { PlusSquare, Smartphone, CreditCard as BillingIcon, ExternalLink, ShieldCheck, RefreshCw, Database } from 'lucide-react';
+import { hydrateLocalDB } from '@/lib/db/hydration';
 import { useImpersonation } from '@/contexts/ImpersonationContext';
 
 export default function SettingsPage() {
@@ -71,7 +72,33 @@ export default function SettingsPage() {
     const [zipText, setZipText] = useState('');
     const [showInstallPrompt, setShowInstallPrompt] = useState(false);
     const [isBillingLoading, setIsBillingLoading] = useState(false);
+    const [isResetting, setIsResetting] = useState(false);
 
+    const handleForceReset = async () => {
+        if (!confirm('This will clear all local data and re-download everything from the cloud. This solves issues where devices show old data. Continue?')) {
+            return;
+        }
+
+        setIsResetting(true);
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error('Not logged in');
+
+            await clearLocalData(); // Clear all local data
+            await hydrateLocalDB(user.id); // Re-hydrate from cloud
+
+            setMsg('Data reset complete! Refreshing...');
+            setTimeout(() => {
+                setMsg('');
+                window.location.reload();
+            }, 1000);
+        } catch (error) {
+            console.error('Failed to force reset and re-sync:', error);
+            setMsg('Failed to reset data. Please try again.');
+        } finally {
+            setIsResetting(false);
+        }
+    };
 
 
     useEffect(() => {
@@ -984,7 +1011,35 @@ export default function SettingsPage() {
                 </div>
             )}
 
-            {/* Logout Section */}
+            {/* Advanced / Data Management */}
+            <section className="card" style={{ padding: 'var(--space-6)', marginBottom: 'var(--space-4)', border: '1px solid var(--border-subtle)' }}>
+                <h3 className="text-h3" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--space-2)' }}>
+                    <Database size={20} className="text-brand-primary" />
+                    Data Management
+                </h3>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: 'var(--space-4)' }}>
+                    Having trouble with sync or seeing old data? This will clear your device's local cache and download a fresh copy from the cloud.
+                </p>
+                <button
+                    onClick={handleForceReset}
+                    disabled={isResetting}
+                    className="btn btn-secondary"
+                    style={{
+                        width: '100%',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        gap: '8px',
+                        color: 'var(--color-danger)',
+                        borderColor: 'rgba(255, 0, 0, 0.1)'
+                    }}
+                >
+                    <RefreshCw size={18} className={isResetting ? 'animate-spin' : ''} />
+                    {isResetting ? 'Resetting Data...' : 'Force Reset & Re-sync'}
+                </button>
+            </section>
+
+            {/* Logout Button */}
             <section style={{ marginTop: 'var(--space-8)', paddingTop: 'var(--space-8)', borderTop: '1px solid var(--border-subtle)' }}>
                 <button
                     onClick={handleLogout}
