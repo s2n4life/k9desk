@@ -2,6 +2,15 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function proxy(request: NextRequest) {
+    const path = request.nextUrl.pathname;
+
+    // STRICT BYPASS FOR RECOVERY PAGE
+    // This ensures no middleware logic (session checks, maintenance mode, etc)
+    // interferes with the manual setSession on the page.
+    if (path === '/reset-password') {
+        return NextResponse.next();
+    }
+
     let response = NextResponse.next({
         request: {
             headers: request.headers,
@@ -33,7 +42,6 @@ export async function proxy(request: NextRequest) {
         }
     )
 
-    const path = request.nextUrl.pathname
     const isPublicPath = path === '/' || path === '/login' || path === '/signup' || path === '/reset-password' || path.startsWith('/auth') || path.startsWith('/book/')
     const isStaticAsset = path.startsWith('/_next') || path.startsWith('/static') || path.includes('.')
 

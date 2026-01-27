@@ -11,15 +11,21 @@ export function AuthRedirectHandler() {
         const hash = window.location.hash;
         const code = searchParams.get('code');
 
-        // If we have an access token directly (Implicit flow), just go to reset page
-        if (hash.includes('access_token=')) {
-            window.location.replace('/reset-password' + hash);
+        // IF THIS IS A RECOVERY ATTEMPT, DO NOTHING. 
+        // Let the /reset-password page or the /auth/callback route handle it.
+        if (hash.includes('type=recovery') || hash.includes('type=signup')) {
             return;
         }
 
-        // If we have a code (PKCE flow), funnel it through the callback route for correct establishment
+        // Only handle standard redirects if we are on the home page
+        // and we have a valid code or token that isn't recovery related.
+        if (hash.includes('access_token=') && !hash.includes('type=recovery')) {
+            window.location.replace('/dashboard' + hash);
+            return;
+        }
+
         if (code) {
-            window.location.replace(`/auth/callback?code=${code}&next=/reset-password`);
+            router.push(`/auth/callback?code=${code}`);
         }
     }, [searchParams, router]);
 
