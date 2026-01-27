@@ -79,22 +79,44 @@ export function LeadCard({ lead, onAccept, onArchive, onDelete, isArchived }: Le
             {/* --- FULL DETAILS (Expanded) --- */}
 
             {/* Customer Info */}
-            <h3 className={styles.customerName}>{lead.ownerName}</h3>
-
-            <div className="flex flex-col gap-2 mb-4">
-                <div className="flex items-center gap-2 text-sm text-slate-600">
-                    <Phone size={14} />
-                    <span>{lead.ownerPhone}</span>
-                </div>
-                {lead.ownerEmail && (
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <Mail size={14} />
-                        <span>{lead.ownerEmail}</span>
+            <div className="flex justify-between items-start mb-4">
+                <div className="flex-1 min-w-0">
+                    <h3 className={styles.customerName}>{lead.ownerName}</h3>
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2 text-sm text-slate-600 font-medium">
+                            <Phone size={14} />
+                            <span>{lead.ownerPhone}</span>
+                        </div>
+                        {lead.ownerEmail && (
+                            <div className="flex items-center gap-2 text-sm text-slate-600">
+                                <Mail size={14} />
+                                <span className="truncate pr-2">{lead.ownerEmail}</span>
+                            </div>
+                        )}
+                        <div className="flex items-center gap-2 text-sm text-slate-600">
+                            <MapPin size={14} />
+                            <span className="truncate pr-2 text-xs">{lead.ownerAddress || lead.serviceAreaZip}</span>
+                        </div>
                     </div>
-                )}
-                <div className="flex items-center gap-2 text-sm text-slate-600">
-                    <MapPin size={14} />
-                    <span>{lead.ownerAddress || lead.serviceAreaZip}</span>
+                </div>
+
+                <div className="flex flex-col gap-2 shrink-0">
+                    <a
+                        href={`tel:${lead.ownerPhone}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="bg-slate-100 p-2 rounded-lg text-slate-700 hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 text-[10px] font-bold w-20 shadow-sm border border-slate-200"
+                    >
+                        <Phone size={12} className="text-blue-600" />
+                        CALL
+                    </a>
+                    <a
+                        href={`sms:${lead.ownerPhone}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="bg-slate-100 p-2 rounded-lg text-slate-700 hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 text-[10px] font-bold w-20 shadow-sm border border-slate-200"
+                    >
+                        <MessageCircle size={12} className="text-green-600" />
+                        TEXT
+                    </a>
                 </div>
             </div>
 
