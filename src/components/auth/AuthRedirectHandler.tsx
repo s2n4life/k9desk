@@ -10,9 +10,13 @@ export function AuthRedirectHandler() {
     useEffect(() => {
         const hash = window.location.hash;
         const code = searchParams.get('code');
+        const type = searchParams.get('type');
 
-        // 1. IGNORE RECOVERY: Per ChatGPT spec, home page must NOT handle recovery
-        if (hash.includes('type=recovery')) {
+        // 1. RECOVERY HANDOFF: If we see a recovery token (hash or query), steer it to the reset page
+        // DO NOT return here, actually redirect them.
+        if (hash.includes('type=recovery') || type === 'recovery') {
+            const target = '/reset-password' + window.location.search + hash;
+            window.location.replace(target);
             return;
         }
 
