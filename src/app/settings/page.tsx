@@ -868,66 +868,68 @@ export default function SettingsPage() {
                             return (
                                 <div key={day} style={{
                                     display: 'flex',
-                                    alignItems: 'center',
+                                    flexDirection: 'column',
                                     gap: '12px',
                                     padding: '12px',
                                     backgroundColor: dayConfig.isOpen ? 'white' : 'var(--surface-sunken)',
                                     border: '1px solid var(--border-subtle)',
-                                    borderRadius: '8px',
+                                    borderRadius: '12px',
                                     opacity: dayConfig.isOpen ? 1 : 0.7
                                 }}>
-                                    <div style={{ width: '100px', fontWeight: 600, textTransform: 'capitalize' }}>
-                                        {day}
-                                    </div>
-                                    <div style={{ flex: 1, display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                        {dayConfig.isOpen ? (
-                                            <>
-                                                <select
-                                                    className="input"
-                                                    style={{ flex: 1, padding: '8px', fontSize: '14px', minWidth: '100px' }}
-                                                    value={dayConfig.start}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div style={{ fontWeight: 600, textTransform: 'capitalize', fontSize: '16px' }}>
+                                            {day}
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            {!dayConfig.isOpen && <span className="text-sm text-slate-400 italic">Closed</span>}
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    className="sr-only peer"
+                                                    checked={dayConfig.isOpen}
                                                     onChange={e => {
                                                         const newHours = { ...settings.business_hours };
-                                                        newHours[day] = { ...dayConfig, start: e.target.value };
-                                                        handleChange('business_hours', newHours);
-                                                    }}
-                                                >
-                                                    {[6, 7, 8, 9, 10, 11, 12].map(h => <option key={h} value={`${h < 10 ? '0' + h : h}:00`}>{h}:00 AM</option>)}
-                                                </select>
-                                                <span className="text-slate-400">-</span>
-                                                <select
-                                                    className="input"
-                                                    style={{ flex: 1, padding: '8px', fontSize: '14px', minWidth: '100px' }}
-                                                    value={dayConfig.end}
-                                                    onChange={e => {
-                                                        const newHours = { ...settings.business_hours };
-                                                        newHours[day] = { ...dayConfig, end: e.target.value };
-                                                        handleChange('business_hours', newHours);
-                                                    }}
-                                                >
-                                                    {[12, 13, 14, 15, 16, 17, 18, 19, 20].map(h => <option key={h} value={`${h}:00`}>{h - 12}:00 PM</option>)}
-                                                </select>
-                                            </>
-                                        ) : (
-                                            <span className="text-sm text-slate-500 italic">Closed</span>
-                                        )}
-                                    </div>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            className="sr-only peer"
-                                            checked={dayConfig.isOpen}
-                                            onChange={e => {
-                                                const newHours = { ...settings.business_hours };
-                                                // Initialize if undefined
-                                                if (!newHours[day]) newHours[day] = { start: '09:00', end: '17:00', isOpen: false };
+                                                        // Initialize if undefined
+                                                        if (!newHours[day]) newHours[day] = { start: '09:00', end: '17:00', isOpen: false };
 
-                                                newHours[day] = { ...newHours[day], isOpen: e.target.checked };
-                                                handleChange('business_hours', newHours);
-                                            }}
-                                        />
-                                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                                    </label>
+                                                        newHours[day] = { ...newHours[day], isOpen: e.target.checked };
+                                                        handleChange('business_hours', newHours);
+                                                    }}
+                                                />
+                                                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    {dayConfig.isOpen && (
+                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                            <select
+                                                className="input"
+                                                style={{ flex: 1, padding: '12px', fontSize: '16px', height: '48px' }}
+                                                value={dayConfig.start}
+                                                onChange={e => {
+                                                    const newHours = { ...settings.business_hours };
+                                                    newHours[day] = { ...dayConfig, start: e.target.value };
+                                                    handleChange('business_hours', newHours);
+                                                }}
+                                            >
+                                                {[6, 7, 8, 9, 10, 11, 12].map(h => <option key={h} value={`${h < 10 ? '0' + h : h}:00`}>{h}:00 AM</option>)}
+                                            </select>
+                                            <span className="text-slate-400 font-bold">-</span>
+                                            <select
+                                                className="input"
+                                                style={{ flex: 1, padding: '12px', fontSize: '16px', height: '48px' }}
+                                                value={dayConfig.end}
+                                                onChange={e => {
+                                                    const newHours = { ...settings.business_hours };
+                                                    newHours[day] = { ...dayConfig, end: e.target.value };
+                                                    handleChange('business_hours', newHours);
+                                                }}
+                                            >
+                                                {[12, 13, 14, 15, 16, 17, 18, 19, 20].map(h => <option key={h} value={`${h}:00`}>{h - 12}:00 PM</option>)}
+                                            </select>
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}
