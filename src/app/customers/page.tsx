@@ -61,8 +61,8 @@ export default function CustomersPage() {
 
     // Filter Jobs
     const filteredJobs = jobs.filter(j => {
-        // Only show finished or near-finished jobs: Completed, PaymentRequested, Paid or Closed
-        const finishedStates = ['completed', 'payment_requested', 'paid', 'closed'];
+        // Only show finished or near-finished jobs: Completed, PaymentRequested, Paid, Closed, Cancelled, NoShow
+        const finishedStates = ['completed', 'payment_requested', 'paid', 'closed', 'cancelled', 'no_show'];
         if (!finishedStates.includes(j.state)) return false;
 
         const term = searchTerm.toLowerCase();
@@ -194,12 +194,26 @@ export default function CustomersPage() {
                                                 fontSize: '10px',
                                                 padding: '2px 8px',
                                                 borderRadius: 10,
-                                                background: ['completed', 'paid', 'closed'].includes(job.state) ? 'var(--color-success-muted)' : 'var(--surface-sunken)',
-                                                color: ['completed', 'paid', 'closed'].includes(job.state) ? 'var(--color-success)' : 'var(--text-secondary)',
+                                                background:
+                                                    job.state === 'cancelled' ? 'var(--surface-sunken)' :
+                                                        job.state === 'no_show' ? '#FFF4E5' :
+                                                            ['completed', 'paid', 'closed'].includes(job.state) ? 'var(--color-success-muted)' :
+                                                                'var(--surface-sunken)',
+                                                color:
+                                                    job.state === 'cancelled' ? 'var(--text-tertiary)' :
+                                                        job.state === 'no_show' ? '#FF8C00' :
+                                                            ['completed', 'paid', 'closed'].includes(job.state) ? 'var(--color-success)' :
+                                                                'var(--text-secondary)',
                                                 textTransform: 'uppercase',
-                                                fontWeight: 700
+                                                fontWeight: 700,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 4
                                             }}
                                         >
+                                            {job.state === 'cancelled' && '✕ '}
+                                            {job.state === 'no_show' && '⚠ '}
+                                            {['completed', 'paid', 'closed'].includes(job.state) && '✓ '}
                                             {job.state.replace('_', ' ')}
                                         </div>
                                     </div>

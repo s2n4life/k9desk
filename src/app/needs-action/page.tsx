@@ -11,6 +11,7 @@ import { LeadCard } from '@/components/Leads/LeadCard';
 import { useDataLoader } from '@/hooks/useDataLoader';
 
 import { PaymentModal } from '@/components/Jobs/PaymentModal';
+import { RequestPaymentModal } from '@/components/Jobs/RequestPaymentModal';
 
 import { useRouter } from 'next/navigation'; // Added
 
@@ -26,6 +27,7 @@ export default function NeedsActionPage() {
 
     // Payment Modal State
     const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+    const [requestPaymentModalOpen, setRequestPaymentModalOpen] = useState(false);
     const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 
     const ACTION_STATES = [JobState.Completed, JobState.PaymentRequested, JobState.Paid];
@@ -75,6 +77,12 @@ export default function NeedsActionPage() {
 
     const handleAction = async (jobId: string, action: any) => {
         try {
+            if (action === 'REQUEST_PAYMENT') {
+                setSelectedJobId(jobId);
+                setRequestPaymentModalOpen(true);
+                return;
+            }
+
             if (action === 'LOG_PAYMENT') {
                 setSelectedJobId(jobId);
                 setPaymentModalOpen(true);
@@ -85,14 +93,15 @@ export default function NeedsActionPage() {
             const customer = job ? customers[job.customerId] : null;
 
             if (job && customer) {
-                triggerSMSAction(job, customer, action, { settings });
+                const petNames = job.petIds.map(pid => pets[pid]?.name).filter(Boolean);
+                triggerSMSAction(job, customer, action, { settings, petNames });
             }
 
             await JobStateMachine.transition(jobId, action);
             await loadData();
         } catch (e) {
             console.error(e);
-            alert('Action failed');
+            alert('Action failed: ' + (e as Error).message);
         }
     };
 
@@ -182,6 +191,53 @@ export default function NeedsActionPage() {
                         }
                     }
                 }}
+            />
+
+            <RequestPaymentModal
+                isOpen={requestPaymentModalOpen}
+                onClose={() => setRequestPaymentModalOpen(false)}
+                onConfirm={async (amount) => {
+                    if (!selectedJobId) return;
+                    try {
+                        const job = jobs.find(j => j.id === selectedJobId);
+                        const customer = job ? customers[job.customerId] : null;
+
+                        // Send SMS with amount
+                        if (job && customer) {
+                            triggerSMSAction(job, customer, 'REQUEST_PAYMENT', {
+                                settings,
+                                amount
+                            });
+                        }
+
+                        // Transition state
+                        await JobStateMachine.transition(selectedJobId, 'REQUEST_PAYMENT', {
+                            payment_amount: amount
+                        });
+
+                        setRequestPaymentModalOpen(false);
+                        setSelectedJobId(null);
+                        await loadData();
+                    } catch (err: any) {
+                        console.error('Failed to request payment:', err);
+                        alert('Failed to request payment: ' + err.message);
+                    }
+                }}
+                initialAmount={
+                    selectedJobId
+                        ? (jobs.find(j => j.id === selectedJobId)?.services?.reduce((sum, s) => sum + s.price, 0) || 0)
+                        : 0
+                }
+                services={
+                    selectedJobId
+                        ? (jobs.find(j => j.id === selectedJobId)?.services?.map(s => ({
+                            id: s.id,
+                            name: s.name,
+                            price: s.price,
+                            petName: s.petId ? pets[s.petId]?.name : undefined
+                        })) || [])
+                        : []
+                }
             />
         </div>
     );

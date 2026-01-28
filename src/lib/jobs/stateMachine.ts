@@ -15,16 +15,20 @@ export type JobAction =
     | 'SEND_REVIEW_REQUEST'
     | 'SKIP_REVIEW'
     | 'SCHEDULE_NEXT'
-    | 'LOG_PAYMENT';
+    | 'LOG_PAYMENT'
+    | 'MARK_CANCELLED'
+    | 'MARK_NO_SHOW';
 
 export const VALID_TRANSITIONS: Record<JobState, JobState[]> = {
-    [JobState.Scheduled]: [JobState.ReminderSent],
-    [JobState.ReminderSent]: [JobState.InProgress, JobState.Completed],
-    [JobState.InProgress]: [JobState.Completed],
-    [JobState.Completed]: [JobState.PaymentRequested, JobState.Paid],
-    [JobState.PaymentRequested]: [JobState.Paid],
-    [JobState.Paid]: [JobState.Closed],
+    [JobState.Scheduled]: [JobState.ReminderSent, JobState.Cancelled, JobState.NoShow],
+    [JobState.ReminderSent]: [JobState.InProgress, JobState.Completed, JobState.Cancelled, JobState.NoShow],
+    [JobState.InProgress]: [JobState.Completed, JobState.Cancelled, JobState.NoShow],
+    [JobState.Completed]: [JobState.PaymentRequested, JobState.Paid, JobState.Cancelled, JobState.NoShow],
+    [JobState.PaymentRequested]: [JobState.Paid, JobState.Cancelled, JobState.NoShow],
+    [JobState.Paid]: [JobState.Closed, JobState.Cancelled, JobState.NoShow],
     [JobState.Closed]: [], // Terminal state
+    [JobState.Cancelled]: [], // Terminal state
+    [JobState.NoShow]: [], // Terminal state
 };
 
 export class JobStateMachine {
@@ -52,6 +56,16 @@ export class JobStateMachine {
                 return currentState === JobState.Paid ? JobState.Closed : null;
             case 'LOG_PAYMENT':
                 return (currentState === JobState.Completed || currentState === JobState.PaymentRequested) ? JobState.Paid : null;
+            case 'MARK_CANCELLED':
+                // Can cancel from any active state
+                return (currentState !== JobState.Closed && currentState !== JobState.Cancelled && currentState !== JobState.NoShow)
+                    ? JobState.Cancelled
+                    : null;
+            case 'MARK_NO_SHOW':
+                // Can mark no-show from any active state
+                return (currentState !== JobState.Closed && currentState !== JobState.Cancelled && currentState !== JobState.NoShow)
+                    ? JobState.NoShow
+                    : null;
             default:
                 return null;
         }

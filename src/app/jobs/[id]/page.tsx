@@ -11,13 +11,14 @@ import { triggerSMSAction } from '@/lib/sms';
 import { v4 as uuidv4 } from 'uuid';
 import { formatTime12Hour } from '@/lib/format';
 
-import { ChevronLeft, MapPin, Clock, Send, CreditCard, Star, CheckSquare, DollarSign, Edit2, Trash2, Plus, AlertTriangle, Scissors, X, Phone, MessageCircle } from 'lucide-react';
+import { ChevronLeft, MapPin, Clock, Send, CreditCard, Star, CheckSquare, DollarSign, Edit2, Trash2, Plus, AlertTriangle, Scissors, X, Phone, MessageCircle, MoreVertical } from 'lucide-react';
 import { useScheduling } from '@/hooks/useScheduling';
 import Link from 'next/link';
 import { PaymentModal } from '@/components/Jobs/PaymentModal';
 import { RequestPaymentModal } from '@/components/Jobs/RequestPaymentModal';
 import { Modal } from '@/components/UI/Modal';
 import { CustomerForm } from '@/components/Customers/CustomerForm';
+import { ActionSheet } from '@/components/UI/ActionSheet';
 
 export default function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const router = useRouter();
@@ -54,6 +55,11 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     const [petModalOpen, setPetModalOpen] = useState(false);
     const [editingPetId, setEditingPetId] = useState<string | null>(null);
     const [addExistingPetModalOpen, setAddExistingPetModalOpen] = useState(false);
+
+    // Cancellation & No-Show
+    const [moreActionsOpen, setMoreActionsOpen] = useState(false);
+    const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
+    const [confirmNoShowOpen, setConfirmNoShowOpen] = useState(false);
 
     // Pet Form
     const [pName, setPName] = useState('');
@@ -225,6 +231,30 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
         }
     };
 
+    const handleCancelJob = async () => {
+        if (!job) return;
+        try {
+            await JobStateMachine.transition(id, 'MARK_CANCELLED', {});
+            setConfirmCancelOpen(false);
+            router.back();
+        } catch (error) {
+            console.error('Failed to cancel job:', error);
+            alert('Failed to cancel job: ' + (error as Error).message);
+        }
+    };
+
+    const handleNoShowJob = async () => {
+        if (!job) return;
+        try {
+            await JobStateMachine.transition(id, 'MARK_NO_SHOW', {});
+            setConfirmNoShowOpen(false);
+            router.back();
+        } catch (error) {
+            console.error('Failed to mark as no-show:', error);
+            alert('Failed to mark as no-show: ' + (error as Error).message);
+        }
+    };
+
     // Helper to determine main button action
     const getActionState = () => {
         if (!job) return null;
@@ -244,11 +274,22 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
 
     return (
         <div className="container" style={{ paddingBottom: '160px', paddingTop: 'var(--space-4)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
-                <button onClick={() => router.back()} style={{ background: 'none', border: 'none', padding: 0, marginRight: 'var(--space-2)' }}>
-                    <ChevronLeft size={28} color="var(--brand-primary)" />
-                </button>
-                <h1 className="text-h2" style={{ marginBottom: 0 }}>Job Details</h1>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <button onClick={() => router.back()} style={{ background: 'none', border: 'none', padding: 0, marginRight: 'var(--space-2)' }}>
+                        <ChevronLeft size={28} color="var(--brand-primary)" />
+                    </button>
+                    <h1 className="text-h2" style={{ marginBottom: 0 }}>Job Details</h1>
+                </div>
+                {/* Three-dot menu - only show for active jobs */}
+                {job.state !== JobState.Closed && job.state !== JobState.Cancelled && job.state !== JobState.NoShow && (
+                    <button
+                        onClick={() => setMoreActionsOpen(true)}
+                        style={{ background: 'none', border: 'none', padding: 8, cursor: 'pointer' }}
+                    >
+                        <MoreVertical size={24} color="var(--text-secondary)" />
+                    </button>
+                )}
             </div>
 
             {/* Customer Section */}
@@ -616,6 +657,67 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                         <textarea className="card" placeholder="Notes..." value={pNotes} onChange={e => setPNotes(e.target.value)} style={{ width: '100%', minHeight: 80 }} />
                     </label>
                 </div>
+            </Modal>
+
+            {/* ActionSheet for More Actions */}
+            <ActionSheet
+                isOpen={moreActionsOpen}
+                onClose={() => setMoreActionsOpen(false)}
+                title="Job Actions"
+                options={[
+                    {
+                        label: 'Mark as Cancelled',
+                        action: () => setConfirmCancelOpen(true),
+                        variant: 'destructive'
+                    },
+                    {
+                        label: 'Mark as No-Show',
+                        action: () => setConfirmNoShowOpen(true),
+                        variant: 'destructive'
+                    }
+                ]}
+            />
+
+            {/* Confirmation Modal for Cancellation */}
+            <Modal
+                isOpen={confirmCancelOpen}
+                onClose={() => setConfirmCancelOpen(false)}
+                title="Cancel Job?"
+                footer={(
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+                        <button onClick={() => setConfirmCancelOpen(false)} className="btn btn-secondary" style={{ width: '100%' }}>
+                            Go Back
+                        </button>
+                        <button onClick={handleCancelJob} className="btn btn-danger" style={{ width: '100%', background: 'var(--color-danger)' }}>
+                            Yes, Cancel Job
+                        </button>
+                    </div>
+                )}
+            >
+                <p style={{ color: 'var(--text-secondary)', marginBottom: 0 }}>
+                    This will mark the job as cancelled and remove it from your active schedule. The job will still be visible in Past Jobs.
+                </p>
+            </Modal>
+
+            {/* Confirmation Modal for No-Show */}
+            <Modal
+                isOpen={confirmNoShowOpen}
+                onClose={() => setConfirmNoShowOpen(false)}
+                title="Mark as No-Show?"
+                footer={(
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+                        <button onClick={() => setConfirmNoShowOpen(false)} className="btn btn-secondary" style={{ width: '100%' }}>
+                            Go Back
+                        </button>
+                        <button onClick={handleNoShowJob} className="btn btn-danger" style={{ width: '100%', background: 'var(--color-danger)' }}>
+                            Yes, No-Show
+                        </button>
+                    </div>
+                )}
+            >
+                <p style={{ color: 'var(--text-secondary)', marginBottom: 0 }}>
+                    This will mark the job as a no-show and remove it from your active schedule. The job will still be visible in Past Jobs.
+                </p>
             </Modal>
 
         </div>

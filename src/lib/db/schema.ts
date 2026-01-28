@@ -5,7 +5,9 @@ export enum JobState {
   Completed = 'completed',
   PaymentRequested = 'payment_requested',
   Paid = 'paid',
-  Closed = 'closed'
+  Closed = 'closed',
+  Cancelled = 'cancelled',
+  NoShow = 'no_show'
 }
 
 export interface Service {
