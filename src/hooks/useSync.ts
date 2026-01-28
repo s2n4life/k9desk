@@ -28,6 +28,7 @@ const transformForRemote = (entityType: string, data: any, user: any, businessId
     }
 
     const remote: any = { ...data, business_id: finalBusinessId };
+    delete remote.businessId; // Ensure camelCase version is NOT sent to Supabase
 
     // Inject owner email for Businesses table visibility
     if (entityType === 'SETTINGS' && user?.email) {
@@ -133,6 +134,7 @@ const transformForRemote = (entityType: string, data: any, user: any, businessId
         if ('preferredDates' in remote) { remote.preferred_dates = remote.preferredDates; delete remote.preferredDates; }
         if ('serviceIds' in remote) { remote.service_ids = remote.serviceIds; delete remote.serviceIds; }
         if ('waiverSigned' in remote) { remote.waiver_signed = remote.waiverSigned; delete remote.waiverSigned; }
+        if ('businessId' in remote) { remote.business_id = remote.businessId; delete remote.businessId; }
     }
 
     return remote;
