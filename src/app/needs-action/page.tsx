@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { JobCard } from '@/components/Jobs/JobCard';
 import { getDB } from '@/lib/db';
-import { Job, Customer, Pet, JobState, Lead, Settings } from '@/lib/db/schema';
+import { Job, Customer, Pet, JobState, Lead, Settings, Service } from '@/lib/db/schema';
 import { JobStateMachine } from '@/lib/jobs/stateMachine';
 import { triggerSMSAction } from '@/lib/sms';
 import { LeadCard } from '@/components/Leads/LeadCard';
@@ -22,6 +22,7 @@ export default function NeedsActionPage() {
     const [leads, setLeads] = useState<Lead[]>([]); // NEW
     const [customers, setCustomers] = useState<Record<string, Customer>>({});
     const [pets, setPets] = useState<Record<string, Pet>>({});
+    const [allServices, setAllServices] = useState<Service[]>([]);
     const [settings, setSettings] = useState<Settings | null>(null);
     const { loadJobs, loadCustomers, loadPets, loadLeads, isImpersonating, impersonatedBusinessId, getActiveBusinessId } = useDataLoader();
 
@@ -63,6 +64,10 @@ export default function NeedsActionPage() {
 
             const s = await db.get('settings', 'default');
             setSettings(s || null);
+
+            // Load all services
+            const services = await db.getAll('services');
+            setAllServices(services || []);
 
         } catch (error) {
             console.error('Failed to load actionable', error);
@@ -196,17 +201,18 @@ export default function NeedsActionPage() {
             <RequestPaymentModal
                 isOpen={requestPaymentModalOpen}
                 onClose={() => setRequestPaymentModalOpen(false)}
-                onConfirm={async (amount) => {
+                onConfirm={async (amount, selectedPaymentMethods) => {
                     if (!selectedJobId) return;
                     try {
                         const job = jobs.find(j => j.id === selectedJobId);
                         const customer = job ? customers[job.customerId] : null;
 
-                        // Send SMS with amount
+                        // Send SMS with amount and selected payment methods
                         if (job && customer) {
                             triggerSMSAction(job, customer, 'REQUEST_PAYMENT', {
                                 settings,
-                                amount
+                                amount,
+                                selectedPaymentMethods
                             });
                         }
 
@@ -228,14 +234,15 @@ export default function NeedsActionPage() {
                         ? (jobs.find(j => j.id === selectedJobId)?.services?.reduce((sum, s) => sum + s.price, 0) || 0)
                         : 0
                 }
-                services={
+                pets={
                     selectedJobId
-                        ? (jobs.find(j => j.id === selectedJobId)?.services?.map(s => ({
-                            id: s.id,
-                            name: s.name,
-                            price: s.price,
-                            petName: s.petId ? pets[s.petId]?.name : undefined
-                        })) || [])
+                        ? (jobs.find(j => j.id === selectedJobId)?.petIds.map(pid => pets[pid]).filter(Boolean) as Pet[] || [])
+                        : []
+                }
+                allServices={allServices}
+                selectedServiceIds={
+                    selectedJobId
+                        ? (jobs.find(j => j.id === selectedJobId)?.services?.map(s => s.id) || [])
                         : []
                 }
             />

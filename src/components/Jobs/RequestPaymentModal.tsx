@@ -1,58 +1,93 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, DollarSign, CreditCard, Check } from 'lucide-react';
+import { X, DollarSign, Check } from 'lucide-react';
 import styles from './PaymentModal.module.css';
 import { getDB } from '@/lib/db';
-import { Settings } from '@/lib/db/schema';
-
-export interface ServiceItem {
-    id: string;
-    name: string;
-    price: number;
-    petName?: string;
-}
+import { Settings, Service, Pet } from '@/lib/db/schema';
 
 interface RequestPaymentModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onConfirm: (amount: number) => void;
+    onConfirm: (amount: number, selectedPaymentMethods: string[]) => void;
     initialAmount?: number;
-    services?: ServiceItem[];
+    pets: Pet[];
+    allServices: Service[];
+    selectedServiceIds: string[]; // Services currently on the job
 }
 
-export function RequestPaymentModal({ isOpen, onClose, onConfirm, initialAmount, services = [] }: RequestPaymentModalProps) {
+export function RequestPaymentModal({
+    isOpen,
+    onClose,
+    onConfirm,
+    initialAmount,
+    pets,
+    allServices,
+    selectedServiceIds
+}: RequestPaymentModalProps) {
     const [amount, setAmount] = useState('');
     const [settings, setSettings] = useState<Settings | null>(null);
-    const [selectedServices, setSelectedServices] = useState<Set<string>>(new Set());
+    const [selectedServices, setSelectedServices] = useState<Map<string, Set<string>>>(new Map()); // petId -> Set of serviceIds
+    const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<Set<string>>(new Set());
     const [manualOverride, setManualOverride] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (isOpen) {
-            // Initialize all services as selected
-            setSelectedServices(new Set(services.map(s => s.id)));
+            // Initialize selected services from job
+            const serviceMap = new Map<string, Set<string>>();
+
+            // Group selected services by pet
+            // Note: selectedServiceIds are the service IDs from job.services
+            // We need to match them with pets
+            pets.forEach(pet => {
+                serviceMap.set(pet.id, new Set());
+            });
+
+            // For now, we'll assume services are evenly distributed or we need pet info
+            // This is a simplified version - we'll need to pass pet-service mapping
+            selectedServiceIds.forEach(serviceId => {
+                // Add to first pet for now - this needs to be improved with actual pet-service mapping
+                if (pets.length > 0) {
+                    const petId = pets[0].id;
+                    if (!serviceMap.has(petId)) {
+                        serviceMap.set(petId, new Set());
+                    }
+                    serviceMap.get(petId)!.add(serviceId);
+                }
+            });
+
+            setSelectedServices(serviceMap);
             setManualOverride(false);
             setAmount(initialAmount ? initialAmount.toFixed(2) : '');
+
+            // Initialize all payment methods as selected
+            setSelectedPaymentMethods(new Set(['venmo', 'zelle', 'paypal', 'cashapp', 'custom_url']));
 
             setTimeout(() => {
                 inputRef.current?.focus();
             }, 100);
 
-            // Load settings to show preview
+            // Load settings
             getDB().then(db => db.get('settings', 'default')).then(s => {
                 if (s) setSettings(s);
             });
         }
-    }, [isOpen, initialAmount, services]);
+    }, [isOpen, initialAmount, pets, selectedServiceIds]);
 
     // Auto-calculate total from selected services
     useEffect(() => {
-        if (!manualOverride && services.length > 0) {
-            const total = services
-                .filter(s => selectedServices.has(s.id))
-                .reduce((sum, s) => sum + s.price, 0);
+        if (!manualOverride && selectedServices.size > 0) {
+            let total = 0;
+            selectedServices.forEach((serviceIds, petId) => {
+                serviceIds.forEach(serviceId => {
+                    const service = allServices.find(s => s.id === serviceId);
+                    if (service) {
+                        total += service.price;
+                    }
+                });
+            });
             setAmount(total.toFixed(2));
         }
-    }, [selectedServices, services, manualOverride]);
+    }, [selectedServices, allServices, manualOverride]);
 
     if (!isOpen) return null;
 
@@ -63,17 +98,33 @@ export function RequestPaymentModal({ isOpen, onClose, onConfirm, initialAmount,
             alert('Please enter a valid amount greater than $0');
             return;
         }
-        onConfirm(numAmount);
+        onConfirm(numAmount, Array.from(selectedPaymentMethods));
         onClose();
     };
 
-    const toggleService = (serviceId: string) => {
+    const toggleService = (petId: string, serviceId: string) => {
         setSelectedServices(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(serviceId)) {
-                newSet.delete(serviceId);
+            const newMap = new Map(prev);
+            if (!newMap.has(petId)) {
+                newMap.set(petId, new Set());
+            }
+            const petServices = newMap.get(petId)!;
+            if (petServices.has(serviceId)) {
+                petServices.delete(serviceId);
             } else {
-                newSet.add(serviceId);
+                petServices.add(serviceId);
+            }
+            return newMap;
+        });
+    };
+
+    const togglePaymentMethod = (method: string) => {
+        setSelectedPaymentMethods(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(method)) {
+                newSet.delete(method);
+            } else {
+                newSet.add(method);
             }
             return newSet;
         });
@@ -86,23 +137,38 @@ export function RequestPaymentModal({ isOpen, onClose, onConfirm, initialAmount,
 
     const resetToCalculated = () => {
         setManualOverride(false);
-        const total = services
-            .filter(s => selectedServices.has(s.id))
-            .reduce((sum, s) => sum + s.price, 0);
+        let total = 0;
+        selectedServices.forEach((serviceIds, petId) => {
+            serviceIds.forEach(serviceId => {
+                const service = allServices.find(s => s.id === serviceId);
+                if (service) {
+                    total += service.price;
+                }
+            });
+        });
         setAmount(total.toFixed(2));
     };
 
-    const hasPaymentMethods = settings && (
-        settings.venmo?.trim() ||
-        settings.zelle?.trim() ||
-        settings.paypal?.trim() ||
-        settings.cashapp?.trim() ||
-        settings.custom_url?.trim()
-    );
+    const calculatedTotal = (() => {
+        let total = 0;
+        selectedServices.forEach((serviceIds, petId) => {
+            serviceIds.forEach(serviceId => {
+                const service = allServices.find(s => s.id === serviceId);
+                if (service) {
+                    total += service.price;
+                }
+            });
+        });
+        return total;
+    })();
 
-    const calculatedTotal = services
-        .filter(s => selectedServices.has(s.id))
-        .reduce((sum, s) => sum + s.price, 0);
+    const paymentMethodConfig = [
+        { id: 'venmo', label: 'Venmo', value: settings?.venmo },
+        { id: 'zelle', label: 'Zelle', value: settings?.zelle },
+        { id: 'paypal', label: 'PayPal', value: settings?.paypal },
+        { id: 'cashapp', label: 'CashApp', value: settings?.cashapp },
+        { id: 'custom_url', label: 'Payment Link', value: settings?.custom_url },
+    ].filter(pm => pm.value?.trim());
 
     return (
         <>
@@ -116,59 +182,68 @@ export function RequestPaymentModal({ isOpen, onClose, onConfirm, initialAmount,
                 </div>
 
                 <form onSubmit={handleSubmit}>
-                    {/* Services List */}
-                    {services.length > 0 && (
+                    {/* Services by Pet */}
+                    {pets.length > 0 && allServices.length > 0 && (
                         <div style={{ marginBottom: 'var(--space-4)' }}>
-                            <label className={styles.label}>Services Performed</label>
+                            <label className={styles.label}>Services by Dog</label>
                             <div style={{
                                 backgroundColor: 'var(--bg-secondary)',
                                 borderRadius: 'var(--radius-md)',
                                 padding: 'var(--space-3)',
-                                maxHeight: '200px',
+                                maxHeight: '300px',
                                 overflowY: 'auto'
                             }}>
-                                {services.map((service) => (
-                                    <div
-                                        key={service.id}
-                                        onClick={() => toggleService(service.id)}
-                                        style={{
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'center',
-                                            padding: 'var(--space-3)',
+                                {pets.map((pet) => (
+                                    <div key={pet.id} style={{ marginBottom: 'var(--space-4)' }}>
+                                        <div style={{
+                                            fontWeight: 700,
                                             marginBottom: 'var(--space-2)',
-                                            backgroundColor: selectedServices.has(service.id) ? 'var(--color-primary-light)' : 'var(--bg-primary)',
-                                            borderRadius: 'var(--radius-sm)',
-                                            cursor: 'pointer',
-                                            border: selectedServices.has(service.id) ? '2px solid var(--color-primary)' : '2px solid transparent',
-                                            transition: 'all 0.2s'
-                                        }}
-                                    >
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                                            <div style={{
-                                                width: '20px',
-                                                height: '20px',
-                                                borderRadius: 'var(--radius-sm)',
-                                                border: '2px solid var(--color-primary)',
-                                                backgroundColor: selectedServices.has(service.id) ? 'var(--color-primary)' : 'transparent',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center'
-                                            }}>
-                                                {selectedServices.has(service.id) && <Check size={14} color="white" />}
-                                            </div>
-                                            <div>
-                                                <div style={{ fontWeight: 600 }}>{service.name}</div>
-                                                {service.petName && (
-                                                    <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
-                                                        {service.petName}
+                                            color: 'var(--color-primary)',
+                                            fontSize: 'var(--font-size-base)'
+                                        }}>
+                                            {pet.name}
+                                        </div>
+                                        {allServices.map((service) => {
+                                            const isSelected = selectedServices.get(pet.id)?.has(service.id) || false;
+                                            return (
+                                                <div
+                                                    key={service.id}
+                                                    onClick={() => toggleService(pet.id, service.id)}
+                                                    style={{
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
+                                                        alignItems: 'center',
+                                                        padding: 'var(--space-2)',
+                                                        marginBottom: 'var(--space-2)',
+                                                        backgroundColor: isSelected ? 'var(--color-primary-light)' : 'var(--bg-primary)',
+                                                        borderRadius: 'var(--radius-sm)',
+                                                        cursor: 'pointer',
+                                                        border: isSelected ? '2px solid var(--color-primary)' : '2px solid transparent',
+                                                        transition: 'all 0.2s'
+                                                    }}
+                                                >
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                                                        <div style={{
+                                                            width: '18px',
+                                                            height: '18px',
+                                                            borderRadius: 'var(--radius-sm)',
+                                                            border: '2px solid var(--color-primary)',
+                                                            backgroundColor: isSelected ? 'var(--color-primary)' : 'transparent',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            flexShrink: 0
+                                                        }}>
+                                                            {isSelected && <Check size={12} color="white" />}
+                                                        </div>
+                                                        <div style={{ fontSize: 'var(--font-size-sm)' }}>{service.name}</div>
                                                     </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
-                                            ${service.price.toFixed(2)}
-                                        </div>
+                                                    <div style={{ fontWeight: 600, color: 'var(--color-primary)', fontSize: 'var(--font-size-sm)' }}>
+                                                        ${service.price.toFixed(2)}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 ))}
                             </div>
@@ -187,7 +262,7 @@ export function RequestPaymentModal({ isOpen, onClose, onConfirm, initialAmount,
                     <div className={styles.amountSection}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <label className={styles.label}>Amount Due</label>
-                            {manualOverride && services.length > 0 && (
+                            {manualOverride && (
                                 <button
                                     type="button"
                                     onClick={resetToCalculated}
@@ -218,7 +293,7 @@ export function RequestPaymentModal({ isOpen, onClose, onConfirm, initialAmount,
                                 required
                             />
                         </div>
-                        {manualOverride && services.length > 0 && (
+                        {manualOverride && (
                             <div style={{
                                 marginTop: 'var(--space-2)',
                                 fontSize: 'var(--font-size-sm)',
@@ -230,26 +305,69 @@ export function RequestPaymentModal({ isOpen, onClose, onConfirm, initialAmount,
                         )}
                     </div>
 
-                    {/* Payment Methods Preview */}
-                    <div style={{ marginBottom: 'var(--space-6)', padding: 'var(--space-4)', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}>
-                        <h4 style={{ fontSize: 'var(--font-size-sm)', marginBottom: 'var(--space-2)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <CreditCard size={14} />
-                            Payment Options to Send
-                        </h4>
-                        {hasPaymentMethods ? (
-                            <ul style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', paddingLeft: 'var(--space-4)', margin: 0 }}>
-                                {settings.venmo?.trim() && <li>Venmo: {settings.venmo}</li>}
-                                {settings.zelle?.trim() && <li>Zelle: {settings.zelle}</li>}
-                                {settings.paypal?.trim() && <li>PayPal: {settings.paypal}</li>}
-                                {settings.cashapp?.trim() && <li>CashApp: {settings.cashapp}</li>}
-                                {settings.custom_url?.trim() && <li>Link: {settings.custom_url}</li>}
-                            </ul>
-                        ) : (
-                            <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
-                                No payment methods saved in Settings. Only the amount will be sent.
-                            </p>
-                        )}
-                    </div>
+                    {/* Payment Methods to Include */}
+                    {paymentMethodConfig.length > 0 && (
+                        <div style={{ marginBottom: 'var(--space-4)' }}>
+                            <label className={styles.label}>Payment Methods to Send</label>
+                            <div style={{
+                                backgroundColor: 'var(--bg-secondary)',
+                                borderRadius: 'var(--radius-md)',
+                                padding: 'var(--space-3)'
+                            }}>
+                                {paymentMethodConfig.map((pm) => {
+                                    const isSelected = selectedPaymentMethods.has(pm.id);
+                                    return (
+                                        <div
+                                            key={pm.id}
+                                            onClick={() => togglePaymentMethod(pm.id)}
+                                            style={{
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center',
+                                                padding: 'var(--space-2)',
+                                                marginBottom: 'var(--space-2)',
+                                                backgroundColor: isSelected ? 'var(--color-primary-light)' : 'var(--bg-primary)',
+                                                borderRadius: 'var(--radius-sm)',
+                                                cursor: 'pointer',
+                                                border: isSelected ? '2px solid var(--color-primary)' : '2px solid transparent',
+                                                transition: 'all 0.2s'
+                                            }}
+                                        >
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                                                <div style={{
+                                                    width: '18px',
+                                                    height: '18px',
+                                                    borderRadius: 'var(--radius-sm)',
+                                                    border: '2px solid var(--color-primary)',
+                                                    backgroundColor: isSelected ? 'var(--color-primary)' : 'transparent',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    flexShrink: 0
+                                                }}>
+                                                    {isSelected && <Check size={12} color="white" />}
+                                                </div>
+                                                <div>
+                                                    <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>{pm.label}</div>
+                                                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>
+                                                        {pm.value}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <div style={{
+                                marginTop: 'var(--space-2)',
+                                fontSize: 'var(--font-size-sm)',
+                                color: 'var(--text-secondary)',
+                                fontStyle: 'italic'
+                            }}>
+                                Tap to include/exclude payment methods in SMS
+                            </div>
+                        </div>
+                    )}
 
                     <div style={{ marginBottom: 'var(--space-4)', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
                         <p>Clicking below will open your SMS app with a pre-filled message containing payment details.</p>

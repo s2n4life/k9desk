@@ -8,7 +8,7 @@ import { PaymentModal } from '@/components/Jobs/PaymentModal';
 import { RequestPaymentModal } from '@/components/Jobs/RequestPaymentModal';
 import { ReviewLinkModal } from '@/components/Jobs/ReviewLinkModal';
 import { getDB } from '@/lib/db';
-import { Job, Customer, Pet, JobState } from '@/lib/db/schema';
+import { Job, Customer, Pet, JobState, Service } from '@/lib/db/schema';
 import { JobStateMachine } from '@/lib/jobs/stateMachine';
 import { Plus, Settings as SettingsIcon, HelpCircle } from 'lucide-react';
 import Link from 'next/link';
@@ -71,6 +71,7 @@ export default function TodayPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [customers, setCustomers] = useState<Record<string, Customer>>({});
   const [pets, setPets] = useState<Record<string, Pet>>({});
+  const [allServices, setAllServices] = useState<Service[]>([]);
   const [kpi, setKpi] = useState({
     completed: 0,
     requested: 0,
@@ -133,6 +134,11 @@ export default function TodayPage() {
         confirmed: jobsLast30Days.filter(j => j.state === JobState.Paid || j.state === JobState.Closed).length,
         reviews: jobsLast30Days.filter(j => j.state === JobState.Closed).length
       });
+
+      // Load all services
+      const db = await getDB();
+      const services = await db.getAll('services');
+      setAllServices(services || []);
 
     } catch (error) {
       console.error('Failed to load data', error);
@@ -202,7 +208,7 @@ export default function TodayPage() {
     }
   };
 
-  const handleRequestPayment = async (amount: number) => {
+  const handleRequestPayment = async (amount: number, selectedPaymentMethods: string[]) => {
     if (!selectedJobId) return;
     try {
       const job = jobs.find(j => j.id === selectedJobId);
@@ -212,7 +218,7 @@ export default function TodayPage() {
 
       // Send SMS first
       if (job && customer) {
-        triggerSMSAction(job, customer, 'REQUEST_PAYMENT', { amount, settings });
+        triggerSMSAction(job, customer, 'REQUEST_PAYMENT', { amount, settings, selectedPaymentMethods });
       }
 
       // Then transition state with payment_amount
@@ -329,14 +335,11 @@ export default function TodayPage() {
       <RequestPaymentModal
         isOpen={requestPaymentModalOpen}
         onClose={() => setRequestPaymentModalOpen(false)}
-        onConfirm={(amount) => handleRequestPayment(amount)}
+        onConfirm={(amount, selectedPaymentMethods) => handleRequestPayment(amount, selectedPaymentMethods)}
         initialAmount={initialPaymentAmount}
-        services={selectedJob?.services?.map(s => ({
-          id: s.id,
-          name: s.name,
-          price: s.price,
-          petName: s.petId ? pets[s.petId]?.name : undefined
-        })) || []}
+        pets={selectedJob ? selectedJob.petIds.map(pid => pets[pid]).filter(Boolean) as Pet[] : []}
+        allServices={allServices}
+        selectedServiceIds={selectedJob?.services?.map(s => s.id) || []}
       />
 
       <ReviewLinkModal

@@ -560,12 +560,13 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
             <RequestPaymentModal
                 isOpen={requestPaymentModalOpen}
                 onClose={() => setRequestPaymentModalOpen(false)}
-                onConfirm={async (amount) => {
+                onConfirm={async (amount, selectedPaymentMethods) => {
                     try {
-                        // Send SMS with amount
+                        // Send SMS with amount and selected payment methods
                         await triggerSMSAction(job!, customer!, 'REQUEST_PAYMENT', {
                             settings,
-                            amount
+                            amount,
+                            selectedPaymentMethods
                         });
                         // Transition state
                         await JobStateMachine.transition(id, 'REQUEST_PAYMENT', {
@@ -579,12 +580,9 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                     }
                 }}
                 initialAmount={totalCost}
-                services={job?.services?.map(s => ({
-                    id: s.id,
-                    name: s.name,
-                    price: s.price,
-                    petName: s.petId ? pets.find(p => p.id === s.petId)?.name : undefined
-                })) || []}
+                pets={pets}
+                allServices={allServices}
+                selectedServiceIds={job?.services?.map(s => s.id) || []}
             />
 
             <Modal
