@@ -153,21 +153,36 @@ const NewJobContent = () => {
                 // 1.1 Match Pets (Fuzzy by Name)
                 if (lead.petDetails && lead.petDetails.length > 0) {
                     const myPets = allPets.filter(p => p.customerId === existingCustomer.id);
-                    const matchedPetIds: string[] = [];
+                    const finalPetIds: string[] = [];
 
-                    lead.petDetails.forEach(leadPet => {
-                        // Simple name compare (case insensitive)
+                    for (const leadPet of lead.petDetails) {
                         const match = myPets.find(p => p.name.toLowerCase() === leadPet.name.toLowerCase());
                         if (match) {
-                            matchedPetIds.push(match.id);
+                            finalPetIds.push(match.id);
                         } else {
-                            // If pet not found for existing customer, maybe we should prompt?
-                            // For now, we only auto-select if found.
+                            // AUTO-CREATE missing pet for existing customer
+                            const newPetId = uuidv4();
+                            const newP: Pet = {
+                                id: newPetId,
+                                customerId: existingCustomer.id,
+                                name: leadPet.name,
+                                breed: leadPet.breed || '',
+                                size: leadPet.weight || '',
+                                age: leadPet.age || '',
+                                notes: '',
+                                createdAt: Date.now(),
+                                updatedAt: Date.now()
+                            };
+                            const activeBusinessId = await getActiveBusinessId();
+                            await saveWithSync('pets', newP, 'CREATE', activeBusinessId || undefined);
+                            setAllPets(prev => [...prev, newP]);
+                            finalPetIds.push(newPetId);
+                            console.log(`Auto-created pet ${leadPet.name} for existing customer`);
                         }
-                    });
+                    }
 
-                    if (matchedPetIds.length > 0) {
-                        setSelectedPetIds(matchedPetIds);
+                    if (finalPetIds.length > 0) {
+                        setSelectedPetIds(finalPetIds);
                     }
                 }
 
@@ -354,20 +369,32 @@ const NewJobContent = () => {
             setJobAddress(cAddress);
             setCustomerModalOpen(false);
 
-            // AUTO-OPEN PET MODAL FOR NEW CUSTOMER
-            // Check if we have converting lead data to pre-fill
+            // AUTO-CREATE ALL PETS FOR NEW CUSTOMER FROM LEAD
             if (convertingLead && convertingLead.petDetails?.length > 0) {
-                // Pre-fill from first pet
-                const firstPet = convertingLead.petDetails[0];
-                setPFormId(null);
-                setPName(firstPet.name);
-                setPBreed(firstPet.breed || '');
-                // Add logic for age/weight into notes?
-                let pNote = '';
-                if (firstPet.age) pNote += `Age: ${firstPet.age} `;
-                if (firstPet.weight) pNote += `Weight: ${firstPet.weight} `;
-                setPNotes(pNote.trim());
-                setPetModalOpen(true);
+                const newPetIds: string[] = [];
+                const newPets: Pet[] = [];
+                const activeBusinessId = await getActiveBusinessId();
+
+                for (const petDetail of convertingLead.petDetails) {
+                    const petId = uuidv4();
+                    const newP: Pet = {
+                        id: petId,
+                        customerId: newId, // Parent customer
+                        name: petDetail.name,
+                        breed: petDetail.breed || '',
+                        size: petDetail.weight || '',
+                        age: petDetail.age || '',
+                        notes: '',
+                        createdAt: Date.now(),
+                        updatedAt: Date.now()
+                    };
+                    await saveWithSync('pets', newP, 'CREATE', activeBusinessId || undefined);
+                    newPets.push(newP);
+                    newPetIds.push(petId);
+                }
+
+                setAllPets(prev => [...prev, ...newPets]);
+                setSelectedPetIds(newPetIds);
             } else {
                 openNewPetModal();
             }
