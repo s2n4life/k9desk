@@ -331,6 +331,12 @@ export default function TodayPage() {
         onClose={() => setRequestPaymentModalOpen(false)}
         onConfirm={(amount) => handleRequestPayment(amount)}
         initialAmount={initialPaymentAmount}
+        services={selectedJob?.services?.map(s => ({
+          id: s.id,
+          name: s.name,
+          price: s.price,
+          petName: s.petId ? pets[s.petId]?.name : undefined
+        })) || []}
       />
 
       <ReviewLinkModal

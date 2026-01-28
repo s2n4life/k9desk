@@ -538,6 +538,12 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                     }
                 }}
                 initialAmount={totalCost}
+                services={job?.services?.map(s => ({
+                    id: s.id,
+                    name: s.name,
+                    price: s.price,
+                    petName: s.petId ? pets.find(p => p.id === s.petId)?.name : undefined
+                })) || []}
             />
 
             <Modal
