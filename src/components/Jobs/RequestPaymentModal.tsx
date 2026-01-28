@@ -205,32 +205,33 @@ export function RequestPaymentModal({
                                                         display: 'flex',
                                                         justifyContent: 'space-between',
                                                         alignItems: 'center',
-                                                        padding: 'var(--space-2)',
+                                                        padding: 'var(--space-3)',
                                                         marginBottom: 'var(--space-2)',
-                                                        backgroundColor: isSelected ? 'var(--color-primary-light)' : 'var(--bg-primary)',
-                                                        borderRadius: 'var(--radius-sm)',
+                                                        backgroundColor: isSelected ? '#f3f0ff' : 'var(--bg-primary)',
+                                                        borderRadius: 'var(--radius-md)',
                                                         cursor: 'pointer',
-                                                        border: isSelected ? '2px solid var(--color-primary)' : '2px solid transparent',
-                                                        transition: 'all 0.2s'
+                                                        border: isSelected ? '2px solid #8b5cf6' : '2px solid var(--border-color)',
+                                                        transition: 'all 0.2s',
+                                                        boxShadow: isSelected ? '0 2px 8px rgba(139, 92, 246, 0.15)' : 'none'
                                                     }}
                                                 >
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                                                         <div style={{
-                                                            width: '18px',
-                                                            height: '18px',
+                                                            width: '20px',
+                                                            height: '20px',
                                                             borderRadius: 'var(--radius-sm)',
-                                                            border: '2px solid var(--color-primary)',
-                                                            backgroundColor: isSelected ? 'var(--color-primary)' : 'transparent',
+                                                            border: isSelected ? '2px solid #8b5cf6' : '2px solid var(--border-color)',
+                                                            backgroundColor: isSelected ? '#8b5cf6' : 'transparent',
                                                             display: 'flex',
                                                             alignItems: 'center',
                                                             justifyContent: 'center',
                                                             flexShrink: 0
                                                         }}>
-                                                            {isSelected && <Check size={12} color="white" />}
+                                                            {isSelected && <Check size={14} color="white" strokeWidth={3} />}
                                                         </div>
-                                                        <div style={{ fontSize: 'var(--font-size-sm)' }}>{service.name}</div>
+                                                        <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: isSelected ? 600 : 400 }}>{service.name}</div>
                                                     </div>
-                                                    <div style={{ fontWeight: 600, color: 'var(--color-primary)', fontSize: 'var(--font-size-sm)' }}>
+                                                    <div style={{ fontWeight: 600, color: isSelected ? '#8b5cf6' : 'var(--text-secondary)', fontSize: 'var(--font-size-sm)' }}>
                                                         ${service.price.toFixed(2)}
                                                     </div>
                                                 </div>
