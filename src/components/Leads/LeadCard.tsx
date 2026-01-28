@@ -11,13 +11,20 @@ interface LeadCardProps {
     onArchive: (leadId: string) => void;
     onDelete: (leadId: string) => void;
     isArchived?: boolean;
+    businessName?: string;
 }
 
-export function LeadCard({ lead, onAccept, onArchive, onDelete, isArchived }: LeadCardProps) {
+export function LeadCard({ lead, onAccept, onArchive, onDelete, isArchived, businessName }: LeadCardProps) {
     const [isOpen, setIsOpen] = useState(false);
 
     // Format pets display
     const petsDisplay = lead.petDetails.map(p => p.name).join(', ');
+
+    // SMS Pre-fill logic
+    const firstName = lead.ownerName.split(' ')[0];
+    const bizName = businessName || 'our business';
+    const smsBody = `Hi ${firstName}, this is ${bizName}. `;
+    const smsHref = `sms:${lead.ownerPhone}${navigator.userAgent.match(/iPhone/i) ? '&' : '?'}body=${encodeURIComponent(smsBody)}`;
 
     // COLLAPSED VIEW
     if (!isOpen) {
@@ -109,7 +116,7 @@ export function LeadCard({ lead, onAccept, onArchive, onDelete, isArchived }: Le
                         CALL
                     </a>
                     <a
-                        href={`sms:${lead.ownerPhone}`}
+                        href={smsHref}
                         onClick={(e) => e.stopPropagation()}
                         className="bg-slate-100 p-2 rounded-lg text-slate-700 hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 text-[10px] font-bold w-20 shadow-sm border border-slate-200"
                     >

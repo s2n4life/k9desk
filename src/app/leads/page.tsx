@@ -331,6 +331,7 @@ export default function LeadsPage() {
                             onArchive={handleArchive}
                             onDelete={handleDelete}
                             isArchived={activeTab === 'archived'}
+                            businessName={businessName}
                         />
                     ))}
                 </div>
