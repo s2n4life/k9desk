@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getDB } from '@/lib/db';
 import { Settings, Service } from '@/lib/db/schema';
-import { addToSyncQueue } from '@/lib/db/sync';
+import { saveWithSync, deleteWithSync } from '@/lib/db/transactions';
 import { supabase } from '@/lib/supabaseClient';
 import Link from 'next/link';
 import { ChevronLeft, Save, Plus, Trash2, Edit2, ChevronDown, ChevronRight, CreditCard, Store, List, Star, MapPin, X, Check, LogOut } from 'lucide-react';
@@ -12,9 +12,10 @@ import { useSync } from '@/hooks/useSync';
 import { useRouter } from 'next/navigation';
 import { InstallPwaPrompt } from '@/components/pwa/InstallPwaPrompt';
 import { isStandalone, shouldShowPrompt } from '@/lib/pwa-utils';
-import { PlusSquare, Smartphone, CreditCard as BillingIcon, ExternalLink, ShieldCheck, RefreshCw, Database } from 'lucide-react';
+import { PlusSquare, Smartphone, CreditCard as BillingIcon, ExternalLink, ShieldCheck, RefreshCw, Database, AlertTriangle } from 'lucide-react';
 import { hydrateLocalDB } from '@/lib/db/hydration';
 import { useImpersonation } from '@/contexts/ImpersonationContext';
+import { Modal } from '@/components/UI/Modal';
 
 export default function SettingsPage() {
     const { clearLocalData } = useSync();
@@ -73,12 +74,14 @@ export default function SettingsPage() {
     const [showInstallPrompt, setShowInstallPrompt] = useState(false);
     const [isBillingLoading, setIsBillingLoading] = useState(false);
     const [isResetting, setIsResetting] = useState(false);
+    const [showResetConfirm, setShowResetConfirm] = useState(false);
 
-    const handleForceReset = async () => {
-        if (!confirm('This will clear all local data and re-download everything from the cloud. This solves issues where devices show old data. Continue?')) {
-            return;
-        }
+    const handleForceReset = () => {
+        setShowResetConfirm(true);
+    };
 
+    const confirmForceReset = async () => {
+        setShowResetConfirm(false);
         setIsResetting(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
@@ -170,7 +173,7 @@ export default function SettingsPage() {
                         role: 'owner',
                         createdAt: Date.now()
                     };
-                    await db.put('profiles', newProfile);
+                    await saveWithSync('profiles', newProfile, 'CREATE');
                     profiles = [newProfile];
                 }
 
@@ -220,9 +223,7 @@ export default function SettingsPage() {
                 updatedAt: Date.now()
             };
 
-            const db = await getDB();
-            await db.put('settings', updatedSettings);
-            await addToSyncQueue('UPDATE', 'SETTINGS', 'default', updatedSettings);
+            await saveWithSync('settings', updatedSettings, 'UPDATE', businessId || undefined);
 
             // Update local state to reflect the derived array immediately
             setSettings(updatedSettings);
@@ -252,9 +253,7 @@ export default function SettingsPage() {
             createdAt: Date.now()
         };
 
-        const db = await getDB();
-        await db.put('services', newService);
-        await addToSyncQueue('CREATE', 'SERVICE', newService.id, newService);
+        await saveWithSync('services', newService, 'CREATE', businessId || undefined);
         setServices(prev => [...prev, newService]);
 
         setIsAddingService(false);
@@ -265,9 +264,7 @@ export default function SettingsPage() {
 
     const handleDeleteService = async (id: string) => {
         if (!confirm('Are you sure you want to delete this service?')) return;
-        const db = await getDB();
-        await db.delete('services', id);
-        await addToSyncQueue('DELETE', 'SERVICE', id);
+        await deleteWithSync('services', id, businessId || undefined);
         setServices(prev => prev.filter(s => s.id !== id));
     };
 
@@ -291,8 +288,7 @@ export default function SettingsPage() {
         const original = services.find(s => s.id === editingServiceId);
         if (original) updatedService.createdAt = original.createdAt;
 
-        await db.put('services', updatedService);
-        await addToSyncQueue('UPDATE', 'SERVICE', editingServiceId, updatedService);
+        await saveWithSync('services', updatedService, 'UPDATE', businessId || undefined);
         setServices(prev => prev.map(s => s.id === editingServiceId ? updatedService : s));
         setEditingServiceId(null);
     };
@@ -1100,6 +1096,42 @@ export default function SettingsPage() {
                 isOpen={showInstallPrompt}
                 onClose={() => setShowInstallPrompt(false)}
             />
+
+            <Modal
+                isOpen={showResetConfirm}
+                onClose={() => setShowResetConfirm(false)}
+                title="Force Reset & Re-sync"
+                footer={
+                    <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                        <button
+                            onClick={() => setShowResetConfirm(false)}
+                            className="btn btn-secondary"
+                            style={{ flex: 1 }}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={confirmForceReset}
+                            className="btn btn-primary"
+                            style={{ flex: 1, backgroundColor: 'var(--color-danger)', borderColor: 'var(--color-danger)', color: 'white' }}
+                        >
+                            Confirm Reset
+                        </button>
+                    </div>
+                }
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-4)', textAlign: 'center', padding: 'var(--space-2) 0' }}>
+                    <div style={{ color: 'var(--color-danger)', backgroundColor: '#fee2e2', padding: '12px', borderRadius: '50%' }}>
+                        <AlertTriangle size={32} />
+                    </div>
+                    <div>
+                        <p style={{ fontWeight: 600, fontSize: 'var(--font-size-lg)', marginBottom: '8px' }}>Are you sure?</p>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-sm)', lineHeight: 1.5 }}>
+                            This will clear all local data and re-download everything from the cloud. This is usually only needed if your device shows incorrect or old data.
+                        </p>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }

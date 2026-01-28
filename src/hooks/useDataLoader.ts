@@ -37,8 +37,9 @@ export function useDataLoader() {
                 scheduledDate: j.scheduled_date,
                 scheduledTime: j.scheduled_time,
                 address: j.address,
-                notes: j.notes,
-                visitNotes: j.visit_notes,
+                jobNotes: j.notes,
+                customerNotes: j.customer_notes,
+                petNotes: j.pet_notes,
                 createdAt: new Date(j.created_at).getTime(),
                 updatedAt: new Date(j.updated_at).getTime()
             }));

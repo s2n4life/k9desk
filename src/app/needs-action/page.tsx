@@ -8,6 +8,7 @@ import { Job, Customer, Pet, JobState, Lead, Settings } from '@/lib/db/schema';
 import { JobStateMachine } from '@/lib/jobs/stateMachine';
 import { triggerSMSAction } from '@/lib/sms';
 import { LeadCard } from '@/components/Leads/LeadCard';
+import { useDataLoader } from '@/hooks/useDataLoader';
 
 import { PaymentModal } from '@/components/Jobs/PaymentModal';
 
@@ -21,6 +22,7 @@ export default function NeedsActionPage() {
     const [customers, setCustomers] = useState<Record<string, Customer>>({});
     const [pets, setPets] = useState<Record<string, Pet>>({});
     const [settings, setSettings] = useState<Settings | null>(null);
+    const { loadJobs, loadCustomers, loadPets, loadLeads, isImpersonating, impersonatedBusinessId, getActiveBusinessId } = useDataLoader();
 
     // Payment Modal State
     const [paymentModalOpen, setPaymentModalOpen] = useState(false);
@@ -30,27 +32,12 @@ export default function NeedsActionPage() {
 
     const loadData = async () => {
         try {
+            const allJobs = await loadJobs();
+            const allCustomers = await loadCustomers();
+            const allPets = await loadPets();
+            const allLeads = await loadLeads();
+
             const db = await getDB();
-            const allJobs = await db.getAll('jobs');
-            const allCustomers = await db.getAll('customers');
-            const allPets = await db.getAll('pets');
-
-            // Fetch Leads
-            // Note: In a real app we'd sync this from Supabase. 
-            // For now, assuming they are synced or we fetch directly if we want live data.
-            // Let's assume they are in local indexedDB for this step, 
-            // provided the sync logic captures them (which we haven't built yet). 
-            // So we might need to fetch direct from Supabase if Sync isn't updated.
-            // BUT, for V1 demo, let's fetch from IDB assuming sync works, or...
-            // Actually, we haven't updated SyncManager yet.
-            // Let's fetch from IDB 'leads' store (which handles local state).
-            let allLeads: Lead[] = [];
-            try {
-                allLeads = await db.getAll('leads');
-            } catch (e) {
-                console.warn('Leads store might not exist yet', e);
-            }
-
             const custMap: Record<string, Customer> = {};
             allCustomers.forEach(c => custMap[c.id] = c);
             setCustomers(custMap);
@@ -84,7 +71,7 @@ export default function NeedsActionPage() {
 
     useEffect(() => {
         loadData();
-    }, []);
+    }, [isImpersonating, impersonatedBusinessId]);
 
     const handleAction = async (jobId: string, action: any) => {
         try {

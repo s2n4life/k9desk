@@ -43,10 +43,15 @@ interface GroomerDB extends DBSchema {
         value: any; // Using any to match Lease schema or strict Lead type
         indexes: { 'by-status': string };
     };
+    dead_letter: {
+        key: string;
+        value: SyncQueueItem & { failureReason?: string; failedAt: number };
+        indexes: { 'by-timestamp': number };
+    };
 }
 
 const DB_NAME = 'groomer-crm-db';
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 
 let dbPromise: Promise<IDBPDatabase<GroomerDB>>;
 
@@ -103,6 +108,12 @@ export const getDB = () => {
                 if (!db.objectStoreNames.contains('leads')) {
                     const store = db.createObjectStore('leads', { keyPath: 'id' });
                     store.createIndex('by-status', 'status');
+                }
+
+                // Dead Letter Queue (v6)
+                if (!db.objectStoreNames.contains('dead_letter')) {
+                    const store = db.createObjectStore('dead_letter', { keyPath: 'id' });
+                    store.createIndex('by-timestamp', 'timestamp');
                 }
             },
         });

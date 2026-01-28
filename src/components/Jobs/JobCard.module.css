@@ -1,7 +1,8 @@
 .jobCard {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
+    gap: var(--space-2);
+    /* Reduced gap */
     padding: var(--space-4);
     margin-bottom: var(--space-3);
     position: relative;
@@ -18,7 +19,15 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: var(--space-1);
+    margin-bottom: 0;
+    /* Remove bottom margin to reduce whitespace */
+}
+
+.customerName {
+    font-size: var(--font-size-lg);
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.2;
 }
 
 .timeBadge {
@@ -31,22 +40,24 @@
     border-radius: var(--radius-md);
     font-size: var(--font-size-sm);
     color: var(--text-secondary);
+    /* Positioned top right */
+}
+
+.statusWrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: var(--space-2);
 }
 
 .stateBadge {
-    font-size: 11px;
+    font-size: var(--font-size-base);
+    /* Larger font */
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    padding: 4px 8px;
+    padding: 4px 12px;
     border-radius: var(--radius-sm);
-}
-
-.customerName {
-    font-size: var(--font-size-lg);
-    font-weight: 800;
-    color: var(--text-primary);
-    line-height: 1.2;
 }
 
 .metaRow {

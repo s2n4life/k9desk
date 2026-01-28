@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import { getDB } from '@/lib/db';
 import { Job, Customer, Pet, JobState, Settings, Service } from '@/lib/db/schema';
 import { JobStateMachine, JobAction } from '@/lib/jobs/stateMachine';
-import { addToSyncQueue } from '@/lib/db/sync';
+import { saveWithSync } from '@/lib/db/transactions';
 import { triggerSMSAction } from '@/lib/sms';
 import { v4 as uuidv4 } from 'uuid';
 import { formatTime12Hour } from '@/lib/format';
@@ -101,29 +101,35 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
 
     const saveCustomer = async (data: Partial<Customer>) => {
         if (!customer) return;
-        const db = await getDB();
         const updated = { ...customer, ...data, updatedAt: Date.now() };
-        await db.put('customers', updated);
-        await addToSyncQueue('UPDATE', 'CUSTOMER', customer.id, updated);
+
+        const { getActiveBusinessIdSync } = await import('@/contexts/ImpersonationContext');
+        const businessId = getActiveBusinessIdSync();
+
+        await saveWithSync('customers', updated, 'UPDATE', businessId || undefined);
         setCustomer(updated);
         setCustomerModalOpen(false);
     };
 
     const saveJobNotes = async () => {
         if (!job) return;
-        const db = await getDB();
         const updated = { ...job, jobNotes, updatedAt: Date.now() };
-        await db.put('jobs', updated);
-        await addToSyncQueue('UPDATE', 'JOB', id, updated);
+
+        const { getActiveBusinessIdSync } = await import('@/contexts/ImpersonationContext');
+        const businessId = getActiveBusinessIdSync();
+
+        await saveWithSync('jobs', updated, 'UPDATE', businessId || undefined);
         setJob(updated);
     };
 
     const updateJobServices = async (newServices: Service[]) => {
         if (!job) return;
-        const db = await getDB();
         const updated = { ...job, services: newServices, updatedAt: Date.now() };
-        await db.put('jobs', updated);
-        await addToSyncQueue('UPDATE', 'JOB', id, updated);
+
+        const { getActiveBusinessIdSync } = await import('@/contexts/ImpersonationContext');
+        const businessId = getActiveBusinessIdSync();
+
+        await saveWithSync('jobs', updated, 'UPDATE', businessId || undefined);
         setJob(updated);
     };
 
@@ -147,8 +153,11 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
             const existing = await db.get('pets', editingPetId);
             if (existing) {
                 const updated = { ...existing, name: pName, breed: pBreed, size: pSize, age: pAge, notes: pNotes, updatedAt: Date.now() };
-                await db.put('pets', updated);
-                await addToSyncQueue('UPDATE', 'PET', editingPetId, updated);
+
+                const { getActiveBusinessIdSync } = await import('@/contexts/ImpersonationContext');
+                const businessId = getActiveBusinessIdSync();
+
+                await saveWithSync('pets', updated, 'UPDATE', businessId || undefined);
                 setPets(prev => prev.map(p => p.id === editingPetId ? updated : p));
             }
         }
@@ -167,10 +176,12 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
 
     const saveSchedule = async () => {
         if (!job) return;
-        const db = await getDB();
         const updated = { ...job, scheduledDate: newDate, scheduledTime: newTime, updatedAt: Date.now() };
-        await db.put('jobs', updated);
-        await addToSyncQueue('UPDATE', 'JOB', id, updated);
+
+        const { getActiveBusinessIdSync } = await import('@/contexts/ImpersonationContext');
+        const businessId = getActiveBusinessIdSync();
+
+        await saveWithSync('jobs', updated, 'UPDATE', businessId || undefined);
         setJob(updated);
         setRescheduleModalOpen(false);
     };
@@ -199,7 +210,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
         if (!job) return null;
         if (job.state === JobState.Scheduled) return { label: 'Send Reminder Text', action: 'SEND_REMINDER' as JobAction, color: 'btn-primary' };
         if (job.state === JobState.ReminderSent) return { label: 'Start Job', action: 'MARK_IN_PROGRESS' as JobAction, color: 'btn-primary' };
-        if (job.state === JobState.InProgress) return { label: 'Complete Job', action: 'MARK_COMPLETE' as JobAction, color: 'btn-success' };
+        if (job.state === JobState.InProgress) return { label: 'Finish Job', action: 'MARK_COMPLETE' as JobAction, color: 'btn-success' };
         if (job.state === JobState.Completed) return { label: 'Ask for payment', action: 'REQUEST_PAYMENT' as JobAction, color: 'btn-primary' };
         if (job.state === JobState.PaymentRequested) return { label: 'Log Payment', action: 'LOG_PAYMENT' as JobAction, color: 'btn-secondary' };
         if (job.state === JobState.Paid) return { label: 'Ask for review', action: 'SEND_REVIEW_REQUEST' as JobAction, color: 'btn-primary' };

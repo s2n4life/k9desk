@@ -71,19 +71,21 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
 
     return (
         <div className={clsx('card', styles.jobCard)}>
-            <Link href={`/jobs/${job.id}`} className={styles.touchArea}>
-                <div className={styles.header}>
-                    <div className={styles.timeBadge}>
-                        <Clock size={14} className={styles.timeIcon} />
-                        <span>{formatTime12Hour(job.scheduledTime)}</span>
-                    </div>
-                    <div className={styles.stateBadge} style={{ color: config.color, background: `${config.color}15` }}>
-                        {config.label}
-                    </div>
+            <div className={styles.statusWrapper}>
+                <div className={styles.stateBadge} style={{ color: config.color, background: `${config.color}15` }}>
+                    Status: {config.label}
                 </div>
+            </div>
 
+            <div className={styles.header}>
                 <h3 className={styles.customerName}>{customerName}</h3>
+                <div className={styles.timeBadge}>
+                    <Clock size={14} className={styles.timeIcon} />
+                    <span>{formatTime12Hour(job.scheduledTime)}</span>
+                </div>
+            </div>
 
+            <Link href={`/jobs/${job.id}`} className={styles.touchArea}>
                 <div className={styles.petsContainer}>
                     <div className={styles.metaRow}>
                         <Dog size={16} className={styles.icon} />
@@ -110,6 +112,7 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
                     </div>
                 </div>
             </Link>
+
 
             {job.state === JobState.Completed || job.state === JobState.PaymentRequested ? (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginTop: 'var(--space-4)' }}>

@@ -78,11 +78,16 @@ export class JobStateMachine {
             updatedAt: Date.now(),
         };
 
-        await db.put('jobs', updatedJob);
-        await addToSyncQueue('UPDATE', 'JOB', jobId, updatedJob);
+        const { getActiveBusinessIdSync } = await import('@/contexts/ImpersonationContext');
+        const { saveWithSync } = await import('@/lib/db/transactions');
+        const businessId = getActiveBusinessIdSync();
+
+        await saveWithSync('jobs', updatedJob, 'UPDATE', businessId || undefined);
 
         // Notify UI of changes
         window.dispatchEvent(new CustomEvent('data-changed'));
+
+        return updatedJob;
 
         // In a real implementation with sync, we would queue this change here
         // queueSync('UPDATE', 'JOB', jobId, { state: nextState });

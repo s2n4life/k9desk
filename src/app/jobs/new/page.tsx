@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { Modal } from '@/components/UI/Modal';
 import { addToSyncQueue } from '@/lib/db/sync';
+import { saveWithSync, deleteWithSync } from '@/lib/db/transactions';
 import { createClient } from '@/utils/supabase/client';
 import { useImpersonationContextSafe } from '@/contexts/ImpersonationContext';
 import { checkStorageQuota } from '@/lib/storage-monitor';
@@ -322,8 +323,9 @@ const NewJobContent = () => {
                 notes: cNotes,
                 updatedAt: Date.now()
             };
-            await db.put('customers', updated);
-            await addToSyncQueue('UPDATE', 'CUSTOMER', cFormId, updated);
+
+            const activeBusinessId = await getActiveBusinessId();
+            await saveWithSync('customers', updated, 'UPDATE', activeBusinessId || undefined);
 
             // Local state update
             setAllCustomers(prev => prev.map(p => p.id === cFormId ? updated : p));
@@ -343,8 +345,9 @@ const NewJobContent = () => {
                 createdAt: Date.now(),
                 updatedAt: Date.now()
             };
-            await db.put('customers', newC);
-            await addToSyncQueue('CREATE', 'CUSTOMER', newId, newC);
+
+            const activeBusinessId = await getActiveBusinessId();
+            await saveWithSync('customers', newC, 'CREATE', activeBusinessId || undefined);
 
             setAllCustomers(prev => [...prev, newC]);
             setSelectedCustomerId(newId);
@@ -415,8 +418,8 @@ const NewJobContent = () => {
                 notes: pNotes,
                 updatedAt: Date.now()
             };
-            await db.put('pets', updated);
-            await addToSyncQueue('UPDATE', 'PET', pFormId, updated);
+            const activeBusinessId = await getActiveBusinessId();
+            await saveWithSync('pets', updated, 'UPDATE', activeBusinessId || undefined);
 
             setAllPets(prev => prev.map(p => p.id === pFormId ? updated : p));
             setPetModalOpen(false);
@@ -434,8 +437,8 @@ const NewJobContent = () => {
                 createdAt: Date.now(),
                 updatedAt: Date.now()
             };
-            await db.put('pets', newP);
-            await addToSyncQueue('CREATE', 'PET', newId, newP);
+            const activeBusinessId = await getActiveBusinessId();
+            await saveWithSync('pets', newP, 'CREATE', activeBusinessId || undefined);
 
             setAllPets(prev => [...prev, newP]);
             setSelectedPetIds(prev => [...prev, newId]); // Auto-select new pet
@@ -470,9 +473,8 @@ const NewJobContent = () => {
 
     const deleteService = async (id: string) => {
         if (!confirm('Delete this service?')) return;
-        const db = await getDB();
-        await db.delete('services', id);
-        await addToSyncQueue('DELETE', 'SERVICE', id);
+        const activeBusinessId = await getActiveBusinessId();
+        await deleteWithSync('services', id, activeBusinessId || undefined);
         setAllServices(prev => prev.filter(s => s.id !== id));
         setSelectedServices(prev => prev.filter(s => s.id !== id)); // This might remove from all pets, which is correct
     };
@@ -494,8 +496,8 @@ const NewJobContent = () => {
                 price: priceNum,
                 createdAt: Date.now() // technically preserve old date but this is fine
             };
-            await db.put('services', updatedS);
-            await addToSyncQueue('UPDATE', 'SERVICE', editingServiceId, updatedS);
+            const activeBusinessId = await getActiveBusinessId();
+            await saveWithSync('services', updatedS, 'UPDATE', activeBusinessId || undefined);
             setAllServices(prev => prev.map(s => s.id === editingServiceId ? updatedS : s));
             setSelectedServices(prev => prev.map(s => s.id === editingServiceId ? updatedS : s));
             setCreateServiceMode(false);
@@ -509,8 +511,8 @@ const NewJobContent = () => {
                 price: priceNum,
                 createdAt: Date.now()
             };
-            await db.put('services', newS);
-            await addToSyncQueue('CREATE', 'SERVICE', newId, newS);
+            const activeBusinessId = await getActiveBusinessId();
+            await saveWithSync('services', newS, 'CREATE', activeBusinessId || undefined);
             setAllServices(prev => [...prev, newS]);
             setSelectedServices(prev => [...prev, newS]);
             setCreateServiceMode(false);
@@ -545,7 +547,7 @@ const NewJobContent = () => {
         const customer = allCustomers.find(c => c.id === selectedCustomerId);
         const myPets = allPets.filter(p => selectedPetIds.includes(p.id));
 
-        await db.put('jobs', {
+        const newJob = {
             id: jobId,
             customerId: selectedCustomerId,
             petIds: selectedPetIds,
@@ -559,37 +561,17 @@ const NewJobContent = () => {
             petNotes: myPets.map(p => `${p.name}: ${p.notes}`).join('\n'), // Snapshot
             createdAt: Date.now(),
             updatedAt: Date.now()
-        });
+        };
 
-        // Pass businessId if available (from context)
-        await addToSyncQueue('CREATE', 'JOB', jobId, {
-            id: jobId,
-            customerId: selectedCustomerId,
-            petIds: selectedPetIds,
-            state: JobState.Scheduled,
-            scheduledDate: date,
-            scheduledTime: time,
-            address: jobAddress,
-            jobNotes,
-            services: selectedServices,
-            customerNotes: customer?.notes,
-            petNotes: myPets.map(p => `${p.name}: ${p.notes}`).join('\n'),
-            updatedAt: Date.now()
-        }, activeBusinessId || undefined);
+        await saveWithSync('jobs', newJob, 'CREATE', activeBusinessId || undefined);
 
         // -- AUTO-UPDATE LEAD STATUS --
         if (leadId) {
-            const leadUpdate: Partial<Lead> = {
-                status: 'scheduled',
-                // @ts-ignore - Lead interface might use string for dates? schema says createdAt string. 
-                // We don't have an updatedAt on Lead schema yet? 
-                // Let's just update the status field.
-            };
-
             // We need to update local DB and Sync.
             // First fetch the lead to be safe or just patch it? 
             // IDB 'leads' store.
-            let leadToUpdate = await db.get('leads', leadId);
+            const dbRef = await getDB();
+            let leadToUpdate = await dbRef.get('leads', leadId);
 
             // Fallback: If not found in DB (race condition?), use our state which we know we have
             if (!leadToUpdate && convertingLead && convertingLead.id === leadId) {
@@ -597,10 +579,8 @@ const NewJobContent = () => {
             }
 
             if (leadToUpdate) {
-                const updatedLead = { ...leadToUpdate, status: 'scheduled' };
-                await db.put('leads', updatedLead);
-                // Ensure we pass the businessId explicitly to the sync queue
-                await addToSyncQueue('UPDATE', 'LEAD', leadId, updatedLead, activeBusinessId || undefined);
+                const updatedLead = { ...leadToUpdate, status: 'scheduled' as const };
+                await saveWithSync('leads', updatedLead, 'UPDATE', activeBusinessId || undefined);
             }
         }
 

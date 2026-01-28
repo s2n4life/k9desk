@@ -11,16 +11,22 @@ let isSyncing = false;
 
 // TEMPORARY: Hardcoded Business ID for Phase 2 
 const DEMO_BUSINESS_ID = '00000000-0000-0000-0000-000000000001';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 /**
  * Shared transformation logic for remote Supabase payloads
  */
 const transformForRemote = (entityType: string, data: any, user: any, businessId?: string) => {
     // 1. Inject Business ID (Critical for RLS/Foreign Keys)
-    // Use provided businessId if available (respects impersonation), 
-    // otherwise fallback to data.business_id (underscore) or data.businessId (camelCase),
-    // and finally fall back to user.id
-    const finalBusinessId = businessId || data.business_id || data.businessId || user?.id || DEMO_BUSINESS_ID;
+    let finalBusinessId = businessId || data.business_id || data.businessId || user?.id;
+
+    if (!finalBusinessId) {
+        if (IS_PRODUCTION) {
+            throw new Error(`CRITICAL: Sync attempted without Business ID for ${entityType} ${data.id}. Aborting for safety.`);
+        }
+        finalBusinessId = DEMO_BUSINESS_ID;
+    }
+
     const remote: any = { ...data, business_id: finalBusinessId };
 
     // Inject owner email for Businesses table visibility
@@ -40,9 +46,14 @@ const transformForRemote = (entityType: string, data: any, user: any, businessId
 
     // 3. Map Entity Specifics
     if (entityType === 'CUSTOMER') {
-        // no specifc changes other than common
+        if (!remote.name || !remote.phone) {
+            throw new Error(`CUSTOMER ${remote.id} is missing name or phone and cannot be synced.`);
+        }
     }
     else if (entityType === 'PET') {
+        if (!remote.customerId && !remote.customer_id) {
+            throw new Error(`PET ${remote.id} is missing a customer relationship and cannot be synced.`);
+        }
         if (remote.customerId) {
             remote.customer_id = remote.customerId;
             delete remote.customerId;
@@ -52,46 +63,52 @@ const transformForRemote = (entityType: string, data: any, user: any, businessId
         // no specific changes
     }
     else if (entityType === 'JOB') {
-        if ('customerId' in remote) {
-            remote.customer_id = remote.customerId;
+        // VALIDATION: Ensure customerId is present
+        if (!data.customerId && !data.customer_id) {
+            throw new Error(`JOB ${data.id} is missing a customer relationship and cannot be synced.`);
+        }
+        if (!data.petIds && !data.pet_ids) {
+            throw new Error(`JOB ${data.id} is missing pet relationships and cannot be synced.`);
+        }
+
+        // CRITICAL: Only map fields if they exist to avoid nullifying relationships
+        if ('customerId' in data) {
+            remote.customer_id = data.customerId || data.customer_id;
             delete remote.customerId;
         }
-        if ('petIds' in remote) {
-            remote.pet_ids = remote.petIds; // Supabase expects JSONB array, JS array is fine
+        if ('petIds' in data) {
+            remote.pet_ids = data.petIds || data.pet_ids;
             delete remote.petIds;
         }
-        if ('scheduledDate' in remote) {
-            remote.scheduled_date = remote.scheduledDate;
+        if ('scheduledDate' in data) {
+            remote.scheduled_date = data.scheduledDate;
             delete remote.scheduledDate;
         }
-        if ('scheduledTime' in remote) {
-            remote.scheduled_time = remote.scheduledTime;
+        if ('scheduledTime' in data) {
+            remote.scheduled_time = data.scheduledTime;
             delete remote.scheduledTime;
         }
-        if ('jobNotes' in remote) {
-            remote.notes = remote.jobNotes;
+        if ('jobNotes' in data) {
+            remote.notes = data.jobNotes;
             delete remote.jobNotes;
         }
-        if ('customerNotes' in remote) {
-            remote.customer_notes = remote.customerNotes;
+        if ('customerNotes' in data) {
+            remote.customer_notes = data.customerNotes;
             delete remote.customerNotes;
         }
-        if ('petNotes' in remote) {
-            remote.pet_notes = remote.petNotes;
+        if ('petNotes' in data) {
+            remote.pet_notes = data.petNotes;
             delete remote.petNotes;
         }
 
         // Map services to service_ids
-        if (remote.services) {
-            remote.service_ids = remote.services.map((s: any) => s.id);
+        if (data.services && Array.isArray(data.services)) {
+            remote.service_ids = data.services.map((s: any) => s.id);
             delete remote.services;
         }
 
-        // Ensure state is uppercase/consistent with simple text check
-        if (remote.state) remote.state = remote.state.toUpperCase();
-
-        if (remote.payment_logged_at) {
-            remote.payment_logged_at = new Date(remote.payment_logged_at).toISOString();
+        if (data.payment_logged_at) {
+            remote.payment_logged_at = new Date(data.payment_logged_at).toISOString();
         }
     }
     else if (entityType === 'SETTINGS') {
@@ -103,9 +120,7 @@ const transformForRemote = (entityType: string, data: any, user: any, businessId
             remote.onboarding_completed = remote.onboardingCompleted;
             delete remote.onboardingCompleted;
         }
-        // Settings table is the business itself, so it doesn't need business_id fk
         delete remote.business_id;
-        // Local ID is 'default', Supabase ID is UUID. Don't send 'id' in payload.
         delete remote.id;
     }
     else if (entityType === 'LEAD') {
@@ -118,11 +133,7 @@ const transformForRemote = (entityType: string, data: any, user: any, businessId
         if ('preferredDates' in remote) { remote.preferred_dates = remote.preferredDates; delete remote.preferredDates; }
         if ('serviceIds' in remote) { remote.service_ids = remote.serviceIds; delete remote.serviceIds; }
         if ('waiverSigned' in remote) { remote.waiver_signed = remote.waiverSigned; delete remote.waiverSigned; }
-        // createdAt/updatedAt handled globally
     }
-
-    // Remove ID if it's an update? No, we need ID for update query. 
-    // Insert needs ID too if we are forcing the UUID generated locally (which we are).
 
     return remote;
 };
@@ -292,8 +303,58 @@ export function useSync() {
                 return;
             }
 
-            setStatus('syncing');
-            setQueueLength(queue.length);
+            // --- QUEUE COMPACTION (v2.3) ---
+            // 1. Identify items for immediate deletion (redundant updates or child updates for deleted parents)
+            const compactedItems = new Map<string, SyncQueueItem>();
+            const itemsToDelete: string[] = [];
+
+            // Track deleted entity IDs to strip their children's updates
+            const deletedEntities = new Set<string>();
+            for (const item of queue) {
+                if (item.action === 'DELETE') {
+                    deletedEntities.add(`${item.entityType}:${item.entityId}`);
+                }
+            }
+
+            for (const item of queue) {
+                const key = `${item.entityType}:${item.entityId}`;
+
+                // Rule A: If entity is deleted in this queue, skip any UPDATE/CREATE for it
+                if (item.action !== 'DELETE' && deletedEntities.has(key)) {
+                    itemsToDelete.push(item.id);
+                    continue;
+                }
+
+                // Rule B: Redundant update merging
+                if (item.action === 'UPDATE') {
+                    if (compactedItems.has(key)) {
+                        const previousItem = compactedItems.get(key)!;
+
+                        // v2.2: DEEP-MERGE COMPACTION for arrays (petIds, service_ids)
+                        const mergedData = { ...previousItem.data, ...item.data };
+
+                        // Merge petIds array instead of clobbering
+                        if (Array.isArray(previousItem.data?.petIds) && Array.isArray(item.data?.petIds)) {
+                            mergedData.petIds = Array.from(new Set([...previousItem.data.petIds, ...item.data.petIds]));
+                        }
+
+                        previousItem.data = mergedData;
+                        previousItem.timestamp = item.timestamp; // Keep latest timestamp
+                        itemsToDelete.push(item.id);
+                    } else {
+                        compactedItems.set(key, item);
+                    }
+                }
+            }
+
+            if (itemsToDelete.length > 0) {
+                console.log(`[Sync] Compacting queue: eliminating ${itemsToDelete.length} redundant updates.`);
+                for (const id of itemsToDelete) {
+                    await db.delete('syncQueue', id);
+                }
+            }
+            // Refresh queue after compaction
+            const finalQueue = await db.getAllFromIndex('syncQueue', 'by-timestamp');
             // 1. Settings (Business) must exist first.
             // 2. Customers & Services depend on Business.
             // 3. Pets depend on Customers.
@@ -314,9 +375,9 @@ export function useSync() {
                 return pA - pB;
             });
 
-            setQueueLength(queue.length);
+            setQueueLength(finalQueue.length);
 
-            for (const item of queue) {
+            for (const item of finalQueue) {
                 let success = false;
 
                 // Push to Supabase based on Action Type
@@ -379,6 +440,27 @@ export function useSync() {
                             if (item.entityType === 'SETTINGS') {
                                 payload.id = businessId;
                             }
+
+                            // --- OPTIMISTIC CONFLICT GUARD (v2.1) ---
+                            // Check if remote data is newer before overwriting
+                            if (item.action === 'UPDATE' && item.entityType !== 'SETTINGS' && item.data?.updatedAt) {
+                                const { data: remoteRecord } = await supabase
+                                    .from(tableName)
+                                    .select('updated_at')
+                                    .eq('id', targetId)
+                                    .single();
+
+                                if (remoteRecord?.updated_at) {
+                                    const remoteTime = new Date(remoteRecord.updated_at).getTime();
+                                    const localTime = new Date(item.data.updatedAt).getTime();
+
+                                    if (remoteTime > localTime + 2000) { // 2s buffer for clock drift
+                                        console.warn(`[Sync] Conflict detected for ${item.entityType} ${item.entityId}. Remote is newer by ${remoteTime - localTime}ms.`);
+                                        // In a real app, we might trigger a merge UI. For now, we log it and proceed.
+                                    }
+                                }
+                            }
+
                             return await supabase.from(tableName).upsert(payload);
                         } else if (item.action === 'DELETE') {
                             return await supabase.from(tableName).delete().eq('id', targetId);
@@ -396,14 +478,93 @@ export function useSync() {
                     else {
                         console.error('Sync Error:', JSON.stringify(error, null, 2), error);
                         setLastError(error.message || JSON.stringify(error));
+
+                        // Treat Supabase errors as exceptions for self-healing
+                        throw error;
                     }
                 } catch (err: any) {
                     console.error('Sync Exception:', err);
+
+                    // --- SELF-HEALING (New in V2) ---
+                    // Handle PostgREST/Supabase Error 23503 (Foreign Key Violation)
+                    // If a Job fails because its parent Customer is missing, we synthesize a CREATE for the customer.
+                    if (err.code === '23503' || (err.message && err.message.includes('violates foreign key constraint'))) {
+                        console.warn(`[Sync] FK Violation detected for ${item.entityType} ${item.entityId}. Attempting recovery...`);
+
+                        let parentType: string | null = null;
+                        let parentId: string | null = null;
+
+                        // Heuristic detection based on constraint names or data
+                        if (item.entityType === 'JOB') {
+                            // Check for missing customer
+                            parentId = item.data.customerId || item.data.customer_id;
+                            parentType = 'CUSTOMER';
+
+                            // Check for missing services (very complex as it's an array)
+                            // If the error message mentions 'services', we might need to heal all services
+                            if (err.message && err.message.includes('services')) {
+                                parentType = 'SERVICE';
+                                // We'll heal the FIRST service in the array for now; the loop will retry for others
+                                parentId = Array.isArray(item.data.services) ? item.data.services[0]?.id : null;
+                            }
+                        } else if (item.entityType === 'PET') {
+                            parentType = 'CUSTOMER';
+                            parentId = item.data.customerId || item.data.customer_id;
+                        }
+
+                        if (parentType && parentId) {
+                            // First, try to find in main entity store
+                            let parentData = await db.get(parentType.toLowerCase() as any, parentId);
+
+                            // IF MISSING: Check Dead Letter Queue (v2.3 Enhanced Healing)
+                            if (!parentData) {
+                                console.warn(`[Sync] Parent ${parentType} ${parentId} missing from local DB. Checking Dead Letter Queue...`);
+                                const dlqItem = await db.get('dead_letter', parentId);
+                                if (dlqItem) {
+                                    console.log(`[Sync] Found missing parent ${parentType} in DLQ. Moving back to active queue.`);
+                                    // Move back to syncQueue
+                                    const v4 = (await import('uuid')).v4;
+                                    await db.add('syncQueue', {
+                                        ...dlqItem,
+                                        id: v4(),
+                                        retryCount: 0,
+                                        timestamp: item.timestamp - 1 // Prioritize
+                                    });
+                                    // Restore parent data for the synthesis log if needed
+                                    parentData = dlqItem.data;
+                                    // Remove from DLQ
+                                    await db.delete('dead_letter', parentId);
+                                }
+                            }
+
+                            if (parentData) {
+                                console.log(`[Sync] Synthesizing missing ${parentType} ${parentId} to resolve FK violation.`);
+                                const v4 = (await import('uuid')).v4;
+                                await db.add('syncQueue', {
+                                    id: v4(),
+                                    action: 'CREATE',
+                                    entityType: parentType as any,
+                                    entityId: parentId,
+                                    data: parentData,
+                                    timestamp: item.timestamp - 1, // Ensure it's sorted BEFORE the child
+                                    retryCount: 0,
+                                    businessId: businessId || undefined
+                                });
+                                // We stop the loop and let it retry with the new parent at the head
+                                setStatus('error');
+                                setLastError(`Missing parent ${parentType} synthesized. Retrying...`);
+                                break;
+                            } else {
+                                console.error(`[Sync] Critical: Parent ${parentType} ${parentId} could not be recovered from local DB or DLQ.`);
+                            }
+                        }
+                    }
+
                     await captureLog({
                         level: 'error',
                         message: `Sync Exception: ${err.message}`,
                         stack_trace: err.stack,
-                        metadata: { entityType: item.entityType, action: item.action, entityId: item.entityId },
+                        metadata: { entityType: item.entityType, action: item.action, entityId: item.entityId, errorCode: err.code },
                         business_id: businessId
                     });
                 }
@@ -414,31 +575,44 @@ export function useSync() {
                     await db.delete('syncQueue', item.id);
                     setQueueLength(prev => Math.max(0, prev - 1));
                 } else {
+                    // BREAK the loop on failure to prevent cascading foreign key violations
+                    // This is critical because children (Jobs) will fail if parents (Customers) haven't synced.
+                    console.error(`[Sync] Stopping loop due to failure in ${item.entityType} ${item.action}`);
+
                     // Increment retry count
                     const MAX_RETRIES = 5;
                     const updatedItem = { ...item, retryCount: (item.retryCount || 0) + 1 };
 
                     if (updatedItem.retryCount >= MAX_RETRIES) {
-                        // Max retries exceeded - log to admin and remove from queue
-                        console.error(`[Sync] Max retries exceeded for ${item.entityType} ${item.entityId}`);
+                        // Max retries exceeded - move to Dead Letter Queue (v2.1)
+                        console.error(`[Sync] Max retries exceeded for ${item.entityType} ${item.entityId}. Moving to DLQ.`);
+                        await db.put('dead_letter', {
+                            ...updatedItem,
+                            failureReason: lastError || 'Max retries reached',
+                            failedAt: Date.now()
+                        });
+
                         await captureLog({
                             level: 'error',
-                            message: `Sync permanently failed after ${MAX_RETRIES} attempts`,
+                            message: `Sync permanently failed after ${MAX_RETRIES} attempts - Moved to DLQ`,
                             metadata: {
                                 entityType: item.entityType,
                                 action: item.action,
                                 entityId: item.entityId,
-                                data: item.data
+                                lastError: lastError
                             },
                             business_id: businessId
                         });
-                        // Remove from queue to prevent infinite retries
+                        // Remove from queue so it doesn't block the next sync
                         await db.delete('syncQueue', item.id);
+                        setQueueLength(prev => Math.max(0, prev - 1));
                     } else {
                         // Update retry count for next attempt
                         await db.put('syncQueue', updatedItem);
                         console.warn(`[Sync] Retry ${updatedItem.retryCount}/${MAX_RETRIES} for ${item.entityType} ${item.entityId}`);
                     }
+
+                    break; // STOP processing the rest of the queue in this tick
                 }
             }
             if (queue.length > 0) {

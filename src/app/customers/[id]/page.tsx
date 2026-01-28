@@ -4,7 +4,7 @@ import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { getDB } from '@/lib/db';
 import { Customer, Pet, Job } from '@/lib/db/schema';
-import { addToSyncQueue } from '@/lib/db/sync';
+import { saveWithSync, deleteWithSync } from '@/lib/db/transactions';
 import { ChevronLeft, Plus, Calendar, Edit2, Trash2, MapPin, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { v4 as uuidv4 } from 'uuid';
@@ -53,10 +53,12 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
 
     const saveCustomer = async (data: Partial<Customer>) => {
         if (!customer) return;
-        const db = await getDB();
         const updated = { ...customer, ...data, updatedAt: Date.now() };
-        await db.put('customers', updated);
-        await addToSyncQueue('UPDATE', 'CUSTOMER', customer.id, updated);
+
+        const { getActiveBusinessIdSync } = await import('@/contexts/ImpersonationContext');
+        const businessId = getActiveBusinessIdSync();
+
+        await saveWithSync('customers', updated, 'UPDATE', businessId || undefined);
         setCustomer(updated);
         setCustomerModalOpen(false);
     };
@@ -64,13 +66,15 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
     const savePet = async (data: Partial<Pet>) => {
         const db = await getDB();
 
+        const { getActiveBusinessIdSync } = await import('@/contexts/ImpersonationContext');
+        const businessId = getActiveBusinessIdSync();
+
         if (editingPetId) {
             // Edit
             const p = await db.get('pets', editingPetId);
             if (p) {
                 const updated = { ...p, ...data, updatedAt: Date.now() };
-                await db.put('pets', updated);
-                await addToSyncQueue('UPDATE', 'PET', editingPetId, updated);
+                await saveWithSync('pets', updated, 'UPDATE', businessId || undefined);
                 setPets(prev => prev.map(pt => pt.id === editingPetId ? updated : pt));
             }
         } else {
@@ -86,8 +90,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                 createdAt: Date.now(),
                 updatedAt: Date.now()
             };
-            await db.put('pets', newPet);
-            await addToSyncQueue('CREATE', 'PET', newId, newPet);
+            await saveWithSync('pets', newPet, 'CREATE', businessId || undefined);
             setPets(prev => [...prev, newPet]);
         }
         setPetModalOpen(false);
@@ -95,9 +98,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
 
     const deletePet = async (petId: string) => {
         if (!confirm('Are you sure you want to delete this pet permanently?')) return;
-        const db = await getDB();
-        await db.delete('pets', petId);
-        await addToSyncQueue('DELETE', 'PET', petId);
+        const { getActiveBusinessIdSync } = await import('@/contexts/ImpersonationContext');
+        const businessId = getActiveBusinessIdSync();
+        await deleteWithSync('pets', petId, businessId || undefined);
         setPets(prev => prev.filter(p => p.id !== petId));
     };
 
@@ -106,23 +109,61 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
         if (!confirm('Are you sure you want to delete this customer and all their pets/jobs? This cannot be undone.')) return;
 
         const db = await getDB();
+        const { getActiveBusinessIdSync } = await import('@/contexts/ImpersonationContext');
+        const businessId = getActiveBusinessIdSync();
+        const v4 = (await import('uuid')).v4;
 
-        // 1. Delete associated data locally
-        const customerPets = await db.getAllFromIndex('pets', 'by-customer', customer.id);
+        // Atomic multi-store transaction for batch deletion
+        const tx = db.transaction(['customers', 'pets', 'jobs', 'syncQueue'], 'readwrite');
+
+        // 1. Queue Pet deletions
+        const customerPets = await tx.objectStore('pets').index('by-customer').getAll(customer.id);
         for (const p of customerPets) {
-            await db.delete('pets', p.id);
-            await addToSyncQueue('DELETE', 'PET', p.id);
+            await tx.objectStore('pets').delete(p.id);
+            await tx.objectStore('syncQueue').add({
+                id: v4(),
+                action: 'DELETE',
+                entityType: 'PET',
+                entityId: p.id,
+                timestamp: Date.now(),
+                retryCount: 0,
+                businessId: businessId || undefined
+            });
         }
 
-        const customerJobs = await db.getAllFromIndex('jobs', 'by-customer', customer.id);
+        // 2. Queue Job deletions
+        const customerJobs = await tx.objectStore('jobs').index('by-customer').getAll(customer.id);
         for (const j of customerJobs) {
-            await db.delete('jobs', j.id);
-            await addToSyncQueue('DELETE', 'JOB', j.id);
+            await tx.objectStore('jobs').delete(j.id);
+            await tx.objectStore('syncQueue').add({
+                id: v4(),
+                action: 'DELETE',
+                entityType: 'JOB',
+                entityId: j.id,
+                timestamp: Date.now(),
+                retryCount: 0,
+                businessId: businessId || undefined
+            });
         }
 
-        // 2. Delete customer
-        await db.delete('customers', customer.id);
-        await addToSyncQueue('DELETE', 'CUSTOMER', customer.id);
+        // 3. Delete customer
+        await tx.objectStore('customers').delete(customer.id);
+        await tx.objectStore('syncQueue').add({
+            id: v4(),
+            action: 'DELETE',
+            entityType: 'CUSTOMER',
+            entityId: customer.id,
+            timestamp: Date.now(),
+            retryCount: 0,
+            businessId: businessId || undefined
+        });
+
+        await tx.done;
+
+        // Trigger sync
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('trigger-sync'));
+        }
 
         router.push('/customers');
     };

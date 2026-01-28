@@ -46,6 +46,16 @@ export async function hydrateLocalDB(userId: string) {
                 if (processQueueSync) {
                     await processQueueSync();
                 }
+
+                // V2.1: ROBUST HYDRATION LOCK
+                // Verify sync queue is EMPTY before proceeding with db.clear.
+                // If items remain, it means sync failed, and clearing local stores would cause data loss.
+                const remainingCount = await db.count('syncQueue');
+                if (remainingCount > 0) {
+                    console.error(`[Hydration] CRITICAL: ${remainingCount} items failed to sync. ABORTING hydration to preserve local edits.`);
+                    localStorage.setItem('crm_has_hydrated', 'true');
+                    return true; // Use existing local data instead of regressing
+                }
             }
 
             // 0b. CLEAR STORES
