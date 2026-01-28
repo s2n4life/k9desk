@@ -3,10 +3,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getDB } from '@/lib/db';
-import { Customer, Pet, JobState, Service, Lead } from '@/lib/db/schema';
+import { Customer, Pet, JobState, Service, Lead, Settings, Job } from '@/lib/db/schema';
 import { ChevronLeft, Search, Plus, User, Dog, Edit2, Check, X, Scissors, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
+import { useScheduling } from '@/hooks/useScheduling';
 import { Modal } from '@/components/UI/Modal';
 import { addToSyncQueue } from '@/lib/db/sync';
 import { saveWithSync, deleteWithSync } from '@/lib/db/transactions';
@@ -69,6 +70,7 @@ const NewJobContent = () => {
     const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
     const [sName, setSName] = useState('');
     const [sPrice, setSPrice] = useState('');
+    const [sDuration, setSDuration] = useState('60'); // Default 60 mins
 
     // -- Conversion State --
     const [convertingLead, setConvertingLead] = useState<Lead | null>(null);
@@ -88,7 +90,6 @@ const NewJobContent = () => {
         setAllCustomers(customers);
         setAllPets(pets);
         setAllServices(services || []);
-        setAllServices(services || []);
         setLoading(false);
 
         // -- Smart Hydration for Lead --
@@ -96,6 +97,19 @@ const NewJobContent = () => {
             await handleLeadConversion(leadId, customers, services, pets);
         }
     };
+
+    const { availableSlots, totalDuration } = useScheduling(date, selectedServices);
+
+    // Auto-select first available slot if current time is invalid or missing
+    useEffect(() => {
+        if (availableSlots.length > 0) {
+            if (!time || !availableSlots.includes(time)) {
+                setTime(availableSlots[0]);
+            }
+        } else {
+            setTime(''); // No slots available
+        }
+    }, [availableSlots, time]);
 
     const handleLeadConversion = async (lid: string, customers: Customer[], services: Service[], pets: Pet[]) => {
         const db = await getDB();
@@ -495,6 +509,7 @@ const NewJobContent = () => {
         setEditingServiceId(s.id);
         setSName(s.name);
         setSPrice(s.price.toString());
+        setSDuration(s.duration_minutes?.toString() || '60');
         setCreateServiceMode(true);
     };
 
@@ -526,7 +541,7 @@ const NewJobContent = () => {
             const activeBusinessId = await getActiveBusinessId();
             await saveWithSync('services', updatedS, 'UPDATE', activeBusinessId || undefined);
             setAllServices(prev => prev.map(s => s.id === editingServiceId ? updatedS : s));
-            setSelectedServices(prev => prev.map(s => s.id === editingServiceId ? updatedS : s));
+            setSelectedServices(prev => prev.map(s => s.id === editingServiceId ? (s.petId ? { ...updatedS, petId: s.petId } : updatedS) : s));
             setCreateServiceMode(false);
             setEditingServiceId(null);
         } else {
@@ -541,7 +556,7 @@ const NewJobContent = () => {
             const activeBusinessId = await getActiveBusinessId();
             await saveWithSync('services', newS, 'CREATE', activeBusinessId || undefined);
             setAllServices(prev => [...prev, newS]);
-            setSelectedServices(prev => [...prev, newS]);
+            // If picking for pet, it will be handled by the toggle or modal
             setCreateServiceMode(false);
         }
     };
@@ -796,10 +811,41 @@ const NewJobContent = () => {
 
             {/* 4. Schedule & Details */}
             <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
-                <h3 className="text-h2" style={{ fontSize: 'var(--font-size-base)' }}>Schedule</h3>
-                <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                    <input type="date" className="card" value={date} onChange={e => setDate(e.target.value)} style={{ flex: 1 }} required />
-                    <input type="time" className="card" value={time} onChange={e => setTime(e.target.value)} style={{ flex: 1 }} required />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
+                    <h3 className="text-h2" style={{ fontSize: 'var(--font-size-base)', margin: 0 }}>Schedule</h3>
+                    <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                        All appointments: {totalDuration} min
+                    </div>
+                </div>
+
+                <div style={{ marginBottom: 'var(--space-3)' }}>
+                    <input type="date" className="card" value={date} onChange={e => setDate(e.target.value)} style={{ width: '100%' }} required />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 8 }}>
+                    {availableSlots.map(slot => (
+                        <button
+                            key={slot}
+                            onClick={() => setTime(slot)}
+                            style={{
+                                padding: '8px 4px',
+                                borderRadius: 'var(--radius-sm)',
+                                border: time === slot ? '2px solid var(--brand-primary)' : '1px solid var(--border-color)',
+                                background: time === slot ? 'var(--brand-primary-light)' : 'white',
+                                color: time === slot ? 'var(--brand-primary)' : 'var(--text-primary)',
+                                fontWeight: time === slot ? 700 : 400,
+                                fontSize: 'var(--font-size-sm)',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            {format(new Date(`2000-01-01T${slot}`), 'h:mm a')}
+                        </button>
+                    ))}
+                    {availableSlots.length === 0 && (
+                        <div style={{ gridColumn: '1 / -1', padding: 'var(--space-3)', textAlign: 'center', color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)' }}>
+                            No available slots for this date/duration.
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -891,9 +937,11 @@ const NewJobContent = () => {
                                                 display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                                             }}
                                         >
-                                            <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', marginRight: 8 }}>
+                                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginRight: 8 }}>
                                                 <span style={{ fontWeight: 600, fontSize: 'var(--font-size-base)' }}>{s.name}</span>
-                                                <span style={{ fontSize: 'var(--font-size-base)' }}>${s.price}</span>
+                                                <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-tertiary)' }}>
+                                                    ${s.price}
+                                                </span>
                                             </div>
                                             <div style={{ display: 'flex', gap: 8 }}>
                                                 <button onClick={() => startEditService(s)} style={{ background: 'none', border: 'none', padding: 4 }}>

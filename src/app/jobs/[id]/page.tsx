@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { formatTime12Hour } from '@/lib/format';
 
 import { ChevronLeft, MapPin, Clock, Send, CreditCard, Star, CheckSquare, DollarSign, Edit2, Trash2, Plus, AlertTriangle, Scissors, X, Phone, MessageCircle } from 'lucide-react';
+import { useScheduling } from '@/hooks/useScheduling';
 import Link from 'next/link';
 import { PaymentModal } from '@/components/Jobs/PaymentModal';
 import { Modal } from '@/components/UI/Modal';
@@ -98,6 +99,17 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     useEffect(() => {
         loadData();
     }, [id]);
+
+    const { availableSlots, totalDuration } = useScheduling(newDate, job?.services || [], job?.id);
+
+    // Auto-select first available slot if current time is invalid
+    useEffect(() => {
+        if (rescheduleModalOpen && availableSlots.length > 0) {
+            if (!newTime || !availableSlots.includes(newTime)) {
+                setNewTime(availableSlots[0]);
+            }
+        }
+    }, [availableSlots, newTime, rescheduleModalOpen]);
 
     const saveCustomer = async (data: Partial<Customer>) => {
         if (!customer) return;
@@ -406,24 +418,49 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 </div>
             )}
 
-            {/* Reschedule Modal */}
             <Modal
                 isOpen={rescheduleModalOpen}
                 onClose={() => setRescheduleModalOpen(false)}
                 title="Reschedule Job"
                 footer={(
-                    <button onClick={saveSchedule} className="btn btn-primary" style={{ width: '100%' }}>Save New Time</button>
+                    <button onClick={saveSchedule} className="btn btn-primary" style={{ width: '100%' }} disabled={!newTime}>Save New Time</button>
                 )}
             >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                    <label>
-                        <span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>Date</span>
-                        <input className="card" type="date" value={newDate} onChange={e => setNewDate(e.target.value)} />
-                    </label>
-                    <label>
-                        <span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>Time</span>
-                        <input className="card" type="time" value={newTime} onChange={e => setNewTime(e.target.value)} />
-                    </label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>Target Date</span>
+                        <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>
+                            Setting: {totalDuration} min
+                        </div>
+                    </div>
+                    <input className="card" type="date" value={newDate} onChange={e => setNewDate(e.target.value)} />
+
+                    <span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', marginTop: 'var(--space-2)' }}>Available Slots</span>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 8, maxHeight: '30vh', overflowY: 'auto', padding: '4px' }}>
+                        {availableSlots.map(slot => (
+                            <button
+                                key={slot}
+                                onClick={() => setNewTime(slot)}
+                                style={{
+                                    padding: '8px 4px',
+                                    borderRadius: 'var(--radius-sm)',
+                                    border: newTime === slot ? '2px solid var(--brand-primary)' : '1px solid var(--border-color)',
+                                    background: newTime === slot ? 'var(--brand-primary-light)' : 'white',
+                                    color: newTime === slot ? 'var(--brand-primary)' : 'var(--text-primary)',
+                                    fontWeight: newTime === slot ? 700 : 400,
+                                    fontSize: 'var(--font-size-sm)',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                {format(new Date(`2000-01-01T${slot}`), 'h:mm a')}
+                            </button>
+                        ))}
+                        {availableSlots.length === 0 && (
+                            <div style={{ gridColumn: '1 / -1', padding: 'var(--space-3)', textAlign: 'center', color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)' }}>
+                                No available slots for this date/duration.
+                            </div>
+                        )}
+                    </div>
                 </div>
             </Modal>
 
@@ -482,7 +519,9 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                                 }}
                             >
                                 <span style={{ fontWeight: 600 }}>{s.name}</span>
-                                <span>${s.price}</span>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                                    <span>${s.price}</span>
+                                </div>
                             </div>
                         );
                     })}

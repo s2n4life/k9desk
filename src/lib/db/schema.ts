@@ -12,7 +12,7 @@ export interface Service {
   id: string;
   name: string;
   price: number;
-  duration_minutes?: number; // Added
+  duration_minutes?: number; // DEPRECATED: No longer used. Scheduling now uses global appointment_duration_minutes from Settings.
   createdAt: number;
 }
 

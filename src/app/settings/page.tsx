@@ -6,7 +6,7 @@ import { Settings, Service } from '@/lib/db/schema';
 import { saveWithSync, deleteWithSync } from '@/lib/db/transactions';
 import { supabase } from '@/lib/supabaseClient';
 import Link from 'next/link';
-import { ChevronLeft, Save, Plus, Trash2, Edit2, ChevronDown, ChevronRight, CreditCard, Store, List, Star, MapPin, X, Check, LogOut } from 'lucide-react';
+import { ChevronLeft, Save, Plus, Trash2, Edit2, ChevronDown, ChevronRight, CreditCard, Store, List, Star, MapPin, X, Check, LogOut, Clock } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { useSync } from '@/hooks/useSync';
 import { useRouter } from 'next/navigation';
@@ -56,7 +56,6 @@ export default function SettingsPage() {
     const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
     const [editName, setEditName] = useState('');
     const [editPrice, setEditPrice] = useState('');
-    const [editDuration, setEditDuration] = useState('60');
 
     // UI State for Business Name Editing
     const [isEditingBusinessName, setIsEditingBusinessName] = useState(false);
@@ -65,7 +64,6 @@ export default function SettingsPage() {
     const [isAddingService, setIsAddingService] = useState(false);
     const [newName, setNewName] = useState('');
     const [newPrice, setNewPrice] = useState('');
-    const [newDuration, setNewDuration] = useState('60');
 
     const [bookingBaseUrl, setBookingBaseUrl] = useState('');
     const [slug, setSlug] = useState('');
@@ -243,13 +241,11 @@ export default function SettingsPage() {
     const confirmAddService = async () => {
         if (!newName) return;
         const price = parseFloat(newPrice || '0');
-        const duration = parseInt(newDuration || '60');
 
         const newService: Service = {
             id: uuidv4(),
             name: newName,
             price,
-            duration_minutes: duration,
             createdAt: Date.now()
         };
 
@@ -259,7 +255,6 @@ export default function SettingsPage() {
         setIsAddingService(false);
         setNewName('');
         setNewPrice('');
-        setNewDuration('60');
     };
 
     const handleDeleteService = async (id: string) => {
@@ -272,17 +267,14 @@ export default function SettingsPage() {
         setEditingServiceId(service.id);
         setEditName(service.name);
         setEditPrice(service.price.toString());
-        setEditDuration(service.duration_minutes?.toString() || '60');
     };
 
     const saveEditService = async () => {
         if (!editingServiceId) return;
-        const db = await getDB();
         const updatedService: Service = {
             id: editingServiceId,
             name: editName,
             price: parseFloat(editPrice || '0'),
-            duration_minutes: parseInt(editDuration || '60'),
             createdAt: Date.now()
         };
         const original = services.find(s => s.id === editingServiceId);
@@ -537,7 +529,74 @@ export default function SettingsPage() {
                             />
                         </div>
                     )}
+                </div>
+            </section>
 
+            {/* Scheduling Defaults Section */}
+            <section className="card" style={{ padding: 'var(--space-6)', marginBottom: 'var(--space-4)' }}>
+                <h3 className="text-h3" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--space-4)' }}>
+                    <Clock size={20} />
+                    Scheduling Defaults
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                    <div>
+                        <label style={{ display: 'block', marginBottom: 'var(--space-2)', fontWeight: 500 }}>Time per Appointment</label>
+                        <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary)', marginBottom: 'var(--space-2)' }}>How long each appointment takes (15-480 min)</p>
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                type="number"
+                                className="input"
+                                placeholder="60"
+                                min="15"
+                                max="480"
+                                value={settings.appointment_duration_minutes || ''}
+                                onChange={e => {
+                                    const val = parseInt(e.target.value || '0');
+                                    if (val >= 15 && val <= 480) {
+                                        handleChange('appointment_duration_minutes', val);
+                                    } else if (e.target.value === '') {
+                                        handleChange('appointment_duration_minutes', undefined);
+                                    }
+                                }}
+                                onBlur={() => {
+                                    if (!settings.appointment_duration_minutes) {
+                                        handleChange('appointment_duration_minutes', 60);
+                                    }
+                                    handleSaveSettings();
+                                }}
+                            />
+                            <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: '14px' }}>min</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label style={{ display: 'block', marginBottom: 'var(--space-2)', fontWeight: 500 }}>Average Drive Time</label>
+                        <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary)', marginBottom: 'var(--space-2)' }}>Buffer time between appointments for travel (0-120 min)</p>
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                type="number"
+                                className="input"
+                                placeholder="30"
+                                min="0"
+                                max="120"
+                                value={settings.drive_buffer_minutes || ''}
+                                onChange={e => {
+                                    const val = parseInt(e.target.value || '0');
+                                    if (val >= 0 && val <= 120) {
+                                        handleChange('drive_buffer_minutes', val);
+                                    } else if (e.target.value === '') {
+                                        handleChange('drive_buffer_minutes', undefined);
+                                    }
+                                }}
+                                onBlur={() => {
+                                    if (settings.drive_buffer_minutes === undefined) {
+                                        handleChange('drive_buffer_minutes', 30);
+                                    }
+                                    handleSaveSettings();
+                                }}
+                            />
+                            <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: '14px' }}>min</span>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -587,7 +646,6 @@ export default function SettingsPage() {
                                 autoFocus
                             />
 
-                            {/* Line 2: Price & Duration */}
                             <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
                                 <div style={{ position: 'relative', flex: 1 }}>
                                     <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: '18px' }}>$</span>
@@ -602,21 +660,6 @@ export default function SettingsPage() {
                                             setNewPrice(val);
                                         }}
                                         style={{ width: '100%', paddingLeft: '32px', height: '54px', fontSize: '18px' }}
-                                    />
-                                </div>
-                                <div style={{ position: 'relative', flex: 1 }}>
-                                    <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: '14px' }}>min</span>
-                                    <input
-                                        className="input"
-                                        type="text"
-                                        inputMode="numeric"
-                                        placeholder="Duration"
-                                        value={newDuration}
-                                        onChange={e => {
-                                            const val = e.target.value.replace(/[^0-9]/g, '');
-                                            setNewDuration(val);
-                                        }}
-                                        style={{ width: '100%', paddingRight: '44px', paddingLeft: '12px', height: '54px', fontSize: '18px' }}
                                     />
                                 </div>
                             </div>
@@ -658,7 +701,7 @@ export default function SettingsPage() {
                                         placeholder="Service Name"
                                     />
 
-                                    {/* Line 2: Price & Duration */}
+                                    {/* Line 2: Price */}
                                     <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
                                         <div style={{ position: 'relative', flex: 1 }}>
                                             <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: '18px' }}>$</span>
@@ -673,21 +716,6 @@ export default function SettingsPage() {
                                                 }}
                                                 style={{ width: '100%', paddingLeft: '32px', height: '54px', fontSize: '18px' }}
                                                 placeholder="0"
-                                            />
-                                        </div>
-                                        <div style={{ position: 'relative', flex: 1 }}>
-                                            <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: '14px' }}>min</span>
-                                            <input
-                                                className="input"
-                                                type="text"
-                                                inputMode="numeric"
-                                                value={editDuration}
-                                                onChange={e => {
-                                                    const val = e.target.value.replace(/[^0-9]/g, '');
-                                                    setEditDuration(val);
-                                                }}
-                                                style={{ width: '100%', paddingRight: '44px', paddingLeft: '12px', height: '54px', fontSize: '18px' }}
-                                                placeholder="60"
                                             />
                                         </div>
                                     </div>
