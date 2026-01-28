@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, DollarSign, Check } from 'lucide-react';
+import { X, DollarSign, Check, ChevronDown } from 'lucide-react';
 import styles from './PaymentModal.module.css';
 import { getDB } from '@/lib/db';
 import { Settings, Service, Pet } from '@/lib/db/schema';
@@ -28,6 +28,8 @@ export function RequestPaymentModal({
     const [selectedServices, setSelectedServices] = useState<Map<string, Set<string>>>(new Map()); // petId -> Set of serviceIds
     const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<Set<string>>(new Set());
     const [manualOverride, setManualOverride] = useState(false);
+    const [servicesExpanded, setServicesExpanded] = useState(false);
+    const [paymentMethodsExpanded, setPaymentMethodsExpanded] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -174,80 +176,111 @@ export function RequestPaymentModal({
                 </div>
 
                 <form onSubmit={handleSubmit}>
-                    {/* Services by Pet */}
+                    {/* Services by Pet - Collapsible */}
                     {pets.length > 0 && allServices.length > 0 && (
                         <div style={{ marginBottom: 'var(--space-4)' }}>
-                            <label className={styles.label}>Services by Dog</label>
-                            <div style={{
-                                backgroundColor: 'var(--bg-secondary)',
-                                borderRadius: 'var(--radius-md)',
-                                padding: 'var(--space-3)',
-                                maxHeight: '300px',
-                                overflowY: 'auto'
-                            }}>
-                                {pets.map((pet) => (
-                                    <div key={pet.id} style={{ marginBottom: 'var(--space-4)' }}>
-                                        <div style={{
-                                            fontWeight: 700,
-                                            marginBottom: 'var(--space-2)',
-                                            color: 'var(--color-primary)',
-                                            fontSize: 'var(--font-size-base)'
-                                        }}>
-                                            {pet.name}
-                                        </div>
-                                        {allServices.map((service) => {
-                                            const isSelected = selectedServices.get(pet.id)?.has(service.id) || false;
-                                            return (
-                                                <div
-                                                    key={service.id}
-                                                    onClick={() => toggleService(pet.id, service.id)}
-                                                    style={{
-                                                        display: 'flex',
-                                                        justifyContent: 'space-between',
-                                                        alignItems: 'center',
-                                                        padding: 'var(--space-3)',
-                                                        marginBottom: 'var(--space-2)',
-                                                        backgroundColor: isSelected ? '#f3f0ff' : 'var(--bg-primary)',
-                                                        borderRadius: 'var(--radius-md)',
-                                                        cursor: 'pointer',
-                                                        border: isSelected ? '2px solid #8b5cf6' : '2px solid var(--border-color)',
-                                                        transition: 'all 0.2s',
-                                                        boxShadow: isSelected ? '0 2px 8px rgba(139, 92, 246, 0.15)' : 'none'
-                                                    }}
-                                                >
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                                                        <div style={{
-                                                            width: '20px',
-                                                            height: '20px',
-                                                            borderRadius: 'var(--radius-sm)',
-                                                            border: isSelected ? '2px solid #8b5cf6' : '2px solid var(--border-color)',
-                                                            backgroundColor: isSelected ? '#8b5cf6' : 'transparent',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            flexShrink: 0
-                                                        }}>
-                                                            {isSelected && <Check size={14} color="white" strokeWidth={3} />}
-                                                        </div>
-                                                        <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: isSelected ? 600 : 400 }}>{service.name}</div>
-                                                    </div>
-                                                    <div style={{ fontWeight: 600, color: isSelected ? '#8b5cf6' : 'var(--text-secondary)', fontSize: 'var(--font-size-sm)' }}>
-                                                        ${service.price.toFixed(2)}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
+                            {/* Collapsible Header */}
+                            <div
+                                onClick={() => setServicesExpanded(!servicesExpanded)}
+                                style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    padding: 'var(--space-3)',
+                                    backgroundColor: 'var(--bg-secondary)',
+                                    borderRadius: 'var(--radius-md)',
+                                    cursor: 'pointer',
+                                    border: '2px solid var(--border-color)',
+                                    transition: 'all 0.2s',
+                                    marginBottom: servicesExpanded ? 'var(--space-2)' : 0
+                                }}
+                            >
+                                <label className={styles.label} style={{ margin: 0, cursor: 'pointer' }}>Services Completed</label>
+                                <ChevronDown
+                                    size={20}
+                                    style={{
+                                        transform: servicesExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                                        transition: 'transform 0.2s'
+                                    }}
+                                />
+                            </div>
+
+                            {/* Collapsible Content */}
+                            {servicesExpanded && (
+                                <>
+                                    <div style={{
+                                        marginTop: 'var(--space-2)',
+                                        fontSize: 'var(--font-size-sm)',
+                                        color: 'var(--text-secondary)',
+                                        fontStyle: 'italic',
+                                        marginBottom: 'var(--space-2)'
+                                    }}>
+                                        Tap services to include/exclude from payment
                                     </div>
-                                ))}
-                            </div>
-                            <div style={{
-                                marginTop: 'var(--space-2)',
-                                fontSize: 'var(--font-size-sm)',
-                                color: 'var(--text-secondary)',
-                                fontStyle: 'italic'
-                            }}>
-                                Tap services to include/exclude from payment
-                            </div>
+                                    <div style={{
+                                        backgroundColor: 'var(--bg-secondary)',
+                                        borderRadius: 'var(--radius-md)',
+                                        padding: 'var(--space-3)',
+                                        maxHeight: '300px',
+                                        overflowY: 'auto'
+                                    }}>
+                                        {pets.map((pet) => (
+                                            <div key={pet.id} style={{ marginBottom: 'var(--space-4)' }}>
+                                                <div style={{
+                                                    fontWeight: 700,
+                                                    marginBottom: 'var(--space-2)',
+                                                    color: 'var(--color-primary)',
+                                                    fontSize: 'var(--font-size-base)'
+                                                }}>
+                                                    {pet.name}
+                                                </div>
+                                                {allServices.map((service) => {
+                                                    const isSelected = selectedServices.get(pet.id)?.has(service.id) || false;
+                                                    return (
+                                                        <div
+                                                            key={service.id}
+                                                            onClick={() => toggleService(pet.id, service.id)}
+                                                            style={{
+                                                                display: 'flex',
+                                                                justifyContent: 'space-between',
+                                                                alignItems: 'center',
+                                                                padding: 'var(--space-3)',
+                                                                marginBottom: 'var(--space-2)',
+                                                                backgroundColor: isSelected ? '#f3f0ff' : 'var(--bg-primary)',
+                                                                borderRadius: 'var(--radius-md)',
+                                                                cursor: 'pointer',
+                                                                border: isSelected ? '2px solid #8b5cf6' : '2px solid var(--border-color)',
+                                                                transition: 'all 0.2s',
+                                                                boxShadow: isSelected ? '0 2px 8px rgba(139, 92, 246, 0.15)' : 'none'
+                                                            }}
+                                                        >
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                                                                <div style={{
+                                                                    width: '20px',
+                                                                    height: '20px',
+                                                                    borderRadius: 'var(--radius-sm)',
+                                                                    border: isSelected ? '2px solid #8b5cf6' : '2px solid var(--border-color)',
+                                                                    backgroundColor: isSelected ? '#8b5cf6' : 'transparent',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    flexShrink: 0
+                                                                }}>
+                                                                    {isSelected && <Check size={14} color="white" strokeWidth={3} />}
+                                                                </div>
+                                                                <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: isSelected ? 600 : 400, color: 'var(--text-primary)' }}>{service.name}</div>
+                                                            </div>
+                                                            <div style={{ fontWeight: 600, color: isSelected ? '#8b5cf6' : '#374151', fontSize: 'var(--font-size-sm)' }}>
+                                                                ${service.price.toFixed(2)}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
                         </div>
                     )}
 
@@ -301,7 +334,43 @@ export function RequestPaymentModal({
                     {/* Payment Methods to Include */}
                     {paymentMethodConfig.length > 0 ? (
                         <div style={{ marginBottom: 'var(--space-4)' }}>
-                            <label className={styles.label}>Payment Methods to Send</label>
+                            {/* Collapsible Header */}
+                            <div
+                                onClick={() => setPaymentMethodsExpanded(!paymentMethodsExpanded)}
+                                style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    padding: 'var(--space-3)',
+                                    backgroundColor: 'var(--bg-secondary)',
+                                    borderRadius: 'var(--radius-md)',
+                                    cursor: 'pointer',
+                                    border: '2px solid var(--border-color)',
+                                    transition: 'all 0.2s',
+                                    marginBottom: paymentMethodsExpanded ? 'var(--space-2)' : 0
+                                }}
+                            >
+                                <label className={styles.label} style={{ margin: 0, cursor: 'pointer' }}>Payment Methods to Send</label>
+                                <ChevronDown
+                                    size={20}
+                                    style={{
+                                        transform: paymentMethodsExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                                        transition: 'transform 0.2s'
+                                    }}
+                                />
+                            </div>
+
+                            {/* Collapsible Content */}
+                            {paymentMethodsExpanded && (
+                                <>
+                                    <div style={{
+                                        marginTop: 'var(--space-2)',
+                                        fontSize: 'var(--font-size-sm)',
+                                        color: 'var(--text-secondary)',                                       fontStyle: 'italic',
+                                    marginBottom: 'var(--space-2)'
+                                    }}>
+                                    Tap to include/exclude payment methods in SMS
+                                </div>
                             <div style={{
                                 backgroundColor: 'var(--bg-secondary)',
                                 borderRadius: 'var(--radius-md)',
@@ -342,8 +411,8 @@ export function RequestPaymentModal({
                                                     {isSelected && <Check size={14} color="white" strokeWidth={3} />}
                                                 </div>
                                                 <div>
-                                                    <div style={{ fontWeight: isSelected ? 600 : 400, fontSize: 'var(--font-size-sm)' }}>{pm.label}</div>
-                                                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>
+                                                    <div style={{ fontWeight: isSelected ? 600 : 400, fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)' }}>{pm.label}</div>
+                                                    <div style={{ fontSize: 'var(--font-size-xs)', color: '#6b7280' }}>
                                                         {pm.value}
                                                     </div>
                                                 </div>
@@ -352,14 +421,8 @@ export function RequestPaymentModal({
                                     );
                                 })}
                             </div>
-                            <div style={{
-                                marginTop: 'var(--space-2)',
-                                fontSize: 'var(--font-size-sm)',
-                                color: 'var(--text-secondary)',
-                                fontStyle: 'italic'
-                            }}>
-                                Tap to include/exclude payment methods in SMS
-                            </div>
+                                </>
+                            )}
                         </div>
                     ) : (
                         <div style={{ marginBottom: 'var(--space-4)' }}>
