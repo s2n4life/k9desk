@@ -36,7 +36,24 @@ export function triggerSMSAction(job: Job, customer: Customer | null, action: Jo
             petString = 'your pets';
         }
 
-        body = `Hi ${customer.name.split(' ')[0]}, this is ${businessName} reminding you about ${petString} grooming appointment today at ${time}.\nSee you soon!`;
+        // Format the date properly
+        const appointmentDate = new Date(job.scheduledDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        appointmentDate.setHours(0, 0, 0, 0);
+
+        let dateString = 'today';
+        const daysDiff = Math.round((appointmentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (daysDiff === 1) {
+            dateString = 'tomorrow';
+        } else if (daysDiff > 1) {
+            // Format as "on [Day], [Month] [Date]" (e.g., "on Sunday, Feb 1")
+            const options: Intl.DateTimeFormatOptions = { weekday: 'long', month: 'short', day: 'numeric' };
+            dateString = `on ${appointmentDate.toLocaleDateString('en-US', options)}`;
+        }
+
+        body = `Hi ${customer.name.split(' ')[0]}, this is ${businessName} reminding you about ${petString} grooming appointment ${dateString} at ${time}.\nSee you soon!`;
 
     } else if (action === 'REQUEST_PAYMENT') {
         const amount = extraData?.amount || 0;

@@ -1,8 +1,8 @@
 import { clsx } from 'clsx';
 import { MapPin, Clock, Dog, Navigation } from 'lucide-react';
 import { Job, JobState } from '../../lib/db/schema';
-import Link from 'next/link';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import styles from './JobCard.module.css';
 import { ActionSheet } from '../UI/ActionSheet';
 import { formatTime12Hour } from '@/lib/format';
@@ -25,6 +25,7 @@ const STATE_CONFIG: Record<JobState, { label: string; color: string; button?: st
 };
 
 export function JobCard({ job, customerName, petNames, onAction }: JobCardProps) {
+    const router = useRouter();
     const config = STATE_CONFIG[job.state];
     const petsDisplay = petNames.slice(0, 2).join(', ') + (petNames.length > 2 ? ` + ${petNames.length - 2}` : '');
 
@@ -46,6 +47,15 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
 
     const handleNavigation = () => {
         setShowNavSheet(true);
+    };
+
+    const handleCardClick = (e: React.MouseEvent) => {
+        // Only navigate if clicking on the card itself, not on buttons
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'BUTTON' || target.closest('button')) {
+            return;
+        }
+        router.push(`/jobs/${job.id}`);
     };
 
     const navOptions = [
@@ -70,7 +80,7 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
     ];
 
     return (
-        <div className={clsx('card', styles.jobCard)}>
+        <div className={clsx('card', styles.jobCard)} onClick={handleCardClick}>
             <div className={styles.statusWrapper}>
                 <div className={styles.stateBadge} style={{ color: config.color, background: `${config.color}15` }}>
                     Status: {config.label}
@@ -85,7 +95,7 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
                 </div>
             </div>
 
-            <Link href={`/jobs/${job.id}`} className={styles.touchArea}>
+            <div className={styles.touchArea}>
                 <div className={styles.petsContainer}>
                     <div className={styles.metaRow}>
                         <Dog size={16} className={styles.icon} />
@@ -95,7 +105,6 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
                         type="button"
                         className={styles.navigateLink}
                         onClick={(e) => {
-                            e.preventDefault();
                             e.stopPropagation();
                             handleNavigation();
                         }}
@@ -111,7 +120,7 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
                         <span className={styles.address}>{job.address}</span>
                     </div>
                 </div>
-            </Link>
+            </div>
 
 
             {job.state === JobState.Completed || job.state === JobState.PaymentRequested ? (
@@ -119,7 +128,6 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
                     <button
                         className={clsx('btn', 'btn-primary')}
                         onClick={(e) => {
-                            e.preventDefault();
                             e.stopPropagation();
                             onAction('LOG_PAYMENT');
                         }}
@@ -129,7 +137,6 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
                     <button
                         className={clsx('btn', 'btn-secondary')}
                         onClick={(e) => {
-                            e.preventDefault();
                             e.stopPropagation();
                             onAction('REQUEST_PAYMENT');
                         }}
@@ -142,7 +149,6 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
                     <button
                         className={clsx('btn', 'btn-primary')}
                         onClick={(e) => {
-                            e.preventDefault();
                             e.stopPropagation();
                             onAction('SEND_REVIEW_REQUEST');
                         }}
@@ -152,7 +158,6 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
                     <button
                         className={clsx('btn', 'btn-secondary')}
                         onClick={(e) => {
-                            e.preventDefault();
                             e.stopPropagation();
                             onAction('SKIP_REVIEW');
                         }}
@@ -164,7 +169,6 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
                 <button
                     className={clsx('btn', 'btn-primary', styles.actionBtn)}
                     onClick={(e) => {
-                        e.preventDefault();
                         e.stopPropagation();
                         if (config.action) onAction(config.action);
                     }}
