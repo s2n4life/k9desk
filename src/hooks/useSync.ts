@@ -280,13 +280,6 @@ export function useSync() {
         try {
             const { data: { user } } = await supabase.auth.getUser();
 
-            // v2.4: Downward Lead Sync
-            // Ensure we catch leads submitted via public booking link while app was closed
-            const activeId = getActiveBusinessIdSync();
-            if (activeId) {
-                await syncLeadsToLocal(activeId);
-            }
-
             await runSyncLoop(user, isImpersonating, impersonatedBusinessId);
         } catch (err) {
             console.error('Process Queue Exception:', err);

@@ -33,7 +33,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const { isImpersonating, impersonatedBusinessId } = useImpersonationContextSafe();
     const supabase = createClient();
 
-    const fetchCounts = async () => {
+    const fetchCounts = React.useCallback(async () => {
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
@@ -74,7 +74,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         } catch (error) {
             console.error('Error fetching notification counts:', error);
         }
-    };
+    }, [supabase]);
 
     useEffect(() => {
         fetchCounts();
@@ -130,8 +130,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                     table: 'jobs'
                 },
                 (payload) => {
-                    // Update counts if job belongs to active business
-                    // Note: Always refresh counts as full payload filtering might be complex for jobs
                     fetchCounts();
                 }
             )
@@ -139,7 +137,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
         // Also refresh counts when leads are synced locally
         const handleSync = () => {
-            console.log('[NotificationContext] Data changed event received, refreshing counts...');
             fetchCounts();
         };
         window.addEventListener('leads-synced', handleSync);
@@ -150,10 +147,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             window.removeEventListener('leads-synced', handleSync);
             window.removeEventListener('data-changed', handleSync);
         };
-    }, [isImpersonating, impersonatedBusinessId]);
+    }, [isImpersonating, impersonatedBusinessId, fetchCounts, supabase]);
+
+    const value = React.useMemo(() => ({
+        leadsCount,
+        needsActionCount,
+        refreshCounts: fetchCounts
+    }), [leadsCount, needsActionCount, fetchCounts]);
 
     return (
-        <NotificationContext.Provider value={{ leadsCount, needsActionCount, refreshCounts: fetchCounts }}>
+        <NotificationContext.Provider value={value}>
             {children}
             <Toast
                 message={toast.message}

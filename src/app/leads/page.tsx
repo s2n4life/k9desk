@@ -37,7 +37,6 @@ export default function LeadsPage() {
             setLoading(true);
             try {
                 const supabase = createClient();
-                const { data: { user } } = await supabase.auth.getUser();
 
                 // 1. Load Leads using impersonation-aware hook
                 const leadsData = await loadLeads();
@@ -59,15 +58,8 @@ export default function LeadsPage() {
                         setSlug(business.slug || business.id);
                     }
                 }
-
-                setDebugInfo({
-                    userId: user?.id || 'No User',
-                    businessId: activeId || 'No Business Found',
-                    fetchError: ''
-                });
             } catch (err: any) {
                 console.error('Error fetching leads:', err);
-                setDebugInfo(prev => ({ ...prev, fetchError: err.message }));
             } finally {
                 setLoading(false);
             }
@@ -77,7 +69,6 @@ export default function LeadsPage() {
 
         // Listen for real-time sync events
         const handleSync = () => {
-            console.log('[LeadsPage] Received leads-synced event, refreshing list...');
             fetchLeadsData();
         };
         window.addEventListener('leads-synced', handleSync);

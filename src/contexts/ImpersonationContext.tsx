@@ -70,7 +70,7 @@ export function ImpersonationProvider({ children }: { children: ReactNode }) {
         checkAdmin();
     }, []);
 
-    const getActiveBusinessId = async (): Promise<string | null> => {
+    const getActiveBusinessId = React.useCallback(async (): Promise<string | null> => {
         // If impersonating, return impersonated business ID
         if (impersonatedBusinessId) {
             return impersonatedBusinessId;
@@ -94,32 +94,32 @@ export function ImpersonationProvider({ children }: { children: ReactNode }) {
         }
 
         return null;
-    };
+    }, [impersonatedBusinessId, userBusinessId]);
 
-    const startImpersonation = (businessId: string) => {
+    const startImpersonation = React.useCallback((businessId: string) => {
         if (!isAdmin) return;
         localStorage.setItem(IMPERSONATION_KEY, businessId);
         setImpersonatedBusinessId(businessId);
         window.location.href = '/dashboard';
-    };
+    }, [isAdmin]);
 
-    const stopImpersonation = () => {
+    const stopImpersonation = React.useCallback(() => {
         localStorage.removeItem(IMPERSONATION_KEY);
         setImpersonatedBusinessId(null);
         window.location.href = '/admin/users';
-    };
+    }, []);
+
+    const contextValue = React.useMemo(() => ({
+        impersonatedBusinessId,
+        isImpersonating: !!impersonatedBusinessId,
+        isAdmin,
+        getActiveBusinessId,
+        startImpersonation,
+        stopImpersonation
+    }), [impersonatedBusinessId, isAdmin, getActiveBusinessId, startImpersonation, stopImpersonation]);
 
     return (
-        <ImpersonationContext.Provider
-            value={{
-                impersonatedBusinessId,
-                isImpersonating: !!impersonatedBusinessId,
-                isAdmin,
-                getActiveBusinessId,
-                startImpersonation,
-                stopImpersonation
-            }}
-        >
+        <ImpersonationContext.Provider value={contextValue}>
             {children}
         </ImpersonationContext.Provider>
     );
