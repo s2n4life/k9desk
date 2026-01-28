@@ -209,13 +209,22 @@ export default function TodayPage() {
       const customer = job ? customers[job.customerId] : null;
       const db = await getDB();
       const settings = await db.get('settings', 'default');
-      await JobStateMachine.transition(selectedJobId, 'REQUEST_PAYMENT');
+
+      // Send SMS first
       if (job && customer) {
         triggerSMSAction(job, customer, 'REQUEST_PAYMENT', { amount, settings });
       }
+
+      // Then transition state with payment_amount
+      await JobStateMachine.transition(selectedJobId, 'REQUEST_PAYMENT', {
+        payment_amount: amount
+      });
+
+      setRequestPaymentModalOpen(false);
       await loadData();
     } catch (err: any) {
-      alert(err.message);
+      console.error('Failed to request payment:', err);
+      alert('Failed to request payment: ' + err.message);
     }
   };
 
