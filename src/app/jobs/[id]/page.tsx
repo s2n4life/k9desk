@@ -394,12 +394,26 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
 
             {/* Main Action Button */}
             {mainAction && (
-                <div style={{ position: 'fixed', bottom: 90, left: 20, right: 20, zIndex: 10 }}>
+                <div style={{ position: 'fixed', bottom: 90, left: 20, right: 20, zIndex: 100 }}>
                     <div style={{ display: 'grid', gridTemplateColumns: job.state === JobState.Paid ? '1fr 1fr' : '1fr', gap: 'var(--space-3)' }}>
                         <button
                             onClick={() => handleAction(mainAction.action)}
                             className={`btn ${mainAction.color}`}
-                            style={{ width: '100%', padding: '16px', fontSize: 'var(--font-size-lg)', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                            style={{
+                                width: '100%',
+                                padding: '18px',
+                                fontSize: 'var(--font-size-lg)',
+                                fontWeight: 700,
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                gap: 8,
+                                boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+                                background: job.state === JobState.InProgress
+                                    ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                                    : undefined,
+                                border: 'none'
+                            }}
                         >
                             <Send size={20} />
                             {mainAction.label}
@@ -408,7 +422,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                             <button
                                 onClick={() => handleAction('SKIP_REVIEW')}
                                 className="btn btn-secondary"
-                                style={{ width: '100%', padding: '16px', fontSize: 'var(--font-size-lg)', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                style={{ width: '100%', padding: '18px', fontSize: 'var(--font-size-lg)', fontWeight: 700, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}
                             >
                                 <X size={20} />
                                 Close
