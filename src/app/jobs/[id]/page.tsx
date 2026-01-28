@@ -608,7 +608,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 initialAmount={totalCost}
                 pets={pets}
                 allServices={allServices}
-                selectedServiceIds={job?.services?.map(s => s.id) || []}
+                jobServices={job?.services || []}
             />
 
             <Modal

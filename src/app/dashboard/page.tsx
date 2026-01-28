@@ -339,7 +339,7 @@ export default function TodayPage() {
         initialAmount={initialPaymentAmount}
         pets={selectedJob ? selectedJob.petIds.map(pid => pets[pid]).filter(Boolean) as Pet[] : []}
         allServices={allServices}
-        selectedServiceIds={selectedJob?.services?.map(s => s.id) || []}
+        jobServices={selectedJob?.services || []}
       />
 
       <ReviewLinkModal

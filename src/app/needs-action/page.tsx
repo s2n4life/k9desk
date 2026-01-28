@@ -240,9 +240,9 @@ export default function NeedsActionPage() {
                         : []
                 }
                 allServices={allServices}
-                selectedServiceIds={
+                jobServices={
                     selectedJobId
-                        ? (jobs.find(j => j.id === selectedJobId)?.services?.map(s => s.id) || [])
+                        ? (jobs.find(j => j.id === selectedJobId)?.services || [])
                         : []
                 }
             />

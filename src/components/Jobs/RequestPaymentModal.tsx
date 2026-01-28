@@ -11,7 +11,7 @@ interface RequestPaymentModalProps {
     initialAmount?: number;
     pets: Pet[];
     allServices: Service[];
-    selectedServiceIds: string[]; // Services currently on the job
+    jobServices: (Service & { petId?: string })[]; // Services currently on the job with pet mapping
 }
 
 export function RequestPaymentModal({
@@ -21,7 +21,7 @@ export function RequestPaymentModal({
     initialAmount,
     pets,
     allServices,
-    selectedServiceIds
+    jobServices
 }: RequestPaymentModalProps) {
     const [amount, setAmount] = useState('');
     const [settings, setSettings] = useState<Settings | null>(null);
@@ -35,23 +35,15 @@ export function RequestPaymentModal({
             // Initialize selected services from job
             const serviceMap = new Map<string, Set<string>>();
 
-            // Group selected services by pet
-            // Note: selectedServiceIds are the service IDs from job.services
-            // We need to match them with pets
+            // Initialize empty sets for all pets
             pets.forEach(pet => {
                 serviceMap.set(pet.id, new Set());
             });
 
-            // For now, we'll assume services are evenly distributed or we need pet info
-            // This is a simplified version - we'll need to pass pet-service mapping
-            selectedServiceIds.forEach(serviceId => {
-                // Add to first pet for now - this needs to be improved with actual pet-service mapping
-                if (pets.length > 0) {
-                    const petId = pets[0].id;
-                    if (!serviceMap.has(petId)) {
-                        serviceMap.set(petId, new Set());
-                    }
-                    serviceMap.get(petId)!.add(serviceId);
+            // Map job services to their respective pets
+            jobServices.forEach(jobService => {
+                if (jobService.petId && serviceMap.has(jobService.petId)) {
+                    serviceMap.get(jobService.petId)!.add(jobService.id);
                 }
             });
 
@@ -71,7 +63,7 @@ export function RequestPaymentModal({
                 if (s) setSettings(s);
             });
         }
-    }, [isOpen, initialAmount, pets, selectedServiceIds]);
+    }, [isOpen, initialAmount, pets, jobServices]);
 
     // Auto-calculate total from selected services
     useEffect(() => {
