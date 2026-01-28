@@ -106,10 +106,13 @@ export default function TodayPage() {
       allPets.forEach(p => petMap[p.id] = p);
       setPets(petMap);
 
-      // Filter for Today (Scoreboard Mode): Keep all jobs scheduled for today + any In Progress
+      // Define states that belong in Needs Action (should be excluded from Today)
+      const ACTION_STATES = [JobState.Completed, JobState.PaymentRequested, JobState.Paid];
+
+      // Filter for Today: Keep jobs scheduled for today OR In Progress, but EXCLUDE Needs Action states
       const todaysJobs = allJobs.filter(j =>
-        j.scheduledDate === todayStr ||
-        j.state === JobState.InProgress
+        (j.scheduledDate === todayStr || j.state === JobState.InProgress) &&
+        !ACTION_STATES.includes(j.state)
       );
 
       // Chronological Sort: Soonest -> Latest
