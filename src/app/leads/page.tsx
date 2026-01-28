@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { Loader2, Dog, Store, Edit2, X, Check, MessageSquare } from 'lucide-react';
+import { Loader2, Dog, Store, Edit2, X, Check, MessageSquare, ChevronDown, ChevronUp, Code } from 'lucide-react';
 import { LeadCard } from '@/components/Leads/LeadCard';
 import { updateBusinessSlug } from '@/actions/update-slug';
 
@@ -25,6 +25,9 @@ export default function LeadsPage() {
     const [slugInput, setSlugInput] = useState('');
     const [slugError, setSlugError] = useState('');
     const [msg, setMsg] = useState('');
+
+    // Dropdown State
+    const [dropdownOpen, setDropdownOpen] = useState(false);
 
     const { loadLeads, isImpersonating, impersonatedBusinessId, getActiveBusinessId } = useDataLoader();
 
@@ -187,110 +190,165 @@ export default function LeadsPage() {
                 </div>
             </div>
 
-            {/* Booking Link Section */}
+            {/* Get More Leads Dropdown */}
             {slug && (
-                <>
-                    <section className="card mb-6 overflow-hidden relative" style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', color: 'white', border: 'none' }}>
-                        <div className="p-6">
-                            <h3 className="text-xl font-bold flex items-center gap-2 mb-2 text-white drop-shadow-sm">
-                                <Store size={22} className="stroke-[2.5px]" />
-                                Your K9desk Booking Page
-                            </h3>
-                            <p className="text-white text-base mb-4 font-semibold drop-shadow-sm">
-                                Share this link with your customers to let them book requests directly.
-                            </p>
+                <div className="mb-6">
+                    <button
+                        onClick={() => setDropdownOpen(!dropdownOpen)}
+                        className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold px-5 py-4 rounded-xl flex items-center justify-between hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg active:scale-[0.99]"
+                    >
+                        <span className="flex items-center gap-2 text-lg">
+                            <Store size={22} className="stroke-[2.5px]" />
+                            Get More Leads
+                        </span>
+                        {dropdownOpen ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
+                    </button>
 
-                            {editingSlug ? (
-                                <div className="bg-white/10 p-4 rounded-lg border border-white/30 shadow-inner">
-                                    <label className="block text-xs font-bold uppercase tracking-wider mb-2 text-white">
-                                        Choose your link name
-                                    </label>
+                    {dropdownOpen && (
+                        <div className="mt-3 space-y-4">
+                            {/* Booking Link Section */}
+                            <section className="card overflow-hidden relative" style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', color: 'white', border: 'none' }}>
+                                <div className="p-6">
+                                    <h3 className="text-xl font-bold flex items-center gap-2 mb-2 text-white drop-shadow-sm">
+                                        <Store size={22} className="stroke-[2.5px]" />
+                                        Your K9desk Booking Page
+                                    </h3>
+                                    <p className="text-white text-base mb-4 font-semibold drop-shadow-sm">
+                                        Share this link with your customers to let them book requests directly.
+                                    </p>
 
-                                    <div className="flex items-center gap-0 mb-3 bg-white rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-white/50 p-1">
-                                        <span className="text-slate-500 font-mono text-sm pl-3 pr-1 py-2 whitespace-nowrap select-none border-r border-slate-100 bg-slate-50">
-                                            /book/
-                                        </span>
-                                        <input
-                                            value={slugInput}
-                                            onChange={(e) => setSlugInput(e.target.value)}
-                                            className="flex-1 bg-transparent text-slate-900 px-3 py-2 font-bold text-sm outline-none placeholder:text-slate-400"
-                                            placeholder="your-business-name"
-                                            autoFocus
-                                            autoComplete="off"
-                                        />
-                                    </div>
+                                    {editingSlug ? (
+                                        <div className="bg-white/10 p-4 rounded-lg border border-white/30 shadow-inner">
+                                            <label className="block text-xs font-bold uppercase tracking-wider mb-2 text-white">
+                                                Choose your link name
+                                            </label>
 
-                                    {slugError && (
-                                        <div className="text-red-100 text-sm mb-3 font-medium bg-red-500/20 border border-red-500/30 px-3 py-2 rounded flex items-center gap-2">
-                                            <X size={14} />
-                                            {slugError}
+                                            <div className="flex items-center gap-0 mb-3 bg-white rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-white/50 p-1">
+                                                <span className="text-slate-500 font-mono text-sm pl-3 pr-1 py-2 whitespace-nowrap select-none border-r border-slate-100 bg-slate-50">
+                                                    /book/
+                                                </span>
+                                                <input
+                                                    value={slugInput}
+                                                    onChange={(e) => setSlugInput(e.target.value)}
+                                                    className="flex-1 bg-transparent text-slate-900 px-3 py-2 font-bold text-sm outline-none placeholder:text-slate-400"
+                                                    placeholder="your-business-name"
+                                                    autoFocus
+                                                    autoComplete="off"
+                                                />
+                                            </div>
+
+                                            {slugError && (
+                                                <div className="text-red-100 text-sm mb-3 font-medium bg-red-500/20 border border-red-500/30 px-3 py-2 rounded flex items-center gap-2">
+                                                    <X size={14} />
+                                                    {slugError}
+                                                </div>
+                                            )}
+
+                                            <div className="flex gap-2 justify-end">
+                                                <button
+                                                    onClick={() => setEditingSlug(false)}
+                                                    className="px-4 py-2 text-sm font-bold hover:bg-white/10 rounded transition-colors text-white"
+                                                >
+                                                    Cancel
+                                                </button>
+                                                <button
+                                                    onClick={handleSaveSlug}
+                                                    className="px-4 py-2 bg-white text-indigo-700 rounded text-sm font-bold shadow-sm hover:bg-indigo-50 flex items-center gap-2 transition-all"
+                                                >
+                                                    <Check size={16} /> Save URL
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col gap-3">
+                                            {/* URL Display */}
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex-1 bg-black/20 p-3 rounded-lg overflow-hidden whitespace-nowrap text-ellipsis font-mono text-sm border border-white/20 backdrop-blur-sm text-white font-bold tracking-wide">
+                                                    <span className="opacity-60">.../book/</span>
+                                                    <span>{slug}</span>
+                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        setSlugInput(slug === businessId ? '' : slug);
+                                                        setEditingSlug(true);
+                                                    }}
+                                                    className="p-3 hover:bg-white/20 rounded-lg text-white transition-colors"
+                                                    title="Edit URL"
+                                                >
+                                                    <Edit2 size={20} />
+                                                </button>
+                                            </div>
+
+                                            {/* Buttons Row */}
+                                            <div className="flex gap-3">
+                                                <button
+                                                    onClick={handleTextLink}
+                                                    className="flex-1 bg-white text-indigo-700 font-bold border-none px-4 py-3 rounded-lg cursor-pointer hover:bg-indigo-50 transition-colors shadow-md flex items-center justify-center gap-2 active:scale-95 duration-200"
+                                                >
+                                                    <MessageSquare size={18} />
+                                                    Text Link
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        navigator.clipboard.writeText(bookingBaseUrl + slug);
+                                                        setMsg('Link Copied!');
+                                                        setTimeout(() => setMsg(''), 2000);
+                                                    }}
+                                                    className="flex-1 bg-white/10 text-white font-bold border border-white/30 px-4 py-3 rounded-lg cursor-pointer hover:bg-white/20 transition-colors shadow-sm flex items-center justify-center gap-2 active:scale-95 duration-200"
+                                                >
+                                                    Copy Link
+                                                </button>
+                                            </div>
                                         </div>
                                     )}
-
-                                    <div className="flex gap-2 justify-end">
-                                        <button
-                                            onClick={() => setEditingSlug(false)}
-                                            className="px-4 py-2 text-sm font-bold hover:bg-white/10 rounded transition-colors text-white"
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            onClick={handleSaveSlug}
-                                            className="px-4 py-2 bg-white text-indigo-700 rounded text-sm font-bold shadow-sm hover:bg-indigo-50 flex items-center gap-2 transition-all"
-                                        >
-                                            <Check size={16} /> Save URL
-                                        </button>
-                                    </div>
                                 </div>
-                            ) : (
-                                <div className="flex flex-col gap-3">
-                                    {/* URL Display */}
-                                    <div className="flex items-center gap-2">
-                                        <div className="flex-1 bg-black/20 p-3 rounded-lg overflow-hidden whitespace-nowrap text-ellipsis font-mono text-sm border border-white/20 backdrop-blur-sm text-white font-bold tracking-wide">
-                                            <span className="opacity-60">.../book/</span>
-                                            <span>{slug}</span>
-                                        </div>
-                                        <button
-                                            onClick={() => {
-                                                setSlugInput(slug === businessId ? '' : slug);
-                                                setEditingSlug(true);
-                                            }}
-                                            className="p-3 hover:bg-white/20 rounded-lg text-white transition-colors"
-                                            title="Edit URL"
-                                        >
-                                            <Edit2 size={20} />
-                                        </button>
+                            </section>
+
+                            {/* Embed Form Section */}
+                            <section className="card overflow-hidden" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', border: 'none' }}>
+                                <div className="p-6">
+                                    <h3 className="text-xl font-bold flex items-center gap-2 mb-2 text-white drop-shadow-sm">
+                                        <Code size={22} className="stroke-[2.5px]" />
+                                        Embed on Your Website
+                                    </h3>
+                                    <p className="text-white text-base mb-4 font-semibold drop-shadow-sm">
+                                        Copy this code and paste it into your website to let customers book directly.
+                                    </p>
+
+                                    <div className="bg-black/20 p-4 rounded-lg border border-white/20 backdrop-blur-sm mb-3 overflow-x-auto">
+                                        <code className="text-white text-xs font-mono block whitespace-pre">
+                                            {`<iframe 
+  src="${bookingBaseUrl}${slug}" 
+  width="100%" 
+  height="800" 
+  frameborder="0"
+  style="border-radius: 8px;"
+></iframe>`}
+                                        </code>
                                     </div>
 
-                                    {/* Buttons Row */}
-                                    <div className="flex gap-3">
-                                        <button
-                                            onClick={handleTextLink}
-                                            className="flex-1 bg-white text-indigo-700 font-bold border-none px-4 py-3 rounded-lg cursor-pointer hover:bg-indigo-50 transition-colors shadow-md flex items-center justify-center gap-2 active:scale-95 duration-200"
-                                        >
-                                            <MessageSquare size={18} />
-                                            Text Link
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                navigator.clipboard.writeText(bookingBaseUrl + slug);
-                                                setMsg('Link Copied!');
-                                                setTimeout(() => setMsg(''), 2000);
-                                            }}
-                                            className="flex-1 bg-white/10 text-white font-bold border border-white/30 px-4 py-3 rounded-lg cursor-pointer hover:bg-white/20 transition-colors shadow-sm flex items-center justify-center gap-2 active:scale-95 duration-200"
-                                        >
-                                            Copy Link
-                                        </button>
-                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            const embedCode = `<iframe src="${bookingBaseUrl}${slug}" width="100%" height="800" frameborder="0" style="border-radius: 8px;"></iframe>`;
+                                            navigator.clipboard.writeText(embedCode);
+                                            setMsg('Embed Code Copied!');
+                                            setTimeout(() => setMsg(''), 2000);
+                                        }}
+                                        className="w-full bg-white text-emerald-700 font-bold border-none px-4 py-3 rounded-lg cursor-pointer hover:bg-emerald-50 transition-colors shadow-md flex items-center justify-center gap-2 active:scale-95 duration-200"
+                                    >
+                                        <Code size={18} />
+                                        Copy Embed Code
+                                    </button>
                                 </div>
-                            )}
+                            </section>
                         </div>
-                    </section>
-                    <p className="text-slate-900 text-base font-medium mb-6 px-1">
-                        Customer Appointment requests will appear below.
-                    </p>
-                </>
+                    )}
+                </div>
             )}
+
+            <p className="text-slate-900 text-base font-medium mb-6 px-1">
+                Customer Appointment requests will appear below.
+            </p>
 
             {msg && (
                 <div style={{
