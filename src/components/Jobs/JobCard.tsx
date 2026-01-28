@@ -22,6 +22,8 @@ const STATE_CONFIG: Record<JobState, { label: string; color: string; button?: st
     [JobState.PaymentRequested]: { label: 'Waiting for Payment', color: 'var(--color-warning)' },
     [JobState.Paid]: { label: 'Paid', color: 'var(--color-success)' },
     [JobState.Closed]: { label: 'Closed', color: 'var(--text-tertiary)' },
+    [JobState.Cancelled]: { label: 'Cancelled', color: 'var(--color-danger)' },
+    [JobState.NoShow]: { label: 'No-Show', color: 'var(--color-danger)' },
 };
 
 export function JobCard({ job, customerName, petNames, onAction }: JobCardProps) {
