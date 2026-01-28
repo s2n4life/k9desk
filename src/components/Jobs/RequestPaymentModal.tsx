@@ -299,7 +299,7 @@ export function RequestPaymentModal({
                     </div>
 
                     {/* Payment Methods to Include */}
-                    {paymentMethodConfig.length > 0 && (
+                    {paymentMethodConfig.length > 0 ? (
                         <div style={{ marginBottom: 'var(--space-4)' }}>
                             <label className={styles.label}>Payment Methods to Send</label>
                             <div style={{
@@ -317,31 +317,32 @@ export function RequestPaymentModal({
                                                 display: 'flex',
                                                 justifyContent: 'space-between',
                                                 alignItems: 'center',
-                                                padding: 'var(--space-2)',
+                                                padding: 'var(--space-3)',
                                                 marginBottom: 'var(--space-2)',
-                                                backgroundColor: isSelected ? 'var(--color-primary-light)' : 'var(--bg-primary)',
-                                                borderRadius: 'var(--radius-sm)',
+                                                backgroundColor: isSelected ? '#f0fdf4' : 'var(--bg-primary)',
+                                                borderRadius: 'var(--radius-md)',
                                                 cursor: 'pointer',
-                                                border: isSelected ? '2px solid var(--color-primary)' : '2px solid transparent',
-                                                transition: 'all 0.2s'
+                                                border: isSelected ? '2px solid #10b981' : '2px solid var(--border-color)',
+                                                transition: 'all 0.2s',
+                                                boxShadow: isSelected ? '0 2px 8px rgba(16, 185, 129, 0.15)' : 'none'
                                             }}
                                         >
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                                                 <div style={{
-                                                    width: '18px',
-                                                    height: '18px',
+                                                    width: '20px',
+                                                    height: '20px',
                                                     borderRadius: 'var(--radius-sm)',
-                                                    border: '2px solid var(--color-primary)',
-                                                    backgroundColor: isSelected ? 'var(--color-primary)' : 'transparent',
+                                                    border: isSelected ? '2px solid #10b981' : '2px solid var(--border-color)',
+                                                    backgroundColor: isSelected ? '#10b981' : 'transparent',
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     justifyContent: 'center',
                                                     flexShrink: 0
                                                 }}>
-                                                    {isSelected && <Check size={12} color="white" />}
+                                                    {isSelected && <Check size={14} color="white" strokeWidth={3} />}
                                                 </div>
                                                 <div>
-                                                    <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>{pm.label}</div>
+                                                    <div style={{ fontWeight: isSelected ? 600 : 400, fontSize: 'var(--font-size-sm)' }}>{pm.label}</div>
                                                     <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>
                                                         {pm.value}
                                                     </div>
@@ -358,6 +359,23 @@ export function RequestPaymentModal({
                                 fontStyle: 'italic'
                             }}>
                                 Tap to include/exclude payment methods in SMS
+                            </div>
+                        </div>
+                    ) : (
+                        <div style={{ marginBottom: 'var(--space-4)' }}>
+                            <div style={{
+                                backgroundColor: '#fef2f2',
+                                border: '2px solid #ef4444',
+                                borderRadius: 'var(--radius-md)',
+                                padding: 'var(--space-4)',
+                                textAlign: 'center'
+                            }}>
+                                <div style={{ fontWeight: 700, color: '#dc2626', marginBottom: 'var(--space-2)' }}>
+                                    No Payment Methods Configured
+                                </div>
+                                <div style={{ fontSize: 'var(--font-size-sm)', color: '#991b1b' }}>
+                                    Please set up payment methods in Settings first
+                                </div>
                             </div>
                         </div>
                     )}
