@@ -295,7 +295,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     const totalCost = job.services?.reduce((acc, s) => acc + (s.price || 0), 0) || 0;
 
     return (
-        <div className="container" style={{ paddingBottom: '160px', paddingTop: 'var(--space-4)' }}>
+        <div className="container" style={{ paddingBottom: 'var(--space-4)', paddingTop: 'var(--space-4)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                     <button onClick={() => router.back()} style={{ background: 'none', border: 'none', padding: 0, marginRight: 'var(--space-2)' }}>
@@ -465,7 +465,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
 
             {/* Action Buttons - Matching JobCard Layout */}
             {buttonLayout && (
-                <div style={{ position: 'fixed', bottom: 90, left: 20, right: 20, zIndex: 100 }}>
+                <div style={{ marginTop: 'var(--space-6)', marginBottom: 'var(--space-4)' }}>
                     <div style={{
                         display: 'grid',
                         gridTemplateColumns: buttonLayout.secondary ? '1fr 1fr' : '1fr',
@@ -487,7 +487,8 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                                 background: job.state === JobState.InProgress
                                     ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
                                     : undefined,
-                                border: 'none'
+                                border: 'none',
+                                opacity: 1
                             }}
                         >
                             {buttonLayout.primary.label}
@@ -505,7 +506,8 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                                     justifyContent: 'center',
                                     alignItems: 'center',
                                     gap: 8,
-                                    boxShadow: '0 8px 24px rgba(0,0,0,0.15)'
+                                    boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                                    opacity: 1
                                 }}
                             >
                                 {buttonLayout.secondary.label}
