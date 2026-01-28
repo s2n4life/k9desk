@@ -35,10 +35,12 @@ export function RequestPaymentModal({ isOpen, onClose, onConfirm, initialAmount 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const numAmount = parseFloat(amount);
-        if (!isNaN(numAmount) && numAmount > 0) {
-            onConfirm(numAmount);
-            onClose();
+        if (isNaN(numAmount) || numAmount <= 0) {
+            alert('Please enter a valid amount greater than $0');
+            return;
         }
+        onConfirm(numAmount);
+        onClose();
     };
 
     const hasPaymentMethods = settings && (
@@ -106,7 +108,13 @@ export function RequestPaymentModal({ isOpen, onClose, onConfirm, initialAmount 
                     <button
                         type="submit"
                         className="btn btn-primary"
-                        style={{ width: '100%', marginTop: 'var(--space-2)', height: '56px', fontSize: '18px' }}
+                        style={{
+                            width: '100%',
+                            marginTop: 'var(--space-2)',
+                            height: '56px',
+                            fontSize: '18px',
+                            opacity: (!amount || parseFloat(amount) <= 0) ? 0.5 : 1
+                        }}
                         disabled={!amount || parseFloat(amount) <= 0}
                     >
                         Send Payment Request
