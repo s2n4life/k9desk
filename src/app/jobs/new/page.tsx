@@ -623,6 +623,10 @@ const NewJobContent = () => {
             if (leadToUpdate) {
                 const updatedLead = { ...leadToUpdate, status: 'scheduled' as const };
                 await saveWithSync('leads', updatedLead, 'UPDATE', activeBusinessId || undefined);
+
+                // WAIT for sync to process the lead update before navigating
+                // Give sync loop a moment to process the queue
+                await new Promise(resolve => setTimeout(resolve, 500));
             }
         }
 
