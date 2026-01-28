@@ -15,6 +15,7 @@ export default function CustomersPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState<'customers' | 'jobs'>('customers');
     const [jobDisplayLimit, setJobDisplayLimit] = useState(10);
+    const [jobFilter, setJobFilter] = useState<'all' | 'completed' | 'cancelled'>('all');
     const { loadJobs, loadCustomers, loadPets, isImpersonating, impersonatedBusinessId } = useDataLoader();
 
     const loadData = async () => {
@@ -64,6 +65,16 @@ export default function CustomersPage() {
         // Only show finished or near-finished jobs: Completed, PaymentRequested, Paid, Closed, Cancelled, NoShow
         const finishedStates = ['completed', 'payment_requested', 'paid', 'closed', 'cancelled', 'no_show'];
         if (!finishedStates.includes(j.state)) return false;
+
+        // Apply filter
+        if (jobFilter === 'completed') {
+            const completedStates = ['completed', 'payment_requested', 'paid', 'closed'];
+            if (!completedStates.includes(j.state)) return false;
+        } else if (jobFilter === 'cancelled') {
+            const cancelledStates = ['cancelled', 'no_show'];
+            if (!cancelledStates.includes(j.state)) return false;
+        }
+        // 'all' filter shows everything
 
         const term = searchTerm.toLowerCase();
         const customer = customers.find(c => c.id === j.customerId);
@@ -172,6 +183,58 @@ export default function CustomersPage() {
                 {/* JOBS TAB */}
                 {activeTab === 'jobs' && (
                     <>
+                        {/* Filter Buttons */}
+                        <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+                            <button
+                                onClick={() => setJobFilter('all')}
+                                style={{
+                                    flex: 1,
+                                    padding: '8px 12px',
+                                    borderRadius: 'var(--radius-md)',
+                                    border: jobFilter === 'all' ? '2px solid var(--brand-primary)' : '1px solid var(--border-color)',
+                                    background: jobFilter === 'all' ? 'var(--brand-primary-light)' : 'white',
+                                    color: jobFilter === 'all' ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                                    fontWeight: jobFilter === 'all' ? 600 : 400,
+                                    fontSize: 'var(--font-size-sm)',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                All
+                            </button>
+                            <button
+                                onClick={() => setJobFilter('completed')}
+                                style={{
+                                    flex: 1,
+                                    padding: '8px 12px',
+                                    borderRadius: 'var(--radius-md)',
+                                    border: jobFilter === 'completed' ? '2px solid var(--brand-primary)' : '1px solid var(--border-color)',
+                                    background: jobFilter === 'completed' ? 'var(--brand-primary-light)' : 'white',
+                                    color: jobFilter === 'completed' ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                                    fontWeight: jobFilter === 'completed' ? 600 : 400,
+                                    fontSize: 'var(--font-size-sm)',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Completed
+                            </button>
+                            <button
+                                onClick={() => setJobFilter('cancelled')}
+                                style={{
+                                    flex: 1,
+                                    padding: '8px 12px',
+                                    borderRadius: 'var(--radius-md)',
+                                    border: jobFilter === 'cancelled' ? '2px solid var(--brand-primary)' : '1px solid var(--border-color)',
+                                    background: jobFilter === 'cancelled' ? 'var(--brand-primary-light)' : 'white',
+                                    color: jobFilter === 'cancelled' ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                                    fontWeight: jobFilter === 'cancelled' ? 600 : 400,
+                                    fontSize: 'var(--font-size-sm)',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Cancelled & No-Shows
+                            </button>
+                        </div>
+
                         {displayedJobs.map(job => {
                             const customer = customers.find(c => c.id === job.customerId);
                             const jobPets = (pets[job.customerId] || []).filter(p => job.petIds.includes(p.id));
