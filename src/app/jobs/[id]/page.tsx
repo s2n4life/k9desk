@@ -15,6 +15,7 @@ import { ChevronLeft, MapPin, Clock, Send, CreditCard, Star, CheckSquare, Dollar
 import { useScheduling } from '@/hooks/useScheduling';
 import Link from 'next/link';
 import { PaymentModal } from '@/components/Jobs/PaymentModal';
+import { RequestPaymentModal } from '@/components/Jobs/RequestPaymentModal';
 import { Modal } from '@/components/UI/Modal';
 import { CustomerForm } from '@/components/Customers/CustomerForm';
 
@@ -30,6 +31,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     const [otherCustomerPets, setOtherCustomerPets] = useState<Pet[]>([]);
     const [jobNotes, setJobNotes] = useState('');
     const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+    const [requestPaymentModalOpen, setRequestPaymentModalOpen] = useState(false);
 
     // Reschedule
     const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
@@ -200,21 +202,27 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
 
     const handleAction = async (action: JobAction) => {
         if (!job) return;
-        if (action === 'REQUEST_PAYMENT') {
-            await triggerSMSAction(job, customer!, 'REQUEST_PAYMENT', { settings });
-            await JobStateMachine.transition(id, 'REQUEST_PAYMENT', {});
+
+        try {
+            if (action === 'REQUEST_PAYMENT') {
+                // Show modal to confirm/edit amount before sending SMS
+                setRequestPaymentModalOpen(true);
+                return;
+            }
+            if (action === 'LOG_PAYMENT') {
+                setPaymentModalOpen(true);
+                return;
+            }
+            if (action === 'SEND_REMINDER' || action === 'SEND_REVIEW_REQUEST') {
+                const petNames = pets.map(p => p.name);
+                await triggerSMSAction(job, customer!, action, { settings, petNames });
+            }
+            await JobStateMachine.transition(id, action, {});
             loadData();
-            return;
+        } catch (error) {
+            console.error('Action failed:', error);
+            alert('Action failed: ' + (error as Error).message);
         }
-        if (action === 'LOG_PAYMENT') {
-            setPaymentModalOpen(true);
-            return;
-        }
-        if (action === 'SEND_REMINDER' || action === 'SEND_REVIEW_REQUEST') {
-            await triggerSMSAction(job, customer!, action, { settings });
-        }
-        await JobStateMachine.transition(id, action, {});
-        loadData();
     };
 
     // Helper to determine main button action
@@ -395,7 +403,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
             {/* Main Action Button */}
             {mainAction && (
                 <div style={{ position: 'fixed', bottom: 90, left: 20, right: 20, zIndex: 100 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: job.state === JobState.Paid ? '1fr 1fr' : '1fr', gap: 'var(--space-3)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: (job.state === JobState.Paid || job.state === JobState.Completed) ? '1fr 1fr' : '1fr', gap: 'var(--space-3)' }}>
                         <button
                             onClick={() => handleAction(mainAction.action)}
                             className={`btn ${mainAction.color}`}
@@ -418,6 +426,16 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                             <Send size={20} />
                             {mainAction.label}
                         </button>
+                        {job.state === JobState.Completed && (
+                            <button
+                                onClick={() => handleAction('LOG_PAYMENT')}
+                                className="btn btn-secondary"
+                                style={{ width: '100%', padding: '18px', fontSize: 'var(--font-size-lg)', fontWeight: 700, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}
+                            >
+                                <DollarSign size={20} />
+                                Log Payment
+                            </button>
+                        )}
                         {job.state === JobState.Paid && (
                             <button
                                 onClick={() => handleAction('SKIP_REVIEW')}
@@ -482,15 +500,44 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 isOpen={paymentModalOpen}
                 onClose={() => setPaymentModalOpen(false)}
                 onConfirm={async (amount, method) => {
-                    await JobStateMachine.transition(id, 'LOG_PAYMENT', {
-                        payment_amount: amount,
-                        payment_method: method as any,
-                        payment_logged_at: Date.now(),
-                        payment_source: 'manual'
-                    });
-                    setPaymentModalOpen(false);
-                    loadData();
+                    try {
+                        await JobStateMachine.transition(id, 'LOG_PAYMENT', {
+                            payment_amount: amount,
+                            payment_method: method as any,
+                            payment_logged_at: Date.now(),
+                            payment_source: 'manual'
+                        });
+                        setPaymentModalOpen(false);
+                        loadData();
+                    } catch (error) {
+                        console.error('Failed to log payment:', error);
+                        alert('Failed to log payment: ' + (error as Error).message);
+                    }
                 }}
+            />
+
+            <RequestPaymentModal
+                isOpen={requestPaymentModalOpen}
+                onClose={() => setRequestPaymentModalOpen(false)}
+                onConfirm={async (amount) => {
+                    try {
+                        // Send SMS with amount
+                        await triggerSMSAction(job!, customer!, 'REQUEST_PAYMENT', {
+                            settings,
+                            amount
+                        });
+                        // Transition state
+                        await JobStateMachine.transition(id, 'REQUEST_PAYMENT', {
+                            payment_amount: amount
+                        });
+                        setRequestPaymentModalOpen(false);
+                        loadData();
+                    } catch (error) {
+                        console.error('Failed to request payment:', error);
+                        alert('Failed to request payment: ' + (error as Error).message);
+                    }
+                }}
+                initialAmount={totalCost}
             />
 
             <Modal
