@@ -55,6 +55,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             // 2. Fetch counts from local IndexedDB
             const db = await getDB();
 
+            // v2.4: CATCH-UP SYNC
+            // Trigger a background sync of leads to ensure local DB matches Supabase
+            // especially if app was closed during submission.
+            if (businessId) {
+                syncLeadsToLocal(businessId);
+            }
+
             // New Leads
             const allLeads = await db.getAll('leads');
             const newLeadsCount = allLeads.filter(l => l.status === 'new').length;

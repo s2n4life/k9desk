@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { getDB } from '@/lib/db';
 import { supabase } from '@/lib/supabaseClient';
 import { SyncQueueItem } from '@/lib/db/schema';
-import { hydrateLocalDB } from '@/lib/db/hydration';
+import { hydrateLocalDB, syncLeadsToLocal } from '@/lib/db/hydration';
 import { captureLog } from '@/lib/admin/sentinel';
 import { useImpersonationContextSafe, getActiveBusinessIdSync } from '@/contexts/ImpersonationContext';
 
@@ -279,6 +279,14 @@ export function useSync() {
 
         try {
             const { data: { user } } = await supabase.auth.getUser();
+
+            // v2.4: Downward Lead Sync
+            // Ensure we catch leads submitted via public booking link while app was closed
+            const activeId = getActiveBusinessIdSync();
+            if (activeId) {
+                await syncLeadsToLocal(activeId);
+            }
+
             await runSyncLoop(user, isImpersonating, impersonatedBusinessId);
         } catch (err) {
             console.error('Process Queue Exception:', err);
