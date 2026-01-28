@@ -110,10 +110,14 @@ export default function TodayPage() {
       // Define states that belong in Needs Action (should be excluded from Today)
       const ACTION_STATES = [JobState.Completed, JobState.PaymentRequested, JobState.Paid];
 
-      // Filter for Today: Keep jobs scheduled for today OR In Progress, but EXCLUDE Needs Action states
+      // Define terminal states that should never appear in Today
+      const TERMINAL_STATES = [JobState.Closed, JobState.Cancelled, JobState.NoShow];
+
+      // Filter for Today: Keep jobs scheduled for today OR In Progress, but EXCLUDE Needs Action states and terminal states
       const todaysJobs = allJobs.filter(j =>
         (j.scheduledDate === todayStr || j.state === JobState.InProgress) &&
-        !ACTION_STATES.includes(j.state)
+        !ACTION_STATES.includes(j.state) &&
+        !TERMINAL_STATES.includes(j.state)
       );
 
       // Chronological Sort: Soonest -> Latest
