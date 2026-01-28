@@ -29,11 +29,10 @@ export function LeadCard({ lead, onAccept, onArchive, onDelete, isArchived }: Le
             >
                 <div className="flex justify-between items-center">
                     <div>
-                        <h3 className={styles.customerName} style={{ marginBottom: 4 }}>{lead.ownerName}</h3>
+                        <h3 className={styles.customerName} style={{ marginBottom: 2 }}>{lead.ownerName}</h3>
+                        <div className="text-xs text-slate-400 font-medium mb-1">{lead.ownerAddress || lead.serviceAreaZip}</div>
                         <div className="flex gap-2 text-sm text-slate-500">
                             <span>{petsDisplay || 'No pets listed'}</span>
-                            <span>•</span>
-                            <span>{lead.serviceAreaZip}</span>
                         </div>
                     </div>
                     <div className="text-slate-400">
@@ -45,7 +44,7 @@ export function LeadCard({ lead, onAccept, onArchive, onDelete, isArchived }: Le
                 </div>
                 {/* Mini badge for Date */}
                 <div className="mt-2 text-xs font-semibold text-slate-500 bg-slate-100 w-fit px-2 py-1 rounded">
-                    {lead.preferredDates[0] || 'No date pref'}
+                    {lead.preferredDates[0] ? `Pref: ${lead.preferredDates[0]}` : 'No date pref'}
                 </div>
             </div>
         );
