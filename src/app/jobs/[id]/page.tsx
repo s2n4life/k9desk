@@ -256,17 +256,39 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     };
 
     // Helper to determine main button action
-    const getActionState = () => {
+    // Helper to determine button layout - matching JobCard exactly
+    const getButtonLayout = () => {
         if (!job) return null;
-        if (job.state === JobState.Scheduled) return { label: 'Send Reminder Text', action: 'SEND_REMINDER' as JobAction, color: 'btn-primary' };
-        if (job.state === JobState.ReminderSent) return { label: 'Start Job', action: 'MARK_IN_PROGRESS' as JobAction, color: 'btn-primary' };
-        if (job.state === JobState.InProgress) return { label: 'Finish Job', action: 'MARK_COMPLETE' as JobAction, color: 'btn-success' };
-        if (job.state === JobState.Completed) return { label: 'Ask for payment', action: 'REQUEST_PAYMENT' as JobAction, color: 'btn-primary' };
-        if (job.state === JobState.PaymentRequested) return { label: 'Log Payment', action: 'LOG_PAYMENT' as JobAction, color: 'btn-secondary' };
-        if (job.state === JobState.Paid) return { label: 'Ask for review', action: 'SEND_REVIEW_REQUEST' as JobAction, color: 'btn-primary' };
+
+        // States with 2 buttons
+        if (job.state === JobState.Completed || job.state === JobState.PaymentRequested) {
+            return {
+                primary: { label: 'Log Payment', action: 'LOG_PAYMENT' as JobAction, color: 'btn-primary' },
+                secondary: { label: 'Ask for payment', action: 'REQUEST_PAYMENT' as JobAction, color: 'btn-secondary' }
+            };
+        }
+
+        if (job.state === JobState.Paid) {
+            return {
+                primary: { label: 'Ask for review', action: 'SEND_REVIEW_REQUEST' as JobAction, color: 'btn-primary' },
+                secondary: { label: 'Close', action: 'SKIP_REVIEW' as JobAction, color: 'btn-secondary' }
+            };
+        }
+
+        // States with 1 button
+        if (job.state === JobState.Scheduled) {
+            return { primary: { label: 'Send Reminder', action: 'SEND_REMINDER' as JobAction, color: 'btn-primary' } };
+        }
+        if (job.state === JobState.ReminderSent) {
+            return { primary: { label: 'Start Job', action: 'MARK_IN_PROGRESS' as JobAction, color: 'btn-primary' } };
+        }
+        if (job.state === JobState.InProgress) {
+            return { primary: { label: 'Finish Job', action: 'MARK_COMPLETE' as JobAction, color: 'btn-success' } };
+        }
+
         return null;
     };
-    const mainAction = getActionState();
+    const buttonLayout = getButtonLayout();
 
     if (loading || !job || !customer) return <div>Loading...</div>;
 
@@ -441,13 +463,17 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 />
             </div>
 
-            {/* Main Action Button */}
-            {mainAction && (
+            {/* Action Buttons - Matching JobCard Layout */}
+            {buttonLayout && (
                 <div style={{ position: 'fixed', bottom: 90, left: 20, right: 20, zIndex: 100 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: (job.state === JobState.Paid || job.state === JobState.Completed) ? '1fr 1fr' : '1fr', gap: 'var(--space-3)' }}>
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: buttonLayout.secondary ? '1fr 1fr' : '1fr',
+                        gap: 'var(--space-3)'
+                    }}>
                         <button
-                            onClick={() => handleAction(mainAction.action)}
-                            className={`btn ${mainAction.color}`}
+                            onClick={() => handleAction(buttonLayout.primary.action)}
+                            className={`btn ${buttonLayout.primary.color}`}
                             style={{
                                 width: '100%',
                                 padding: '18px',
@@ -464,27 +490,25 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                                 border: 'none'
                             }}
                         >
-                            <Send size={20} />
-                            {mainAction.label}
+                            {buttonLayout.primary.label}
                         </button>
-                        {job.state === JobState.Completed && (
+                        {buttonLayout.secondary && (
                             <button
-                                onClick={() => handleAction('LOG_PAYMENT')}
-                                className="btn btn-secondary"
-                                style={{ width: '100%', padding: '18px', fontSize: 'var(--font-size-lg)', fontWeight: 700, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}
+                                onClick={() => handleAction(buttonLayout.secondary.action)}
+                                className={`btn ${buttonLayout.secondary.color}`}
+                                style={{
+                                    width: '100%',
+                                    padding: '18px',
+                                    fontSize: 'var(--font-size-lg)',
+                                    fontWeight: 700,
+                                    display: 'flex',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    gap: 8,
+                                    boxShadow: '0 8px 24px rgba(0,0,0,0.15)'
+                                }}
                             >
-                                <DollarSign size={20} />
-                                Log Payment
-                            </button>
-                        )}
-                        {job.state === JobState.Paid && (
-                            <button
-                                onClick={() => handleAction('SKIP_REVIEW')}
-                                className="btn btn-secondary"
-                                style={{ width: '100%', padding: '18px', fontSize: 'var(--font-size-lg)', fontWeight: 700, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}
-                            >
-                                <X size={20} />
-                                Close
+                                {buttonLayout.secondary.label}
                             </button>
                         )}
                     </div>
