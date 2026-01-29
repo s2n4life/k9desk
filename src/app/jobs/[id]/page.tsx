@@ -260,11 +260,18 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     const getButtonLayout = () => {
         if (!job) return null;
 
-        // States with 2 buttons
-        if (job.state === JobState.Completed || job.state === JobState.PaymentRequested) {
+        // Completed state: can log payment OR request payment
+        if (job.state === JobState.Completed) {
             return {
                 primary: { label: 'Log Payment', action: 'LOG_PAYMENT' as JobAction, color: 'btn-primary' },
                 secondary: { label: 'Ask for payment', action: 'REQUEST_PAYMENT' as JobAction, color: 'btn-secondary' }
+            };
+        }
+
+        // PaymentRequested state: payment already requested, can only log it
+        if (job.state === JobState.PaymentRequested) {
+            return {
+                primary: { label: 'Log Payment', action: 'LOG_PAYMENT' as JobAction, color: 'btn-primary' }
             };
         }
 

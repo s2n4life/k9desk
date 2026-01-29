@@ -125,7 +125,8 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
             </div>
 
 
-            {job.state === JobState.Completed || job.state === JobState.PaymentRequested ? (
+
+            {job.state === JobState.Completed ? (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
                     <button
                         className={clsx('btn', 'btn-primary')}
@@ -144,6 +145,19 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
                         }}
                     >
                         Ask for payment
+                    </button>
+                </div>
+            ) : job.state === JobState.PaymentRequested ? (
+                <div style={{ marginTop: 'var(--space-4)' }}>
+                    <button
+                        className={clsx('btn', 'btn-primary')}
+                        style={{ width: '100%' }}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onAction('LOG_PAYMENT');
+                        }}
+                    >
+                        Log Payment
                     </button>
                 </div>
             ) : job.state === JobState.Paid ? (

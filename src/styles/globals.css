@@ -117,8 +117,14 @@ a {
 }
 
 .btn-secondary {
-    background: #E5E5E5;
+    background: var(--surface-secondary);
     color: var(--text-primary);
+    border: 1px solid var(--border-subtle);
+}
+
+.btn-secondary:active {
+    background: var(--surface-hover);
+    transform: translateY(1px);
 }
 
 .btn-icon {
