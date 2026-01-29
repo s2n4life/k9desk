@@ -84,13 +84,22 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
 
         try {
             // dateLabel is now already an ISO date (YYYY-MM-DD) from getAvailableDates
-            const isoDate = dateLabel;
+            const isoDate = dateLabel.trim(); // Remove any whitespace
 
             if (!isoDate) {
                 throw new Error('Invalid date. Please try selecting a different date.');
             }
 
-            const apiUrl = `/api/availability/${businessId}?date=${isoDate}`;
+            // Validate format before sending
+            const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+            if (!dateRegex.test(isoDate)) {
+                console.error('[BookingWizard] Invalid date format:', isoDate);
+                throw new Error(`Invalid date format: ${isoDate}. Expected YYYY-MM-DD.`);
+            }
+
+            // URL encode the date to handle any special characters
+            const encodedDate = encodeURIComponent(isoDate);
+            const apiUrl = `/api/availability/${businessId}?date=${encodedDate}`;
             console.log('[BookingWizard] Fetching slots for:', isoDate);
 
             const response = await fetch(apiUrl);
