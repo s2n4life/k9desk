@@ -86,24 +86,52 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
 
     // Helper to convert "Tue, Oct 24" to "2024-10-24"
     const convertDateLabelToISO = (label: string): string => {
-        // Remove "Tomorrow (" prefix if present
-        const cleanLabel = label.replace(/^Tomorrow \(/, '').replace(/\)$/, '');
+        try {
+            // Remove "Tomorrow (" prefix if present
+            const cleanLabel = label.replace(/^Tomorrow \(/, '').replace(/\)$/, '');
 
-        // Parse "Tue, Oct 24" format
-        const months: { [key: string]: string } = {
-            'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
-            'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
-            'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
-        };
+            // Parse "Tue, Oct 24" format
+            const months: { [key: string]: string } = {
+                'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
+                'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
+                'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
+            };
 
-        const parts = cleanLabel.split(', ')[1]?.split(' '); // ["Oct", "24"]
-        if (!parts || parts.length !== 2) return '';
+            const parts = cleanLabel.split(', ')[1]?.split(' '); // ["Oct", "24"]
+            if (!parts || parts.length !== 2) {
+                console.error('[BookingWizard] Invalid date label format:', label);
+                return '';
+            }
 
-        const month = months[parts[0]];
-        const day = parts[1].padStart(2, '0');
-        const year = new Date().getFullYear();
+            const monthStr = parts[0];
+            const dayStr = parts[1];
 
-        return `${year}-${month}-${day}`;
+            const month = months[monthStr];
+            if (!month) {
+                console.error('[BookingWizard] Invalid month:', monthStr);
+                return '';
+            }
+
+            const day = dayStr.padStart(2, '0');
+
+            // Use current year, but handle year boundary (Dec → Jan)
+            const now = new Date();
+            const currentMonth = now.getMonth() + 1; // 1-12
+            const selectedMonth = parseInt(month, 10);
+
+            // If we're in December and selecting January, use next year
+            let year = now.getFullYear();
+            if (currentMonth === 12 && selectedMonth === 1) {
+                year += 1;
+            }
+
+            const isoDate = `${year}-${month}-${day}`;
+            console.log('[BookingWizard] Converted date:', label, '→', isoDate);
+            return isoDate;
+        } catch (error) {
+            console.error('[BookingWizard] Error converting date:', error);
+            return '';
+        }
     };
 
     // --- Helpers for Smart Scheduling ---
