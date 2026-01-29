@@ -48,7 +48,7 @@ export default async function BookingPage({ params }: { params: Promise<{ busine
     }
 
     return (
-        <div className="min-h-screen bg-slate-50">
+        <div className="min-h-screen bg-slate-50" style={{ colorScheme: 'light' }}>
             <header className="bg-white border-b py-4 px-6 md:px-8 mb-6">
                 <div className="max-w-xl mx-auto">
                     <h1 className="text-xl font-bold text-slate-800">

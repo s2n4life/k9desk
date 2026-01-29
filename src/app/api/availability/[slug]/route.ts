@@ -37,17 +37,30 @@ export async function GET(
         }
 
         // 1. Find business by slug
+        console.log('[Availability API] Looking up business with slug:', slug);
         const { data: businesses, error: businessError } = await supabase
             .from('businesses')
             .select('id')
             .eq('slug', slug)
             .limit(1);
 
-        if (businessError || !businesses || businesses.length === 0) {
+        console.log('[Availability API] Business lookup result:', { businesses, businessError });
+
+        if (businessError) {
+            console.error('[Availability API] Business lookup error:', businessError);
+            return NextResponse.json({
+                error: 'Database error',
+                details: businessError.message
+            }, { status: 500 });
+        }
+
+        if (!businesses || businesses.length === 0) {
+            console.log('[Availability API] No business found for slug:', slug);
             return NextResponse.json({ error: 'Business not found' }, { status: 404 });
         }
 
         const businessId = businesses[0].id;
+        console.log('[Availability API] Found business ID:', businessId);
 
         // 2. Get business settings
         const { data: settings, error: settingsError } = await supabase
