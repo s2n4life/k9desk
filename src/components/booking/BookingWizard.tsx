@@ -43,17 +43,9 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
     const [selectedDate, setSelectedDate] = useState('');
     const [selectedTime, setSelectedTime] = useState('');
 
-    // Smart Slot Availability
-    const [availableSlots, setAvailableSlots] = useState<string[]>([]);
-    const [loadingSlots, setLoadingSlots] = useState(false);
-    const [slotsError, setSlotsError] = useState('');
-
-    // Fetch available slots when date changes
+    // Clear time when date changes
     useEffect(() => {
-        if (selectedDate) {
-            fetchAvailableSlots(selectedDate);
-        } else {
-            setAvailableSlots([]);
+        if (!selectedDate) {
             setSelectedTime('');
         }
     }, [selectedDate]);
@@ -77,52 +69,13 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
         }
     };
 
-    const fetchAvailableSlots = async (dateLabel: string) => {
-        setLoadingSlots(true);
-        setSlotsError('');
-        setSelectedTime(''); // Clear selected time when date changes
-
-        try {
-            // dateLabel is now already an ISO date (YYYY-MM-DD) from getAvailableDates
-            const isoDate = dateLabel.trim(); // Remove any whitespace
-
-            if (!isoDate) {
-                throw new Error('Invalid date. Please try selecting a different date.');
-            }
-
-            // Validate format before sending
-            const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-            if (!dateRegex.test(isoDate)) {
-                console.error('[BookingWizard] Invalid date format:', isoDate);
-                throw new Error(`Invalid date format: ${isoDate}. Expected YYYY-MM-DD.`);
-            }
-
-            // URL encode the date to handle any special characters
-            const encodedDate = encodeURIComponent(isoDate);
-            const apiUrl = `/api/availability/${businessId}?date=${encodedDate}`;
-            console.log('[BookingWizard] Fetching slots for:', isoDate);
-
-            const response = await fetch(apiUrl);
-            console.log('[BookingWizard] Response status:', response.status);
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('[BookingWizard] API Error Response:', errorText);
-                throw new Error(`API returned ${response.status}: ${errorText}`);
-            }
-
-            const data = await response.json();
-            console.log('[BookingWizard] Received slots:', data.slots?.length || 0);
-            setAvailableSlots(data.slots || []);
-        } catch (error) {
-            console.error('[BookingWizard] Full error:', error);
-            const errorMessage = error instanceof Error ? error.message : 'Unable to load available times. Please try again.';
-            setSlotsError(errorMessage);
-            setAvailableSlots([]);
-        } finally {
-            setLoadingSlots(false);
-        }
-    };
+    // Simplified Time Windows for Level 1 Scheduling
+    const timeWindows = [
+        { id: 'morning', label: 'Morning (8am - 12pm)' },
+        { id: 'afternoon', label: 'Afternoon (1pm - 5pm)' },
+        { id: 'evening', label: 'Evening (5pm - 8pm)' },
+        { id: 'anytime', label: 'Anytime' }
+    ];
 
     // Helper to convert "Tue, Oct 24" to "2024-10-24"
     const convertDateLabelToISO = (label: string): string => {
@@ -267,31 +220,43 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
     };
 
     const handleSubmit = async () => {
+        console.log('[BookingWizard] handleSubmit called');
         setSubmitError('');
         setSubmitting(true);
+
+        const payload = {
+            businessId,
+            ownerName: formData.ownerName,
+            ownerPhone: formData.ownerPhone,
+            ownerEmail: formData.ownerEmail,
+            ownerAddress: formData.ownerAddress,
+            serviceAreaZip: formData.zip,
+            petDetails: formData.pets,
+            serviceIds: formData.serviceIds,
+            preferredDates: formData.dates.filter(d => !!d),
+            notes: formData.notes
+        };
+
+        console.log('[BookingWizard] Calling submitLead with payload:', payload);
+
         try {
-            const result = await submitLead({
-                businessId,
-                ownerName: formData.ownerName,
-                ownerPhone: formData.ownerPhone,
-                ownerEmail: formData.ownerEmail,
-                ownerAddress: formData.ownerAddress, // Pass address
-                serviceAreaZip: formData.zip,
-                petDetails: formData.pets,
-                serviceIds: formData.serviceIds, // Pass services
-                preferredDates: formData.dates.filter(d => !!d),
-                notes: formData.notes
-            });
+            const result = await submitLead(payload);
+
+            console.log('[BookingWizard] submitLead returned:', result);
 
             if (result && result.success) {
+                console.log('[BookingWizard] Success! Setting success state to true');
                 setSuccess(true);
             } else {
+                console.error('[BookingWizard] Submission failed:', result?.error);
                 setSubmitError(result?.error || 'Unknown error occurred.');
             }
         } catch (e) {
+            console.error('[BookingWizard] Exception during submission:', e);
             setSubmitError(e instanceof Error ? e.message : 'An unexpected error occurred.');
         } finally {
             setSubmitting(false);
+            console.log('[BookingWizard] handleSubmit complete');
         }
     };
 
@@ -594,82 +559,42 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
                             value={selectedDate}
                             onChange={e => {
                                 const selectedValue = e.target.value;
-                                console.log('[BookingWizard] Date selected from dropdown:', selectedValue);
-                                console.log('[BookingWizard] Type:', typeof selectedValue);
-                                console.log('[BookingWizard] Length:', selectedValue.length);
                                 setSelectedDate(selectedValue);
-                                // updateSchedule will be called after slots are fetched
+                                // Clear time when date changes (useEffect handles this)
+                                // Time window will be selected next
                             }}
                         >
                             <option value="">Select Date</option>
-                            {availableDates.map(d => (
-                                <option key={d.value} value={d.value}>{d.label}</option>
-                            ))}
+                            {availableDates.length === 0 ? (
+                                <option disabled>No available dates (check work days)</option>
+                            ) : (
+                                availableDates.map(d => (
+                                    <option key={d.value} value={d.value}>{d.label}</option>
+                                ))
+                            )}
                         </select>
                         <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                             <ChevronDown size={20} />
                         </div>
                     </div>
 
-                    {/* Time Slot Picker */}
+                    {/* Time Window Picker */}
                     {selectedDate && (
-                        <div className="mt-4">
-                            <div className="flex items-center justify-between mb-3">
-                                <label className="text-sm font-bold text-slate-900 uppercase tracking-wide">Available Times</label>
-                                {loadingSlots && (
-                                    <div className="flex items-center gap-2 text-blue-600 text-sm">
-                                        <Loader2 size={14} className="animate-spin" />
-                                        <span className="font-medium">Loading...</span>
-                                    </div>
-                                )}
+                        <div className="mt-4 relative">
+                            <label className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-2 block">Preferred Time</label>
+                            <select
+                                className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-lg text-slate-900 font-medium shadow-sm appearance-none cursor-pointer hover:border-blue-300"
+                                value={selectedTime}
+                                onChange={e => updateSchedule(selectedDate, e.target.value)}
+                            >
+                                <option value="">Select Time Window</option>
+                                {timeWindows.map(window => (
+                                    <option key={window.id} value={window.label}>{window.label}</option>
+                                ))}
+                            </select>
+                            <div className="absolute right-4 top-[52px] pointer-events-none text-slate-400">
+                                <ChevronDown size={20} />
                             </div>
-
-                            {slotsError && (
-                                <div className="bg-red-50 text-red-600 p-4 rounded-2xl text-sm font-medium border border-red-100 flex items-center gap-2">
-                                    <XCircle size={16} />
-                                    {slotsError}
-                                </div>
-                            )}
-
-                            {!loadingSlots && !slotsError && availableSlots.length === 0 && (
-                                <div className="bg-amber-50 text-amber-700 p-6 rounded-2xl text-center border border-amber-100">
-                                    <Clock size={32} className="mx-auto mb-2 text-amber-600" />
-                                    <p className="font-bold mb-1">No times available</p>
-                                    <p className="text-sm">Please try a different date</p>
-                                </div>
-                            )}
-
-                            {!loadingSlots && availableSlots.length > 0 && (
-                                <div className="grid grid-cols-3 gap-3">
-                                    {availableSlots.map(slot => {
-                                        // Convert 24h format to 12h for display
-                                        const [h, m] = slot.split(':').map(Number);
-                                        const isAm = h < 12;
-                                        const displayHour = h > 12 ? h - 12 : (h === 0 || h === 12 ? 12 : h);
-                                        const displayTime = `${displayHour}:${m.toString().padStart(2, '0')} ${isAm ? 'AM' : 'PM'}`;
-                                        const isSelected = selectedTime === displayTime;
-
-                                        return (
-                                            <button
-                                                key={slot}
-                                                type="button"
-                                                onClick={() => updateSchedule(selectedDate, displayTime)}
-                                                className={clsx(
-                                                    "p-4 rounded-xl font-bold transition-all border-2",
-                                                    isSelected
-                                                        ? "bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/30"
-                                                        : "bg-white text-slate-700 border-slate-200 hover:border-blue-300 hover:bg-blue-50"
-                                                )}
-                                            >
-                                                <div className="flex items-center justify-center gap-2">
-                                                    {isSelected && <Check size={16} strokeWidth={3} />}
-                                                    <span>{displayTime}</span>
-                                                </div>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            )}
                         </div>
                     )}
                 </div>
@@ -700,7 +625,7 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
                 <button onClick={() => setStep(3)} className="px-8 py-4 text-slate-500 font-bold hover:bg-slate-100 rounded-2xl transition-colors">Back</button>
                 <button
                     onClick={handleSubmit}
-                    disabled={submitting}
+                    disabled={submitting || !selectedDate || !selectedTime}
                     className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-4 rounded-2xl text-lg font-bold shadow-xl shadow-blue-500/20 disabled:shadow-none disabled:opacity-50 flex items-center justify-center gap-3 transition-all active:scale-[0.98]"
                 >
                     {submitting ? <Loader2 className="animate-spin" /> : <>Request Appointment</>}

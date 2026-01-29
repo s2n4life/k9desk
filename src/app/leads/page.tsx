@@ -346,9 +346,11 @@ export default function LeadsPage() {
                 </div>
             )}
 
-            <p className="text-slate-900 text-base font-medium mb-6 px-1">
-                Customer Appointment requests will appear below.
-            </p>
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6">
+                <p className="text-blue-800 text-sm font-medium">
+                    New requests appear here. These are <span className="font-bold">Leads</span> (not booked jobs). Please contact the customer to confirm details and finalize their appointment.
+                </p>
+            </div>
 
             {msg && (
                 <div style={{

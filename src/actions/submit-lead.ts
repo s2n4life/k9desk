@@ -40,8 +40,17 @@ export async function submitLead(formData: any) {
 
     // Basic Validation
     if (!businessId || !ownerName || !ownerPhone) {
+        console.error('[LeadSubmission] Validation failed:', { businessId: !!businessId, ownerName: !!ownerName, ownerPhone: !!ownerPhone });
         return { success: false, error: 'Missing required fields' };
     }
+
+    console.log('[LeadSubmission] Attempting to insert lead:', {
+        businessId,
+        ownerName,
+        ownerPhone,
+        petCount: petDetails?.length || 0,
+        preferredDatesCount: preferredDates?.length || 0
+    });
 
     try {
         const { data, error } = await supabase
@@ -66,13 +75,24 @@ export async function submitLead(formData: any) {
             .single();
 
         if (error) {
-            console.error('Supabase Error:', error);
+            console.error('[LeadSubmission] Supabase Error:', {
+                message: error.message,
+                code: error.code,
+                details: error.details,
+                hint: error.hint
+            });
             return { success: false, error: error.message };
         }
 
+        console.log('[LeadSubmission] SUCCESS! Lead created:', {
+            leadId: data?.id,
+            businessId: data?.business_id,
+            status: data?.status
+        });
+
         return { success: true, data };
     } catch (err) {
-        console.error('Submission Error:', err);
+        console.error('[LeadSubmission] Unexpected Error:', err);
         return { success: false, error: 'Failed to submit' };
     }
 }

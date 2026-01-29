@@ -111,40 +111,42 @@ export function useDataLoader() {
     };
 
     const loadLeads = async (): Promise<Lead[]> => {
-        if (isImpersonating && impersonatedBusinessId) {
-            // Load from Supabase
-            const { data, error } = await supabase
-                .from('leads')
-                .select('*')
-                .eq('business_id', impersonatedBusinessId)
-                .order('created_at', { ascending: false });
+        // ALWAYS load leads from Supabase (not IndexedDB)
+        // Leads are external data from public booking form and need real-time visibility
+        const businessId = await getActiveBusinessId();
 
-            if (error) {
-                console.error('Error loading leads from Supabase:', error);
-                return [];
-            }
-
-            return (data || []).map((l: any) => ({
-                id: l.id,
-                businessId: l.business_id,
-                status: l.status,
-                ownerName: l.owner_name,
-                ownerPhone: l.owner_phone,
-                ownerEmail: l.owner_email,
-                ownerAddress: l.owner_address,
-                serviceAreaZip: l.service_area_zip,
-                petDetails: l.pet_details || [],
-                preferredDates: l.preferred_dates || [],
-                serviceIds: l.service_ids,
-                waiverSigned: l.waiver_signed || false,
-                createdAt: l.created_at,
-                notes: l.notes
-            }));
-        } else {
-            // Load from IndexedDB
-            const db = await getDB();
-            return await db.getAll('leads');
+        if (!businessId) {
+            console.error('Error loading leads: No business ID found');
+            return [];
         }
+
+        const { data, error } = await supabase
+            .from('leads')
+            .select('*')
+            .eq('business_id', businessId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error loading leads from Supabase:', error);
+            return [];
+        }
+
+        return (data || []).map((l: any) => ({
+            id: l.id,
+            businessId: l.business_id,
+            status: l.status,
+            ownerName: l.owner_name,
+            ownerPhone: l.owner_phone,
+            ownerEmail: l.owner_email,
+            ownerAddress: l.owner_address,
+            serviceAreaZip: l.service_area_zip,
+            petDetails: l.pet_details || [],
+            preferredDates: l.preferred_dates || [],
+            serviceIds: l.service_ids,
+            waiverSigned: l.waiver_signed || false,
+            createdAt: l.created_at,
+            notes: l.notes
+        }));
     };
 
     return {
