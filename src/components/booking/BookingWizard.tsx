@@ -593,7 +593,11 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
                             className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-lg text-slate-900 font-medium shadow-sm appearance-none cursor-pointer hover:border-blue-300"
                             value={selectedDate}
                             onChange={e => {
-                                setSelectedDate(e.target.value);
+                                const selectedValue = e.target.value;
+                                console.log('[BookingWizard] Date selected from dropdown:', selectedValue);
+                                console.log('[BookingWizard] Type:', typeof selectedValue);
+                                console.log('[BookingWizard] Length:', selectedValue.length);
+                                setSelectedDate(selectedValue);
                                 // updateSchedule will be called after slots are fetched
                             }}
                         >
