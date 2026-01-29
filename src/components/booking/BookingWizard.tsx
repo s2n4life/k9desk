@@ -97,14 +97,18 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
             console.log('[BookingWizard] Response status:', response.status);
 
             if (!response.ok) {
-                throw new Error('Failed to fetch available slots');
+                const errorText = await response.text();
+                console.error('[BookingWizard] API Error Response:', errorText);
+                throw new Error(`API returned ${response.status}: ${errorText}`);
             }
 
             const data = await response.json();
+            console.log('[BookingWizard] Received slots:', data.slots?.length || 0);
             setAvailableSlots(data.slots || []);
         } catch (error) {
-            console.error('Error fetching slots:', error);
-            setSlotsError('Unable to load available times. Please try again.');
+            console.error('[BookingWizard] Full error:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unable to load available times. Please try again.';
+            setSlotsError(errorMessage);
             setAvailableSlots([]);
         } finally {
             setLoadingSlots(false);
