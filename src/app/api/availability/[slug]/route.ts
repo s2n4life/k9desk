@@ -74,6 +74,7 @@ export async function GET(
         console.log('[Availability API] Found business ID:', businessId);
 
         // 2. Get business settings
+        console.log('[Availability API] Fetching settings for business:', businessId);
         const { data: settings, error: settingsError } = await supabase
             .from('settings')
             .select('*')
@@ -81,9 +82,12 @@ export async function GET(
             .eq('business_id', businessId)
             .single();
 
+        console.log('[Availability API] Settings result:', { settings, settingsError });
+
         if (settingsError) {
             console.error('Settings error:', settingsError);
-            // Use defaults if settings not found
+            // Use defaults if settings not found, but log it
+            console.log('[Availability API] Using default settings');
         }
 
         const startHour = settings?.schedule_start_hour || 8;
