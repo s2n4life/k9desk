@@ -420,9 +420,10 @@ export default function SettingsPage() {
                                     justifyContent: 'center',
                                     alignItems: 'center',
                                     gap: '8px',
-                                    background: 'white',
+                                    background: 'var(--bg-card)',
                                     border: '1px solid var(--border-subtle)',
-                                    boxShadow: 'var(--shadow-sm)'
+                                    boxShadow: 'var(--shadow-sm)',
+                                    color: 'var(--text-primary)'
                                 }}
                             >
                                 {isBillingLoading ? (
@@ -895,7 +896,7 @@ export default function SettingsPage() {
                                     flexDirection: 'column',
                                     gap: '12px',
                                     padding: '12px',
-                                    backgroundColor: dayConfig.isOpen ? 'white' : 'var(--surface-sunken)',
+                                    backgroundColor: dayConfig.isOpen ? 'var(--bg-card)' : 'var(--surface-sunken)',
                                     border: '1px solid var(--border-subtle)',
                                     borderRadius: '12px',
                                     opacity: dayConfig.isOpen ? 1 : 0.7

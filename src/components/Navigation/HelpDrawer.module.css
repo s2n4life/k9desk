@@ -111,10 +111,11 @@
 
 .faqItem {
     margin-bottom: var(--space-3);
-    border: 1px solid var(--border-subtle);
+    border: 1px solid var(--border-strong);
     border-radius: 12px;
     overflow: hidden;
     transition: all 0.2s;
+    background: var(--surface-secondary);
 }
 
 .faqQuestion {
@@ -123,23 +124,27 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: var(--surface-primary);
+    background: var(--surface-secondary);
     border: none;
     font-weight: 600;
+    font-size: var(--font-size-base);
     text-align: left;
     color: var(--text-primary);
     cursor: pointer;
+    gap: var(--space-3);
 }
 
 .faqQuestion:hover {
-    background: var(--surface-secondary);
+    background: var(--surface-hover);
 }
 
 .faqAnswer {
     padding: 0 var(--space-4) var(--space-4) var(--space-4);
+    background: var(--surface-primary);
     color: var(--text-secondary);
     font-size: var(--font-size-sm);
     line-height: 1.6;
+    border-top: 1px solid var(--border-subtle);
 }
 
 .botCard {

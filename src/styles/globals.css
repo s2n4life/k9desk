@@ -158,8 +158,27 @@ textarea.card,
 select.card {
     width: 100%;
     font-family: inherit;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    /* Slight border for visibility */
+    border: 1px solid var(--border-subtle);
+}
+
+/* Dark mode: Blue border for all inputs */
+@media (prefers-color-scheme: dark) {
+
+    input.card,
+    textarea.card,
+    select.card,
+    .input {
+        border: 2px solid var(--brand-primary);
+        background: var(--surface-secondary);
+        color: var(--text-secondary);
+    }
+
+    input.card::placeholder,
+    textarea.card::placeholder,
+    select.card::placeholder,
+    .input::placeholder {
+        color: var(--text-tertiary);
+    }
 }
 
 /* Make labels larger too */

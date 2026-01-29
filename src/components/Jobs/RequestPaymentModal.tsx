@@ -246,12 +246,12 @@ export function RequestPaymentModal({
                                                                 alignItems: 'center',
                                                                 padding: 'var(--space-3)',
                                                                 marginBottom: 'var(--space-2)',
-                                                                backgroundColor: isSelected ? '#f3f0ff' : 'var(--bg-primary)',
+                                                                backgroundColor: isSelected ? 'var(--brand-primary-light)' : 'var(--surface-secondary)',
                                                                 borderRadius: 'var(--radius-md)',
                                                                 cursor: 'pointer',
-                                                                border: isSelected ? '2px solid #8b5cf6' : '2px solid var(--border-color)',
+                                                                border: isSelected ? '2px solid var(--brand-primary)' : '2px solid var(--border-subtle)',
                                                                 transition: 'all 0.2s',
-                                                                boxShadow: isSelected ? '0 2px 8px rgba(139, 92, 246, 0.15)' : 'none'
+                                                                boxShadow: isSelected ? 'var(--shadow-sm)' : 'none'
                                                             }}
                                                         >
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
@@ -259,8 +259,8 @@ export function RequestPaymentModal({
                                                                     width: '20px',
                                                                     height: '20px',
                                                                     borderRadius: 'var(--radius-sm)',
-                                                                    border: isSelected ? '2px solid #8b5cf6' : '2px solid var(--border-color)',
-                                                                    backgroundColor: isSelected ? '#8b5cf6' : 'transparent',
+                                                                    border: isSelected ? '2px solid var(--brand-primary)' : '2px solid var(--border-subtle)',
+                                                                    backgroundColor: isSelected ? 'var(--brand-primary)' : 'transparent',
                                                                     display: 'flex',
                                                                     alignItems: 'center',
                                                                     justifyContent: 'center',
@@ -366,61 +366,61 @@ export function RequestPaymentModal({
                                     <div style={{
                                         marginTop: 'var(--space-2)',
                                         fontSize: 'var(--font-size-sm)',
-                                        color: 'var(--text-secondary)',                                       fontStyle: 'italic',
-                                    marginBottom: 'var(--space-2)'
+                                        color: 'var(--text-secondary)', fontStyle: 'italic',
+                                        marginBottom: 'var(--space-2)'
                                     }}>
-                                    Tap to include/exclude payment methods in SMS
-                                </div>
-                            <div style={{
-                                backgroundColor: 'var(--bg-secondary)',
-                                borderRadius: 'var(--radius-md)',
-                                padding: 'var(--space-3)'
-                            }}>
-                                {paymentMethodConfig.map((pm) => {
-                                    const isSelected = selectedPaymentMethods.has(pm.id);
-                                    return (
-                                        <div
-                                            key={pm.id}
-                                            onClick={() => togglePaymentMethod(pm.id)}
-                                            style={{
-                                                display: 'flex',
-                                                justifyContent: 'space-between',
-                                                alignItems: 'center',
-                                                padding: 'var(--space-3)',
-                                                marginBottom: 'var(--space-2)',
-                                                backgroundColor: isSelected ? '#f0fdf4' : 'var(--bg-primary)',
-                                                borderRadius: 'var(--radius-md)',
-                                                cursor: 'pointer',
-                                                border: isSelected ? '2px solid #10b981' : '2px solid var(--border-color)',
-                                                transition: 'all 0.2s',
-                                                boxShadow: isSelected ? '0 2px 8px rgba(16, 185, 129, 0.15)' : 'none'
-                                            }}
-                                        >
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                                                <div style={{
-                                                    width: '20px',
-                                                    height: '20px',
-                                                    borderRadius: 'var(--radius-sm)',
-                                                    border: isSelected ? '2px solid #10b981' : '2px solid var(--border-color)',
-                                                    backgroundColor: isSelected ? '#10b981' : 'transparent',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    flexShrink: 0
-                                                }}>
-                                                    {isSelected && <Check size={14} color="white" strokeWidth={3} />}
-                                                </div>
-                                                <div>
-                                                    <div style={{ fontWeight: isSelected ? 600 : 400, fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)' }}>{pm.label}</div>
-                                                    <div style={{ fontSize: 'var(--font-size-xs)', color: '#6b7280' }}>
-                                                        {pm.value}
+                                        Tap to include/exclude payment methods in SMS
+                                    </div>
+                                    <div style={{
+                                        backgroundColor: 'var(--bg-secondary)',
+                                        borderRadius: 'var(--radius-md)',
+                                        padding: 'var(--space-3)'
+                                    }}>
+                                        {paymentMethodConfig.map((pm) => {
+                                            const isSelected = selectedPaymentMethods.has(pm.id);
+                                            return (
+                                                <div
+                                                    key={pm.id}
+                                                    onClick={() => togglePaymentMethod(pm.id)}
+                                                    style={{
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
+                                                        alignItems: 'center',
+                                                        padding: 'var(--space-3)',
+                                                        marginBottom: 'var(--space-2)',
+                                                        backgroundColor: isSelected ? 'var(--color-success-muted)' : 'var(--surface-secondary)',
+                                                        borderRadius: 'var(--radius-md)',
+                                                        cursor: 'pointer',
+                                                        border: isSelected ? '2px solid var(--color-success)' : '2px solid var(--border-subtle)',
+                                                        transition: 'all 0.2s',
+                                                        boxShadow: isSelected ? 'var(--shadow-sm)' : 'none'
+                                                    }}
+                                                >
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                                                        <div style={{
+                                                            width: '20px',
+                                                            height: '20px',
+                                                            borderRadius: 'var(--radius-sm)',
+                                                            border: isSelected ? '2px solid var(--color-success)' : '2px solid var(--border-subtle)',
+                                                            backgroundColor: isSelected ? 'var(--color-success)' : 'transparent',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            flexShrink: 0
+                                                        }}>
+                                                            {isSelected && <Check size={14} color="white" strokeWidth={3} />}
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontWeight: isSelected ? 600 : 400, fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)' }}>{pm.label}</div>
+                                                            <div style={{ fontSize: 'var(--font-size-xs)', color: '#6b7280' }}>
+                                                                {pm.value}
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                                            );
+                                        })}
+                                    </div>
                                 </>
                             )}
                         </div>

@@ -300,7 +300,11 @@ const NewJobContent = () => {
     const handleSelectCustomer = (c: Customer) => {
         setSelectedCustomerId(c.id);
         setJobAddress(c.address || ''); // Pre-fill job address
-        setSelectedPetIds([]); // Reset pets
+
+        // AUTO-SELECT ALL PETS for this customer
+        const customerPets = allPets.filter(p => p.customerId === c.id);
+        setSelectedPetIds(customerPets.map(p => p.id));
+
         setSearchQuery('');
         setShowResults(false);
     };
@@ -680,9 +684,9 @@ const NewJobContent = () => {
                                         <div
                                             key={c.id}
                                             onClick={() => handleSelectCustomer(c)}
-                                            style={{ padding: 'var(--space-3)', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', background: 'white' }}
+                                            style={{ padding: 'var(--space-3)', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', background: 'var(--bg-card)' }}
                                         >
-                                            <div style={{ fontWeight: 600 }}>{c.name}</div>
+                                            <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{c.name}</div>
                                             <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
                                                 {cPets.map(p => p.name).join(', ')} • {c.phone}
                                             </div>
@@ -772,7 +776,23 @@ const NewJobContent = () => {
                                         }}
                                         style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 'var(--space-3)', cursor: 'pointer' }}
                                     >
-                                        <div style={{ background: 'white', padding: 6, borderRadius: '50%', border: '1px solid var(--border-color)' }}>
+                                        {/* Selection Checkbox */}
+                                        <div style={{
+                                            width: 24,
+                                            height: 24,
+                                            borderRadius: '50%',
+                                            border: `2px solid ${selectedPetIds.includes(p.id) ? 'var(--brand-primary)' : 'var(--border-color)'}`,
+                                            backgroundColor: selectedPetIds.includes(p.id) ? 'var(--brand-primary)' : 'transparent',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            flexShrink: 0,
+                                            transition: 'all 0.2s'
+                                        }}>
+                                            {selectedPetIds.includes(p.id) && <Check size={16} color="white" strokeWidth={3} />}
+                                        </div>
+
+                                        <div style={{ background: 'var(--bg-card)', padding: 6, borderRadius: '50%', border: '1px solid var(--border-color)' }}>
                                             <Dog size={16} />
                                         </div>
                                         <div>
@@ -823,7 +843,18 @@ const NewJobContent = () => {
                 </div>
 
                 <div style={{ marginBottom: 'var(--space-3)' }}>
-                    <input type="date" className="card" value={date} onChange={e => setDate(e.target.value)} style={{ width: '100%' }} required />
+                    <input
+                        type="date"
+                        className="card"
+                        value={date}
+                        onChange={e => {
+                            setDate(e.target.value);
+                            // Auto-close the date picker by blurring the input
+                            e.target.blur();
+                        }}
+                        style={{ width: '100%' }}
+                        required
+                    />
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 8 }}>
@@ -835,7 +866,7 @@ const NewJobContent = () => {
                                 padding: '8px 4px',
                                 borderRadius: 'var(--radius-sm)',
                                 border: time === slot ? '2px solid var(--brand-primary)' : '1px solid var(--border-color)',
-                                background: time === slot ? 'var(--brand-primary-light)' : 'white',
+                                background: time === slot ? 'var(--brand-primary-light)' : 'var(--bg-card)',
                                 color: time === slot ? 'var(--brand-primary)' : 'var(--text-primary)',
                                 fontWeight: time === slot ? 700 : 400,
                                 fontSize: 'var(--font-size-sm)',
@@ -937,12 +968,12 @@ const NewJobContent = () => {
                                                 padding: 'var(--space-3)',
                                                 border: isSelected ? '2px solid var(--brand-primary)' : '1px solid var(--border-color)',
                                                 borderRadius: 'var(--radius-md)',
-                                                background: isSelected ? 'var(--brand-primary-light)' : 'white',
+                                                background: isSelected ? 'var(--brand-primary-light)' : 'var(--bg-card)',
                                                 display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                                             }}
                                         >
                                             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginRight: 8 }}>
-                                                <span style={{ fontWeight: 600, fontSize: 'var(--font-size-base)' }}>{s.name}</span>
+                                                <span style={{ fontWeight: 600, fontSize: 'var(--font-size-base)', color: 'var(--text-primary)' }}>{s.name}</span>
                                                 <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-tertiary)' }}>
                                                     ${s.price}
                                                 </span>
@@ -1018,16 +1049,30 @@ const NewJobContent = () => {
                                     padding: 'var(--space-3)',
                                     border: isSelected ? '2px solid var(--brand-primary)' : '1px solid var(--border-color)',
                                     borderRadius: 'var(--radius-md)',
-                                    background: isSelected ? 'var(--brand-primary-light)' : 'white',
+                                    background: isSelected ? 'var(--brand-primary-light)' : 'var(--bg-card)',
                                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                                     cursor: 'pointer'
                                 }}
                             >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    {isSelected && <Check size={16} color="var(--brand-primary)" />}
-                                    <span style={{ fontWeight: 600 }}>{s.name}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flex: 1 }}>
+                                    {/* Selection Checkbox */}
+                                    <div style={{
+                                        width: 20,
+                                        height: 20,
+                                        borderRadius: '50%',
+                                        border: `2px solid ${isSelected ? '#8b5cf6' : 'var(--border-color)'}`,
+                                        backgroundColor: isSelected ? '#8b5cf6' : 'transparent',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        flexShrink: 0,
+                                        transition: 'all 0.2s'
+                                    }}>
+                                        {isSelected && <Check size={14} color="white" strokeWidth={3} />}
+                                    </div>
+                                    <span style={{ fontWeight: 600, color: isSelected ? '#8b5cf6' : 'var(--text-primary)' }}>{s.name}</span>
                                 </div>
-                                <span>${s.price}</span>
+                                <span style={{ color: isSelected ? '#8b5cf6' : 'var(--text-secondary)' }}>${s.price}</span>
                             </div>
                         );
                     })}

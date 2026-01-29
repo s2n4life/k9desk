@@ -43,6 +43,69 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
     const [selectedDate, setSelectedDate] = useState('');
     const [selectedTime, setSelectedTime] = useState('');
 
+    // Smart Slot Availability
+    const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+    const [loadingSlots, setLoadingSlots] = useState(false);
+    const [slotsError, setSlotsError] = useState('');
+
+    // Fetch available slots when date changes
+    useEffect(() => {
+        if (selectedDate) {
+            fetchAvailableSlots(selectedDate);
+        } else {
+            setAvailableSlots([]);
+            setSelectedTime('');
+        }
+    }, [selectedDate]);
+
+    const fetchAvailableSlots = async (dateLabel: string) => {
+        setLoadingSlots(true);
+        setSlotsError('');
+        setSelectedTime(''); // Clear selected time when date changes
+
+        try {
+            // Convert date label to YYYY-MM-DD format
+            const isoDate = convertDateLabelToISO(dateLabel);
+
+            const response = await fetch(`/api/availability/${businessId}?date=${isoDate}`);
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch available slots');
+            }
+
+            const data = await response.json();
+            setAvailableSlots(data.slots || []);
+        } catch (error) {
+            console.error('Error fetching slots:', error);
+            setSlotsError('Unable to load available times. Please try again.');
+            setAvailableSlots([]);
+        } finally {
+            setLoadingSlots(false);
+        }
+    };
+
+    // Helper to convert "Tue, Oct 24" to "2024-10-24"
+    const convertDateLabelToISO = (label: string): string => {
+        // Remove "Tomorrow (" prefix if present
+        const cleanLabel = label.replace(/^Tomorrow \(/, '').replace(/\)$/, '');
+
+        // Parse "Tue, Oct 24" format
+        const months: { [key: string]: string } = {
+            'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
+            'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
+            'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
+        };
+
+        const parts = cleanLabel.split(', ')[1]?.split(' '); // ["Oct", "24"]
+        if (!parts || parts.length !== 2) return '';
+
+        const month = months[parts[0]];
+        const day = parts[1].padStart(2, '0');
+        const year = new Date().getFullYear();
+
+        return `${year}-${month}-${day}`;
+    };
+
     // --- Helpers for Smart Scheduling ---
     const getAvailableDates = () => {
         const dates = [];
@@ -72,24 +135,8 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
         return dates;
     };
 
-    const getAvailableTimes = () => {
-        const times = [];
-        const start = settings.startHour ?? 9; // Default 9 AM
-        const end = settings.endHour ?? 17;   // Default 5 PM
-
-        for (let hour = start; hour <= end; hour++) {
-            const isAm = hour < 12;
-            const displayHour = hour > 12 ? hour - 12 : (hour === 0 || hour === 12 ? 12 : hour);
-            const suffix = isAm ? 'AM' : 'PM';
-            const value = `${displayHour}:00 ${suffix}`;
-            times.push(value);
-        }
-        return times;
-    };
-
     // Memoize the lists so they don't regenerate constantly
     const availableDates = getAvailableDates();
-    const availableTimes = getAvailableTimes();
 
     const updateSchedule = (date: string, time: string) => {
         setSelectedDate(date);
@@ -452,40 +499,87 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
                 <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-900 uppercase tracking-wide ml-1">Preferred Timing</label>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="relative">
-                            <select
-                                className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-lg font-medium shadow-sm appearance-none cursor-pointer hover:border-blue-300"
-                                value={selectedDate}
-                                onChange={e => updateSchedule(e.target.value, selectedTime)}
-                            >
-                                <option value="">Select Date</option>
-                                {availableDates.map(d => (
-                                    <option key={d.value} value={d.value}>{d.label}</option>
-                                ))}
-                            </select>
-                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                                <ChevronDown size={20} />
-                            </div>
-                        </div>
-
-                        <div className="relative">
-                            <select
-                                className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-lg font-medium shadow-sm appearance-none cursor-pointer hover:border-blue-300 disabled:bg-slate-50 disabled:text-slate-400"
-                                value={selectedTime}
-                                onChange={e => updateSchedule(selectedDate, e.target.value)}
-                                disabled={!selectedDate}
-                            >
-                                <option value="">Select Time</option>
-                                {availableTimes.map(t => (
-                                    <option key={t} value={t}>{t}</option>
-                                ))}
-                            </select>
-                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                                <ChevronDown size={20} />
-                            </div>
+                    {/* Date Picker */}
+                    <div className="relative">
+                        <select
+                            className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-lg font-medium shadow-sm appearance-none cursor-pointer hover:border-blue-300"
+                            value={selectedDate}
+                            onChange={e => {
+                                setSelectedDate(e.target.value);
+                                // updateSchedule will be called after slots are fetched
+                            }}
+                        >
+                            <option value="">Select Date</option>
+                            {availableDates.map(d => (
+                                <option key={d.value} value={d.value}>{d.label}</option>
+                            ))}
+                        </select>
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                            <ChevronDown size={20} />
                         </div>
                     </div>
+
+                    {/* Time Slot Picker */}
+                    {selectedDate && (
+                        <div className="mt-4">
+                            <div className="flex items-center justify-between mb-3">
+                                <label className="text-sm font-bold text-slate-900 uppercase tracking-wide">Available Times</label>
+                                {loadingSlots && (
+                                    <div className="flex items-center gap-2 text-blue-600 text-sm">
+                                        <Loader2 size={14} className="animate-spin" />
+                                        <span className="font-medium">Loading...</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {slotsError && (
+                                <div className="bg-red-50 text-red-600 p-4 rounded-2xl text-sm font-medium border border-red-100 flex items-center gap-2">
+                                    <XCircle size={16} />
+                                    {slotsError}
+                                </div>
+                            )}
+
+                            {!loadingSlots && !slotsError && availableSlots.length === 0 && (
+                                <div className="bg-amber-50 text-amber-700 p-6 rounded-2xl text-center border border-amber-100">
+                                    <Clock size={32} className="mx-auto mb-2 text-amber-600" />
+                                    <p className="font-bold mb-1">No times available</p>
+                                    <p className="text-sm">Please try a different date</p>
+                                </div>
+                            )}
+
+                            {!loadingSlots && availableSlots.length > 0 && (
+                                <div className="grid grid-cols-3 gap-3">
+                                    {availableSlots.map(slot => {
+                                        // Convert 24h format to 12h for display
+                                        const [h, m] = slot.split(':').map(Number);
+                                        const isAm = h < 12;
+                                        const displayHour = h > 12 ? h - 12 : (h === 0 || h === 12 ? 12 : h);
+                                        const displayTime = `${displayHour}:${m.toString().padStart(2, '0')} ${isAm ? 'AM' : 'PM'}`;
+                                        const isSelected = selectedTime === displayTime;
+
+                                        return (
+                                            <button
+                                                key={slot}
+                                                type="button"
+                                                onClick={() => updateSchedule(selectedDate, displayTime)}
+                                                className={clsx(
+                                                    "p-4 rounded-xl font-bold transition-all border-2",
+                                                    isSelected
+                                                        ? "bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/30"
+                                                        : "bg-white text-slate-700 border-slate-200 hover:border-blue-300 hover:bg-blue-50"
+                                                )}
+                                            >
+                                                <div className="flex items-center justify-center gap-2">
+                                                    {isSelected && <Check size={16} strokeWidth={3} />}
+                                                    <span>{displayTime}</span>
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div className="space-y-2">

@@ -116,7 +116,7 @@ export function SubscriptionManager() {
                 <div style={{
                     width: '64px',
                     height: '64px',
-                    background: isLocked ? '#fee2e2' : '#fef3c7',
+                    background: isLocked ? 'var(--color-danger-muted)' : 'var(--color-warning-muted)',
                     borderRadius: '50%',
                     display: 'flex',
                     alignItems: 'center',

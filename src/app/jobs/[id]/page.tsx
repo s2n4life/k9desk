@@ -11,7 +11,7 @@ import { triggerSMSAction } from '@/lib/sms';
 import { v4 as uuidv4 } from 'uuid';
 import { formatTime12Hour } from '@/lib/format';
 
-import { ChevronLeft, MapPin, Clock, Send, CreditCard, Star, CheckSquare, DollarSign, Edit2, Trash2, Plus, AlertTriangle, Scissors, X, Phone, MessageCircle, MoreVertical } from 'lucide-react';
+import { ChevronLeft, MapPin, Clock, Send, CreditCard, Star, CheckSquare, DollarSign, Edit2, Trash2, Plus, AlertTriangle, Scissors, X, Phone, MessageCircle, MoreVertical, Check } from 'lucide-react';
 import { useScheduling } from '@/hooks/useScheduling';
 import Link from 'next/link';
 import { PaymentModal } from '@/components/Jobs/PaymentModal';
@@ -569,7 +569,16 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                             Setting: {totalDuration} min
                         </div>
                     </div>
-                    <input className="card" type="date" value={newDate} onChange={e => setNewDate(e.target.value)} />
+                    <input
+                        className="card"
+                        type="date"
+                        value={newDate}
+                        onChange={e => {
+                            setNewDate(e.target.value);
+                            // Auto-close the date picker
+                            e.target.blur();
+                        }}
+                    />
 
                     <span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', marginTop: 'var(--space-2)' }}>Available Slots</span>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 8, maxHeight: '30vh', overflowY: 'auto', padding: '4px' }}>
@@ -799,9 +808,26 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                                     cursor: 'pointer'
                                 }}
                             >
-                                <span style={{ fontWeight: 600 }}>{s.name}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flex: 1 }}>
+                                    {/* Selection Checkbox */}
+                                    <div style={{
+                                        width: 20,
+                                        height: 20,
+                                        borderRadius: '50%',
+                                        border: `2px solid ${isSelected ? '#8b5cf6' : 'var(--border-color)'}`,
+                                        backgroundColor: isSelected ? '#8b5cf6' : 'transparent',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        flexShrink: 0,
+                                        transition: 'all 0.2s'
+                                    }}>
+                                        {isSelected && <Check size={14} color="white" strokeWidth={3} />}
+                                    </div>
+                                    <span style={{ fontWeight: 600, color: isSelected ? '#8b5cf6' : 'var(--text-primary)' }}>{s.name}</span>
+                                </div>
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                                    <span>${s.price}</span>
+                                    <span style={{ color: isSelected ? '#8b5cf6' : 'var(--text-secondary)' }}>${s.price}</span>
                                 </div>
                             </div>
                         );

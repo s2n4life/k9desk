@@ -27,9 +27,13 @@
 
   /* State Colors */
   --color-success: hsl(150, 90%, 35%);
+  --color-success-muted: hsl(150, 60%, 95%);
   --color-warning: hsl(35, 90%, 50%);
+  --color-warning-muted: hsl(35, 60%, 95%);
   --color-danger: hsl(350, 85%, 55%);
+  --color-danger-muted: hsl(350, 60%, 95%);
   --color-info: hsl(210, 90%, 50%);
+  --color-info-muted: hsl(210, 60%, 95%);
 
   /* Spacing Scale (4px base) */
   --space-1: 0.25rem;
@@ -92,5 +96,11 @@
 
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+
+    /* Muted state colors for dark mode */
+    --color-success-muted: hsl(150, 40%, 25%);
+    --color-warning-muted: hsl(35, 40%, 25%);
+    --color-danger-muted: hsl(350, 40%, 25%);
+    --color-info-muted: hsl(210, 40%, 25%);
   }
 }
