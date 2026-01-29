@@ -166,6 +166,36 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
         updateJobServices(newServices);
     };
 
+    const createServiceInModal = async () => {
+        if (!sName.trim()) {
+            alert('Please enter a service name');
+            return;
+        }
+        const price = parseFloat(sPrice || '0');
+        if (price < 0) {
+            alert('Price must be 0 or greater');
+            return;
+        }
+
+        const newService: Service = {
+            id: uuidv4(),
+            name: sName.trim(),
+            price,
+            createdAt: Date.now()
+        };
+
+        const { getActiveBusinessIdSync } = await import('@/contexts/ImpersonationContext');
+        const businessId = getActiveBusinessIdSync();
+
+        await saveWithSync('services', newService, 'CREATE', businessId || undefined);
+        setAllServices(prev => [...prev, newService]);
+
+        // Reset form
+        setSName('');
+        setSPrice('');
+        setCreateServiceMode(false);
+    };
+
     const savePet = async () => {
         if (!pName) return;
         if (editingPetId) {
@@ -551,7 +581,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                                     padding: '8px 4px',
                                     borderRadius: 'var(--radius-sm)',
                                     border: newTime === slot ? '2px solid var(--brand-primary)' : '1px solid var(--border-color)',
-                                    background: newTime === slot ? 'var(--brand-primary-light)' : 'white',
+                                    background: newTime === slot ? 'var(--brand-primary-light)' : 'var(--bg-card)',
                                     color: newTime === slot ? 'var(--brand-primary)' : 'var(--text-primary)',
                                     fontWeight: newTime === slot ? 700 : 400,
                                     fontSize: 'var(--font-size-sm)',
@@ -643,13 +673,116 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
             {/* Add Service Modal */}
             <Modal
                 isOpen={!!pickingServiceForPetId}
-                onClose={() => setPickingServiceForPetId(null)}
-                title="Add Service"
+                onClose={() => {
+                    setPickingServiceForPetId(null);
+                    setCreateServiceMode(false);
+                    setSName('');
+                    setSPrice('');
+                }}
+                title="Manage Services"
                 footer={(
-                    <button onClick={() => setPickingServiceForPetId(null)} className="btn btn-primary" style={{ width: '100%' }}>Done</button>
+                    <button onClick={() => {
+                        setPickingServiceForPetId(null);
+                        setCreateServiceMode(false);
+                        setSName('');
+                        setSPrice('');
+                    }} className="btn btn-primary" style={{ width: '100%' }}>Done</button>
                 )}
             >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                    {/* Create New Service Section */}
+                    {!createServiceMode ? (
+                        <button
+                            onClick={() => setCreateServiceMode(true)}
+                            style={{
+                                padding: 'var(--space-3)',
+                                border: '2px dashed var(--brand-primary)',
+                                borderRadius: 'var(--radius-md)',
+                                background: 'var(--brand-primary-light)',
+                                color: 'var(--brand-primary)',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 'var(--space-2)'
+                            }}
+                        >
+                            <Plus size={20} /> Create New Service
+                        </button>
+                    ) : (
+                        <div style={{
+                            padding: 'var(--space-4)',
+                            backgroundColor: 'var(--surface-sunken)',
+                            borderRadius: 'var(--radius-md)',
+                            border: '2px solid var(--brand-primary)'
+                        }}>
+                            <div style={{ marginBottom: 'var(--space-3)' }}>
+                                <label style={{ display: 'block', marginBottom: 'var(--space-2)', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>Service Name</label>
+                                <input
+                                    className="input"
+                                    placeholder="e.g., Full Groom"
+                                    value={sName}
+                                    onChange={e => setSName(e.target.value)}
+                                    style={{ width: '100%', fontSize: '16px' }}
+                                    autoFocus
+                                />
+                            </div>
+                            <div style={{ marginBottom: 'var(--space-3)' }}>
+                                <label style={{ display: 'block', marginBottom: 'var(--space-2)', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>Price</label>
+                                <div style={{ position: 'relative' }}>
+                                    <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: '16px', fontWeight: 600 }}>$</span>
+                                    <input
+                                        className="input"
+                                        type="text"
+                                        inputMode="decimal"
+                                        placeholder="0.00"
+                                        value={sPrice}
+                                        onChange={e => {
+                                            const val = e.target.value.replace(/[^0-9.]/g, '');
+                                            setSPrice(val);
+                                        }}
+                                        style={{ width: '100%', paddingLeft: '32px', fontSize: '16px' }}
+                                    />
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                                <button
+                                    onClick={createServiceInModal}
+                                    className="btn btn-primary"
+                                    style={{ flex: 1 }}
+                                >
+                                    <Plus size={16} /> Save Service
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setCreateServiceMode(false);
+                                        setSName('');
+                                        setSPrice('');
+                                    }}
+                                    className="btn btn-secondary"
+                                    style={{ width: '48px', padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Divider */}
+                    {allServices.length > 0 && (
+                        <div style={{
+                            borderTop: '1px solid var(--border-color)',
+                            marginTop: createServiceMode ? 'var(--space-2)' : 0,
+                            paddingTop: 'var(--space-3)'
+                        }}>
+                            <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginBottom: 'var(--space-2)', fontWeight: 600 }}>
+                                Select Services
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Existing Services List */}
                     {allServices.map(s => {
                         const isSelected = job.services?.some(x => x.id === s.id && x.petId === pickingServiceForPetId);
                         return (
@@ -660,7 +793,8 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                                     padding: 'var(--space-3)',
                                     border: isSelected ? '2px solid var(--brand-primary)' : '1px solid var(--border-color)',
                                     borderRadius: 'var(--radius-md)',
-                                    background: isSelected ? 'var(--brand-primary-light)' : 'white',
+                                    background: isSelected ? 'var(--brand-primary-light)' : 'var(--bg-card)',
+                                    color: isSelected ? 'var(--brand-primary)' : 'var(--text-primary)',
                                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                                     cursor: 'pointer'
                                 }}
@@ -672,6 +806,12 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                             </div>
                         );
                     })}
+
+                    {allServices.length === 0 && !createServiceMode && (
+                        <div style={{ textAlign: 'center', padding: 'var(--space-4)', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                            No services available. Create one above!
+                        </div>
+                    )}
                 </div>
             </Modal>
 
