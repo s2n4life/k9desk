@@ -588,18 +588,25 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 onClose={() => setRequestPaymentModalOpen(false)}
                 onConfirm={async (amount, selectedPaymentMethods) => {
                     try {
-                        // Send SMS with amount and selected payment methods
+                        // Transition state FIRST (before opening SMS app)
+                        // This prevents errors if user returns before SMS is sent
+                        await JobStateMachine.transition(id, 'REQUEST_PAYMENT', {
+                            payment_amount: amount
+                        });
+
+                        // Close modal immediately after state transition
+                        setRequestPaymentModalOpen(false);
+
+                        // Reload data to show updated state
+                        await loadData();
+
+                        // THEN send SMS (opens SMS app)
+                        // User may leave app at this point, but state is already updated
                         await triggerSMSAction(job!, customer!, 'REQUEST_PAYMENT', {
                             settings,
                             amount,
                             selectedPaymentMethods
                         });
-                        // Transition state
-                        await JobStateMachine.transition(id, 'REQUEST_PAYMENT', {
-                            payment_amount: amount
-                        });
-                        setRequestPaymentModalOpen(false);
-                        loadData();
                     } catch (error) {
                         console.error('Failed to request payment:', error);
                         alert('Failed to request payment: ' + (error as Error).message);

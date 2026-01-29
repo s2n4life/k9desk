@@ -207,7 +207,21 @@ export default function NeedsActionPage() {
                         const job = jobs.find(j => j.id === selectedJobId);
                         const customer = job ? customers[job.customerId] : null;
 
-                        // Send SMS with amount and selected payment methods
+                        // Transition state FIRST (before opening SMS app)
+                        // This prevents errors if user returns before SMS is sent
+                        await JobStateMachine.transition(selectedJobId, 'REQUEST_PAYMENT', {
+                            payment_amount: amount
+                        });
+
+                        // Close modal immediately after state transition
+                        setRequestPaymentModalOpen(false);
+                        setSelectedJobId(null);
+
+                        // Reload data to show updated state
+                        await loadData();
+
+                        // THEN send SMS (opens SMS app)
+                        // User may leave app at this point, but state is already updated
                         if (job && customer) {
                             triggerSMSAction(job, customer, 'REQUEST_PAYMENT', {
                                 settings,
@@ -215,15 +229,6 @@ export default function NeedsActionPage() {
                                 selectedPaymentMethods
                             });
                         }
-
-                        // Transition state
-                        await JobStateMachine.transition(selectedJobId, 'REQUEST_PAYMENT', {
-                            payment_amount: amount
-                        });
-
-                        setRequestPaymentModalOpen(false);
-                        setSelectedJobId(null);
-                        await loadData();
                     } catch (err: any) {
                         console.error('Failed to request payment:', err);
                         alert('Failed to request payment: ' + err.message);
