@@ -87,8 +87,15 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
     // Helper to convert "Tue, Oct 24" to "2024-10-24"
     const convertDateLabelToISO = (label: string): string => {
         try {
+            console.log('[BookingWizard] Converting date label:', label);
+
             // Remove "Tomorrow (" prefix if present
-            const cleanLabel = label.replace(/^Tomorrow \(/, '').replace(/\)$/, '');
+            let cleanLabel = label;
+            if (cleanLabel.startsWith('Tomorrow (')) {
+                cleanLabel = cleanLabel.replace('Tomorrow (', '').replace(')', '');
+            }
+
+            console.log('[BookingWizard] Clean label:', cleanLabel);
 
             // Parse "Tue, Oct 24" format
             const months: { [key: string]: string } = {
@@ -97,14 +104,26 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
                 'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
             };
 
-            const parts = cleanLabel.split(', ')[1]?.split(' '); // ["Oct", "24"]
+            // Split by comma first
+            const commaSplit = cleanLabel.split(', ');
+            if (commaSplit.length < 2) {
+                console.error('[BookingWizard] Invalid format - no comma found:', cleanLabel);
+                return '';
+            }
+
+            // Get the date part (after comma)
+            const datePart = commaSplit[1];
+            const parts = datePart.split(' ');
+
             if (!parts || parts.length !== 2) {
-                console.error('[BookingWizard] Invalid date label format:', label);
+                console.error('[BookingWizard] Invalid date part format:', datePart);
                 return '';
             }
 
             const monthStr = parts[0];
             const dayStr = parts[1];
+
+            console.log('[BookingWizard] Month:', monthStr, 'Day:', dayStr);
 
             const month = months[monthStr];
             if (!month) {
