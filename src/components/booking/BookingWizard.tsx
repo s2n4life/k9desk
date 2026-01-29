@@ -67,7 +67,19 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
             // Convert date label to YYYY-MM-DD format
             const isoDate = convertDateLabelToISO(dateLabel);
 
-            const response = await fetch(`/api/availability/${businessId}?date=${isoDate}`);
+            // Check if conversion succeeded
+            if (!isoDate) {
+                throw new Error('Invalid date format. Please try selecting a different date.');
+            }
+
+            const apiUrl = `/api/availability/${businessId}?date=${isoDate}`;
+            console.log('[BookingWizard] Fetching slots');
+            console.log('[BookingWizard] Business ID:', businessId);
+            console.log('[BookingWizard] ISO Date:', isoDate);
+            console.log('[BookingWizard] API URL:', apiUrl);
+
+            const response = await fetch(apiUrl);
+            console.log('[BookingWizard] Response status:', response.status);
 
             if (!response.ok) {
                 throw new Error('Failed to fetch available slots');
