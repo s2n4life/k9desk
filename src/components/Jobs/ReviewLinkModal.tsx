@@ -44,7 +44,7 @@ export function ReviewLinkModal({ isOpen, onClose, onSave }: ReviewLinkModalProp
             animation: 'fadeIn 0.2s'
         }}>
             <div style={{
-                backgroundColor: 'var(--surface-card)',
+                backgroundColor: 'var(--bg-card)',
                 width: '90%',
                 maxWidth: '400px',
                 borderRadius: 'var(--radius-lg)',

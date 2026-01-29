@@ -154,7 +154,7 @@
 }
 
 .botBtn {
-    background: white;
+    background: var(--bg-card);
     color: var(--brand-primary);
     border: none;
     padding: var(--space-3);

@@ -35,7 +35,7 @@ export function SyncManager() {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                backgroundColor: '#ffffff',
+                backgroundColor: 'var(--bg-app)',
                 zIndex: 99999,
                 padding: '20px',
                 display: 'flex',
@@ -48,7 +48,7 @@ export function SyncManager() {
                 <div style={{
                     width: '50px',
                     height: '50px',
-                    border: '4px solid #f3f3f3',
+                    border: '4px solid var(--border-subtle)',
                     borderTop: '4px solid var(--brand-primary)',
                     borderRadius: '50%',
                     animation: 'spin 1s linear infinite',

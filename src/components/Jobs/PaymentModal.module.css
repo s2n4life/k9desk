@@ -14,9 +14,7 @@
     bottom: 0;
     left: 0;
     right: 0;
-    background: #ffffff;
-    /* Fallback */
-    background: var(--bg-surface, #ffffff);
+    background: var(--bg-card);
     border-radius: 20px 20px 0 0;
     padding: var(--space-6);
     z-index: 9999;
@@ -114,9 +112,9 @@
     justify-content: center;
     padding: var(--space-3);
     border-radius: var(--radius-md);
-    border: 1px solid var(--border-color);
-    background: var(--bg-surface);
-    color: var(--text-secondary);
+    border: 1px solid var(--border-subtle);
+    background: var(--surface-secondary);
+    color: var(--text-primary);
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;

@@ -179,6 +179,14 @@ export default function NeedsActionPage() {
             <PaymentModal
                 isOpen={paymentModalOpen}
                 onClose={() => setPaymentModalOpen(false)}
+                initialAmount={
+                    selectedJobId
+                        ? (() => {
+                            const job = jobs.find(j => j.id === selectedJobId);
+                            return job ? (job.payment_amount || job.services?.reduce((acc, s) => acc + (s.price || 0), 0) || 0) : 0;
+                        })()
+                        : 0
+                }
                 onConfirm={async (amount, method) => {
                     if (selectedJobId) {
                         try {

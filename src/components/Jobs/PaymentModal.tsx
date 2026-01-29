@@ -7,6 +7,7 @@ export interface PaymentModalProps {
     isOpen: boolean;
     onClose: () => void;
     onConfirm: (amount: number, method: string) => void;
+    initialAmount?: number;
 }
 
 const PAYMENT_METHODS = [
@@ -18,14 +19,15 @@ const PAYMENT_METHODS = [
     { id: 'other', label: 'Other' }
 ];
 
-export function PaymentModal({ isOpen, onClose, onConfirm }: PaymentModalProps) {
+export function PaymentModal({ isOpen, onClose, onConfirm, initialAmount }: PaymentModalProps) {
     const [amount, setAmount] = useState('');
     const [method, setMethod] = useState('cash');
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (isOpen) {
-            setAmount('');
+            // Pre-populate with initialAmount if provided
+            setAmount(initialAmount ? initialAmount.toFixed(2) : '');
             setMethod('cash');
             // Slight delay to allow animation/rendering
             setTimeout(() => {

@@ -326,6 +326,11 @@ export default function TodayPage() {
       <PaymentModal
         isOpen={paymentModalOpen}
         onClose={() => setPaymentModalOpen(false)}
+        initialAmount={
+          selectedJob
+            ? (selectedJob.payment_amount || selectedJob.services?.reduce((acc, s) => acc + (s.price || 0), 0) || 0)
+            : 0
+        }
         onConfirm={async (amount, method) => {
           if (selectedJobId) {
             await JobStateMachine.transition(selectedJobId, 'LOG_PAYMENT', {

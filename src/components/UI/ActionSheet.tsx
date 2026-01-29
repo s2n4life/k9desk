@@ -82,18 +82,18 @@ export function ActionSheet({ isOpen, onClose, title, options }: ActionSheetProp
             >
                 {/* Options Group */}
                 <div style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                    backdropFilter: 'blur(10px)',
+                    backgroundColor: 'var(--bg-card)',
                     borderRadius: '14px',
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    border: '1px solid var(--border-subtle)'
                 }}>
                     {title && (
                         <div style={{
                             padding: '12px 16px',
                             textAlign: 'center',
                             fontSize: '13px',
-                            color: '#8e8e93',
-                            borderBottom: '1px solid rgba(0,0,0,0.1)'
+                            color: 'var(--text-secondary)',
+                            borderBottom: '1px solid var(--border-subtle)'
                         }}>
                             {title}
                         </div>
@@ -110,9 +110,9 @@ export function ActionSheet({ isOpen, onClose, title, options }: ActionSheetProp
                                 padding: '16px',
                                 backgroundColor: 'transparent',
                                 border: 'none',
-                                borderBottom: index < options.length - 1 ? '1px solid rgba(0,0,0,0.1)' : 'none',
+                                borderBottom: index < options.length - 1 ? '1px solid var(--border-subtle)' : 'none',
                                 fontSize: '20px',
-                                color: option.variant === 'destructive' ? '#ff3b30' : '#007aff',
+                                color: option.variant === 'destructive' ? 'var(--color-danger)' : 'var(--brand-primary)',
                                 cursor: 'pointer',
                                 fontWeight: 400
                             }}
@@ -128,11 +128,11 @@ export function ActionSheet({ isOpen, onClose, title, options }: ActionSheetProp
                     style={{
                         width: '100%',
                         padding: '16px',
-                        backgroundColor: 'white',
+                        backgroundColor: 'var(--bg-card)',
                         borderRadius: '14px',
-                        border: 'none',
+                        border: '1px solid var(--border-subtle)',
                         fontSize: '20px',
-                        color: '#007aff',
+                        color: 'var(--brand-primary)',
                         fontWeight: 600,
                         cursor: 'pointer'
                     }}

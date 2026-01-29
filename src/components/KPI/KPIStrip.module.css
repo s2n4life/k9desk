@@ -18,10 +18,8 @@
 }
 
 .card {
-    background: #ffffff;
-    /* Explicit white for lightness */
-    border: 1px solid rgba(0, 0, 0, 0.15);
-    /* Darker outline for contrast */
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
     padding: var(--space-2);
     display: flex;
@@ -37,15 +35,13 @@
 .value {
     font-size: var(--font-size-lg);
     font-weight: 700;
-    color: #111827;
-    /* Force dark text on white card */
+    color: var(--text-primary);
     line-height: 1.2;
     margin-bottom: 0;
 }
 
 .label {
     font-size: var(--font-size-xs);
-    color: #6b7280;
-    /* Force gray text on white card */
+    color: var(--text-secondary);
     font-weight: 500;
 }

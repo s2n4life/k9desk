@@ -573,6 +573,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
             <PaymentModal
                 isOpen={paymentModalOpen}
                 onClose={() => setPaymentModalOpen(false)}
+                initialAmount={job.payment_amount || totalCost}
                 onConfirm={async (amount, method) => {
                     try {
                         await JobStateMachine.transition(id, 'LOG_PAYMENT', {
