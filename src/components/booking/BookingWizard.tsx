@@ -384,7 +384,7 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
                 <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-900 uppercase tracking-wide ml-1">Home Address</label>
                     <input
-                        className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-lg shadow-sm"
+                        className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-lg text-slate-900 shadow-sm"
                         placeholder="123 Dogwood Lane"
                         value={formData.ownerAddress}
                         onChange={e => updateForm('ownerAddress', e.target.value)}
@@ -393,7 +393,7 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
                 <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-900 uppercase tracking-wide ml-1">Email <span className="font-normal text-slate-400 normal-case">(Optional)</span></label>
                     <input
-                        className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-lg shadow-sm"
+                        className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-lg text-slate-900 shadow-sm"
                         type="email"
                         placeholder="jane@example.com"
                         value={formData.ownerEmail}
@@ -590,7 +590,7 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
                     {/* Date Picker */}
                     <div className="relative">
                         <select
-                            className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-lg font-medium shadow-sm appearance-none cursor-pointer hover:border-blue-300"
+                            className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-lg text-slate-900 font-medium shadow-sm appearance-none cursor-pointer hover:border-blue-300"
                             value={selectedDate}
                             onChange={e => {
                                 setSelectedDate(e.target.value);
@@ -681,14 +681,16 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
                 </div>
             </div>
 
-            {submitError && (
-                <div className="bg-red-50 text-red-600 p-4 rounded-2xl text-sm font-bold border border-red-100 animate-in shake flex items-center gap-3">
-                    <div className="bg-red-100 p-1 rounded-full">
-                        <XCircle size={16} />
+            {
+                submitError && (
+                    <div className="bg-red-50 text-red-600 p-4 rounded-2xl text-sm font-bold border border-red-100 animate-in shake flex items-center gap-3">
+                        <div className="bg-red-100 p-1 rounded-full">
+                            <XCircle size={16} />
+                        </div>
+                        {submitError}
                     </div>
-                    {submitError}
-                </div>
-            )}
+                )
+            }
 
             <div className="flex gap-4 pt-4">
                 <button onClick={() => setStep(3)} className="px-8 py-4 text-slate-500 font-bold hover:bg-slate-100 rounded-2xl transition-colors">Back</button>
@@ -700,7 +702,7 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
                     {submitting ? <Loader2 className="animate-spin" /> : <>Request Appointment</>}
                 </button>
             </div>
-        </div>
+        </div >
     );
 
     const renderSuccessView = () => (
