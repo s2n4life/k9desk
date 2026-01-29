@@ -58,25 +58,40 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
         }
     }, [selectedDate]);
 
+
+    // Format ISO date (YYYY-MM-DD) for display as "Mon, Jan 29"
+    const formatDateForDisplay = (isoDate: string): string => {
+        try {
+            const date = new Date(isoDate + 'T12:00:00'); // Add time to avoid timezone issues
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+            const dayName = days[date.getDay()];
+            const monthName = months[date.getMonth()];
+            const dayNum = date.getDate();
+
+            return `${dayName}, ${monthName} ${dayNum}`;
+        } catch (error) {
+            console.error('[BookingWizard] Error formatting date:', error);
+            return isoDate;
+        }
+    };
+
     const fetchAvailableSlots = async (dateLabel: string) => {
         setLoadingSlots(true);
         setSlotsError('');
         setSelectedTime(''); // Clear selected time when date changes
 
         try {
-            // Convert date label to YYYY-MM-DD format
-            const isoDate = convertDateLabelToISO(dateLabel);
+            // dateLabel is now already an ISO date (YYYY-MM-DD) from getAvailableDates
+            const isoDate = dateLabel;
 
-            // Check if conversion succeeded
             if (!isoDate) {
-                throw new Error('Invalid date format. Please try selecting a different date.');
+                throw new Error('Invalid date. Please try selecting a different date.');
             }
 
             const apiUrl = `/api/availability/${businessId}?date=${isoDate}`;
-            console.log('[BookingWizard] Fetching slots');
-            console.log('[BookingWizard] Business ID:', businessId);
-            console.log('[BookingWizard] ISO Date:', isoDate);
-            console.log('[BookingWizard] API URL:', apiUrl);
+            console.log('[BookingWizard] Fetching slots for:', isoDate);
 
             const response = await fetch(apiUrl);
             console.log('[BookingWizard] Response status:', response.status);
@@ -169,8 +184,7 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
     const getAvailableDates = () => {
         const dates = [];
         const today = new Date();
-        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        today.setHours(0, 0, 0, 0); // Reset to start of day
 
         // Generate next 14 days
         for (let i = 1; i <= 14; i++) {
@@ -179,16 +193,18 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
             const dayIndex = date.getDay();
 
             // Filter by workDays from settings (default to all if not specified)
-            // settings.workDays is typically 0-6 (Sun-Sat)
             if (!settings.workDays || settings.workDays.length === 0 || settings.workDays.includes(dayIndex)) {
-                // Format: "Tue, Oct 24"
-                const value = `${days[dayIndex].substring(0, 3)}, ${months[date.getMonth()]} ${date.getDate()}`;
+                // Store as ISO date (YYYY-MM-DD)
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const isoDate = `${year}-${month}-${day}`;
 
-                // Add friendly labels for tomorrow
-                let label = value;
-                if (i === 1) label = `Tomorrow (${value})`;
+                // Format for display
+                const displayDate = formatDateForDisplay(isoDate);
+                const label = i === 1 ? `Tomorrow (${displayDate})` : displayDate;
 
-                dates.push({ value, label });
+                dates.push({ value: isoDate, label });
             }
         }
         return dates;
