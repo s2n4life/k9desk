@@ -36,13 +36,24 @@ export async function GET(
             return NextResponse.json({ slots: [] }, { status: 200 });
         }
 
-        // 1. Find business by slug
-        console.log('[Availability API] Looking up business with slug:', slug);
-        const { data: businesses, error: businessError } = await supabase
+        // 1. Find business by slug OR UUID
+        console.log('[Availability API] Looking up business with identifier:', slug);
+
+        // Check if it's a UUID
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
+        console.log('[Availability API] Is UUID?', isUuid);
+
+        let query = supabase
             .from('businesses')
-            .select('id')
-            .eq('slug', slug)
-            .limit(1);
+            .select('id');
+
+        if (isUuid) {
+            query = query.eq('id', slug);
+        } else {
+            query = query.eq('slug', slug);
+        }
+
+        const { data: businesses, error: businessError } = await query.limit(1);
 
         console.log('[Availability API] Business lookup result:', { businesses, businessError });
 
@@ -55,7 +66,7 @@ export async function GET(
         }
 
         if (!businesses || businesses.length === 0) {
-            console.log('[Availability API] No business found for slug:', slug);
+            console.log('[Availability API] No business found for identifier:', slug);
             return NextResponse.json({ error: 'Business not found' }, { status: 404 });
         }
 
