@@ -8,10 +8,22 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// Mark this route as public (no auth required)
+export const runtime = 'edge';
+export const dynamic = 'force-dynamic';
+
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ slug: string }> }
 ) {
+    // Add CORS headers for public access
+    const headers = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Content-Type': 'application/json',
+    };
+
     try {
         const { slug } = await params;
         const { searchParams } = new URL(request.url);
@@ -19,13 +31,13 @@ export async function GET(
 
         // Validate inputs
         if (!date) {
-            return NextResponse.json({ error: 'Date parameter is required' }, { status: 400 });
+            return NextResponse.json({ error: 'Date parameter is required' }, { status: 400, headers });
         }
 
         // Validate date format (YYYY-MM-DD)
         const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
         if (!dateRegex.test(date)) {
-            return NextResponse.json({ error: 'Invalid date format. Use YYYY-MM-DD' }, { status: 400 });
+            return NextResponse.json({ error: 'Invalid date format. Use YYYY-MM-DD' }, { status: 400, headers });
         }
 
         // Don't allow past dates
@@ -33,7 +45,7 @@ export async function GET(
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         if (requestedDate < today) {
-            return NextResponse.json({ slots: [] }, { status: 200 });
+            return NextResponse.json({ slots: [] }, { status: 200, headers });
         }
 
         // 1. Find business by slug OR UUID
@@ -67,7 +79,7 @@ export async function GET(
 
         if (!businesses || businesses.length === 0) {
             console.log('[Availability API] No business found for identifier:', slug);
-            return NextResponse.json({ error: 'Business not found' }, { status: 404 });
+            return NextResponse.json({ error: 'Business not found' }, { status: 404, headers });
         }
 
         const businessId = businesses[0].id;
@@ -105,7 +117,7 @@ export async function GET(
 
         if (jobsError) {
             console.error('Jobs error:', jobsError);
-            return NextResponse.json({ error: 'Failed to fetch jobs' }, { status: 500 });
+            return NextResponse.json({ error: 'Failed to fetch jobs' }, { status: 500, headers });
         }
 
         // 4. Generate all possible slots
@@ -162,10 +174,10 @@ export async function GET(
                 end: endHour
             },
             appointmentDuration
-        });
+        }, { headers });
 
     } catch (error) {
         console.error('Availability API error:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers });
     }
 }
