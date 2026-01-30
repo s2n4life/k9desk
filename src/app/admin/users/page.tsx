@@ -15,7 +15,7 @@ import {
     Filter,
     ArrowUpDown
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 
 type BusinessAccount = {
     id: string;
@@ -28,6 +28,9 @@ type BusinessAccount = {
     owner_role?: string;
     owner_phone?: string;
     stripe_subscription_id?: string;
+    total_jobs?: number;
+    jobs_last_30_days?: number;
+    last_activity?: string;
 };
 
 export default function AdminUsersPage() {
@@ -35,6 +38,8 @@ export default function AdminUsersPage() {
     const [accounts, setAccounts] = useState<BusinessAccount[]>([]);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
+    const [activityFilter, setActivityFilter] = useState<string>('all');
+    const [jobsFilter, setJobsFilter] = useState<string>('all');
     const [sortBy, setSortBy] = useState<string>('created_desc');
     const [showExtendModal, setShowExtendModal] = useState(false);
     const [selectedAccount, setSelectedAccount] = useState<BusinessAccount | null>(null);
@@ -49,18 +54,38 @@ export default function AdminUsersPage() {
                 .from('businesses')
                 .select(`
                     *,
-                    profiles:owner_id (email, role, phone)
+                    profiles:owner_id (email, role, phone),
+                    jobs:jobs!business_id (id, created_at)
                 `)
                 .order('created_at', { ascending: false });
 
             if (data) {
-                const mapped = data.map((b: any) => ({
-                    ...b,
-                    owner_email: b.profiles?.email,
-                    owner_role: b.profiles?.role,
-                    owner_phone: b.profiles?.phone,
-                    stripe_subscription_id: b.stripe_subscription_id
-                }));
+                const now = new Date();
+                const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+                const mapped = data.map((b: any) => {
+                    const jobs = b.jobs || [];
+                    const jobsLast30Days = jobs.filter((j: any) =>
+                        new Date(j.created_at) >= thirtyDaysAgo
+                    );
+
+                    // Find last activity (most recent job or business creation)
+                    const lastJobDate = jobs.length > 0
+                        ? new Date(Math.max(...jobs.map((j: any) => new Date(j.created_at).getTime())))
+                        : null;
+                    const lastActivity = lastJobDate || new Date(b.created_at);
+
+                    return {
+                        ...b,
+                        owner_email: b.profiles?.email,
+                        owner_role: b.profiles?.role,
+                        owner_phone: b.profiles?.phone,
+                        stripe_subscription_id: b.stripe_subscription_id,
+                        total_jobs: jobs.length,
+                        jobs_last_30_days: jobsLast30Days.length,
+                        last_activity: lastActivity.toISOString()
+                    };
+                });
                 setAccounts(mapped);
             }
             setLoading(false);
@@ -177,6 +202,49 @@ export default function AdminUsersPage() {
         });
     }
 
+    // Apply activity filter
+    if (activityFilter !== 'all') {
+        processedAccounts = processedAccounts.filter(a => {
+            if (!a.last_activity) return false;
+            const lastActivity = new Date(a.last_activity);
+            const now = new Date();
+            const daysSinceActivity = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60 * 24);
+
+            switch (activityFilter) {
+                case 'active_7d':
+                    return daysSinceActivity <= 7;
+                case 'recent_30d':
+                    return daysSinceActivity <= 30;
+                case 'inactive_90d':
+                    return daysSinceActivity > 90;
+                case 'never':
+                    return (a.total_jobs || 0) === 0;
+                default:
+                    return true;
+            }
+        });
+    }
+
+    // Apply jobs filter
+    if (jobsFilter !== 'all') {
+        processedAccounts = processedAccounts.filter(a => {
+            const totalJobs = a.total_jobs || 0;
+
+            switch (jobsFilter) {
+                case 'high':
+                    return totalJobs >= 20;
+                case 'medium':
+                    return totalJobs >= 5 && totalJobs < 20;
+                case 'low':
+                    return totalJobs >= 1 && totalJobs < 5;
+                case 'none':
+                    return totalJobs === 0;
+                default:
+                    return true;
+            }
+        });
+    }
+
     // Apply sorting
     processedAccounts.sort((a, b) => {
         switch (sortBy) {
@@ -190,6 +258,10 @@ export default function AdminUsersPage() {
                 return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
             case 'trial_end':
                 return new Date(a.trial_end_date).getTime() - new Date(b.trial_end_date).getTime();
+            case 'activity_desc':
+                return new Date(b.last_activity || 0).getTime() - new Date(a.last_activity || 0).getTime();
+            case 'jobs_desc':
+                return (b.total_jobs || 0) - (a.total_jobs || 0);
             default:
                 return 0;
         }
@@ -247,6 +319,50 @@ export default function AdminUsersPage() {
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <select
+                            value={activityFilter}
+                            onChange={(e) => setActivityFilter(e.target.value)}
+                            style={{
+                                backgroundColor: '#1e293b',
+                                border: '1px solid #334155',
+                                color: 'white',
+                                padding: '8px 12px',
+                                borderRadius: '8px',
+                                outline: 'none',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            <option value="all">All Activity</option>
+                            <option value="active_7d">Active (7 days)</option>
+                            <option value="recent_30d">Recent (30 days)</option>
+                            <option value="inactive_90d">Inactive (90+ days)</option>
+                            <option value="never">Never Used</option>
+                        </select>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <select
+                            value={jobsFilter}
+                            onChange={(e) => setJobsFilter(e.target.value)}
+                            style={{
+                                backgroundColor: '#1e293b',
+                                border: '1px solid #334155',
+                                color: 'white',
+                                padding: '8px 12px',
+                                borderRadius: '8px',
+                                outline: 'none',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            <option value="all">All Jobs</option>
+                            <option value="high">High (20+)</option>
+                            <option value="medium">Medium (5-19)</option>
+                            <option value="low">Low (1-4)</option>
+                            <option value="none">None (0)</option>
+                        </select>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <ArrowUpDown size={16} style={{ color: '#94a3b8' }} />
                         <select
                             value={sortBy}
@@ -265,6 +381,8 @@ export default function AdminUsersPage() {
                             <option value="created_asc">Oldest First</option>
                             <option value="name_asc">Name (A-Z)</option>
                             <option value="name_desc">Name (Z-A)</option>
+                            <option value="activity_desc">Most Active</option>
+                            <option value="jobs_desc">Most Jobs</option>
                             <option value="trial_end">Trial End Date</option>
                         </select>
                     </div>
@@ -294,11 +412,46 @@ export default function AdminUsersPage() {
                                         </div>
                                     )}
                                 </div>
-                                <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>{account.owner_email}</div>
+                                <div style={{ fontSize: '0.875rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    📧 {account.owner_email}
+                                    {account.owner_email && (
+                                        <a
+                                            href={`mailto:${account.owner_email}`}
+                                            style={{
+                                                fontSize: '0.75rem',
+                                                color: '#6c5ce7',
+                                                textDecoration: 'none',
+                                                padding: '2px 8px',
+                                                borderRadius: '4px',
+                                                border: '1px solid #6c5ce7',
+                                                transition: 'all 0.2s'
+                                            }}
+                                            onMouseOver={(e) => e.currentTarget.style.background = '#6c5ce7'}
+                                            onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                                        >
+                                            Email
+                                        </a>
+                                    )}
+                                </div>
                                 {account.owner_phone && (
                                     <div style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '2px' }}>📞 {account.owner_phone}</div>
                                 )}
-                                <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '4px' }}>Joined {format(new Date(account.created_at), 'MMM d, yyyy')}</div>
+
+                                {/* Metrics Section */}
+                                <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#1e293b', borderRadius: '6px' }}>
+                                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px', fontWeight: 600 }}>📊 Metrics</div>
+                                    <div style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>
+                                        • Total Jobs: <span style={{ fontWeight: 600, color: 'white' }}>{account.total_jobs || 0}</span>
+                                    </div>
+                                    <div style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>
+                                        • Last 30 Days: <span style={{ fontWeight: 600, color: '#6c5ce7' }}>{account.jobs_last_30_days || 0}</span>
+                                    </div>
+                                    <div style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>
+                                        • Last Active: <span style={{ fontWeight: 600, color: '#10b981' }}>{account.last_activity ? formatDistanceToNow(new Date(account.last_activity), { addSuffix: true }) : 'Never'}</span>
+                                    </div>
+                                </div>
+
+                                <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '8px' }}>Joined {format(new Date(account.created_at), 'MMM d, yyyy')}</div>
                             </div>
 
                             <div>
