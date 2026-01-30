@@ -20,6 +20,8 @@ export function OnboardingModal() {
     const [paypal, setPaypal] = useState('');
     const [cashapp, setCashapp] = useState('');
     const [customUrl, setCustomUrl] = useState('');
+    const [phone, setPhone] = useState('');
+
 
     const [error, setError] = useState('');
     const [saving, setSaving] = useState(false);
@@ -81,6 +83,18 @@ export function OnboardingModal() {
             return;
         }
 
+        if (!phone.trim()) {
+            setError('Phone number is required.');
+            return;
+        }
+
+        // Basic phone validation (US format)
+        const phoneRegex = /^[\d\s\-\(\)]+$/;
+        if (!phoneRegex.test(phone)) {
+            setError('Please enter a valid phone number.');
+            return;
+        }
+
         setSaving(true);
         try {
             const db = await getDB();
@@ -111,6 +125,17 @@ export function OnboardingModal() {
 
             // Queue for Sync to Supabase
             await addToSyncQueue('UPDATE', 'SETTINGS', 'default', updatedSettings);
+
+            // Save phone to Supabase profiles table
+            const { supabase } = await import('@/lib/supabaseClient');
+            const { data: { user } } = await supabase.auth.getUser();
+
+            if (user) {
+                await supabase
+                    .from('profiles')
+                    .update({ phone: phone.trim() })
+                    .eq('id', user.id);
+            }
 
             setIsOpen(false);
 
@@ -224,6 +249,41 @@ export function OnboardingModal() {
                             {error}
                         </div>
                     )}
+                </div>
+
+                {/* Phone Number Field */}
+                <div style={{ marginBottom: 'var(--space-8)' }}>
+                    <label style={{
+                        display: 'block',
+                        marginBottom: 'var(--space-3)',
+                        fontWeight: 700,
+                        fontSize: '18px'
+                    }}>
+                        Phone Number <span style={{ color: 'var(--error)' }}>*</span>
+                    </label>
+                    <input
+                        type="tel"
+                        className="input"
+                        placeholder="(555) 123-4567"
+                        value={phone}
+                        onChange={(e) => {
+                            setPhone(e.target.value);
+                            if (e.target.value.trim()) setError('');
+                        }}
+                        style={{
+                            width: '100%',
+                            padding: '16px',
+                            fontSize: '18px',
+                            height: 'auto'
+                        }}
+                    />
+                    <p style={{
+                        marginTop: '8px',
+                        fontSize: '14px',
+                        color: 'var(--text-tertiary)'
+                    }}>
+                        We'll use this to contact you about your account.
+                    </p>
                 </div>
 
                 {/* Optional Payment Settings */}

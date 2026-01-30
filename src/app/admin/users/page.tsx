@@ -26,6 +26,7 @@ type BusinessAccount = {
     created_at: string;
     owner_email?: string;
     owner_role?: string;
+    owner_phone?: string;
     stripe_subscription_id?: string;
 };
 
@@ -48,7 +49,7 @@ export default function AdminUsersPage() {
                 .from('businesses')
                 .select(`
                     *,
-                    profiles:owner_id (email, role)
+                    profiles:owner_id (email, role, phone)
                 `)
                 .order('created_at', { ascending: false });
 
@@ -57,6 +58,7 @@ export default function AdminUsersPage() {
                     ...b,
                     owner_email: b.profiles?.email,
                     owner_role: b.profiles?.role,
+                    owner_phone: b.profiles?.phone,
                     stripe_subscription_id: b.stripe_subscription_id
                 }));
                 setAccounts(mapped);
@@ -293,6 +295,9 @@ export default function AdminUsersPage() {
                                     )}
                                 </div>
                                 <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>{account.owner_email}</div>
+                                {account.owner_phone && (
+                                    <div style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '2px' }}>📞 {account.owner_phone}</div>
+                                )}
                                 <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '4px' }}>Joined {format(new Date(account.created_at), 'MMM d, yyyy')}</div>
                             </div>
 
