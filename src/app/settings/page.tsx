@@ -73,6 +73,7 @@ export default function SettingsPage() {
     const [isBillingLoading, setIsBillingLoading] = useState(false);
     const [isResetting, setIsResetting] = useState(false);
     const [showResetConfirm, setShowResetConfirm] = useState(false);
+    const [phone, setPhone] = useState('');
 
     const handleForceReset = () => {
         setShowResetConfirm(true);
@@ -182,6 +183,20 @@ export default function SettingsPage() {
                         // Use slug if available, otherwise ID
                         setSlug(profile.slug || profile.business_id);
                     }
+                }
+            }
+
+            // Load phone from Supabase profiles
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('phone')
+                    .eq('id', user.id)
+                    .single();
+
+                if (profile?.phone) {
+                    setPhone(profile.phone);
                 }
             }
 
@@ -530,6 +545,38 @@ export default function SettingsPage() {
                             />
                         </div>
                     )}
+                </div>
+
+                {/* Phone Number Field */}
+                <div style={{ marginBottom: 'var(--space-4)' }}>
+                    <label style={{ display: 'block', marginBottom: 'var(--space-2)', fontWeight: 500 }}>Phone Number</label>
+                    <input
+                        type="tel"
+                        className="input"
+                        placeholder="(555) 123-4567"
+                        value={phone}
+                        onChange={e => setPhone(e.target.value)}
+                        onBlur={async () => {
+                            // Save phone to Supabase profiles
+                            try {
+                                const { data: { user } } = await supabase.auth.getUser();
+                                if (user) {
+                                    await supabase
+                                        .from('profiles')
+                                        .update({ phone: phone.trim() })
+                                        .eq('id', user.id);
+                                    setMsg('Phone number saved!');
+                                    setTimeout(() => setMsg(''), 2000);
+                                }
+                            } catch (err) {
+                                console.error('Failed to save phone:', err);
+                                setMsg('Failed to save phone number.');
+                            }
+                        }}
+                    />
+                    <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary)', marginTop: 'var(--space-2)' }}>
+                        Used for account contact and support.
+                    </p>
                 </div>
             </section>
 
