@@ -38,11 +38,25 @@ export function OnboardingModal() {
             const db = await getDB();
             const settings = await db.get('settings', 'default');
 
-            // Open if no settings exist OR onboardingCompleted is NOT true
-            // FAIL-SAFE: If subscription is active, we should NOT show onboarding even if flag is missing
-            const isSubscribed = settings?.subscription_status === 'active';
+            // V2.9 SHIELD: Multi-Factor Onboarding Detection
+            // Don't show onboarding if ANY of these conditions are true:
+            // 1. onboardingCompleted flag is explicitly true
+            // 2. User has an active subscription (they've already paid)
+            // 3. User has a trial subscription (they've already started)
+            // 4. Business name exists AND user has payment methods configured (indicates setup was done)
 
-            if ((!settings || !settings.onboardingCompleted) && !isSubscribed) {
+            const hasCompletedFlag = settings?.onboardingCompleted === true;
+            const hasActiveSubscription = settings?.subscription_status === 'active';
+            const hasTrialSubscription = settings?.subscription_status === 'trial';
+            const hasBusinessSetup = settings?.businessName && (
+                settings?.venmo || settings?.zelle || settings?.paypal ||
+                settings?.cashapp || settings?.custom_url
+            );
+
+            const shouldSkipOnboarding = hasCompletedFlag || hasActiveSubscription ||
+                hasTrialSubscription || hasBusinessSetup;
+
+            if (!shouldSkipOnboarding) {
                 setIsOpen(true);
                 if (settings?.businessName) {
                     setBusinessName(settings.businessName);

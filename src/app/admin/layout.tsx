@@ -11,7 +11,7 @@ const ADMIN_NAV_ITEMS = [
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/admin/tickets', label: 'Support Tickets', icon: Ticket },
     { href: '/admin/bugs', label: 'The Sentinel: Logs', icon: Bug },
-    { href: '/admin/users', label: 'Customers', icon: Users },
+    { href: '/admin/users', label: 'Users', icon: Users },
     { href: '/admin/team', label: 'Admin Team', icon: UserCog },
     { href: '/admin/settings', label: 'Global Config', icon: Settings },
 ];

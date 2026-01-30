@@ -200,9 +200,9 @@ export default function AdminUsersPage() {
             <header style={{ marginBottom: '32px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#6c5ce7', marginBottom: '8px' }}>
                     <Users size={24} />
-                    <h1 style={{ fontSize: '1.875rem', fontWeight: 700, margin: 0, color: 'white' }}>Customers</h1>
+                    <h1 style={{ fontSize: '1.875rem', fontWeight: 700, margin: 0, color: 'white' }}>Users</h1>
                 </div>
-                <p style={{ color: '#94a3b8', margin: 0, marginBottom: '24px' }}>Manage customer accounts and subscriptions.</p>
+                <p style={{ color: '#94a3b8', margin: 0, marginBottom: '24px' }}>Manage user accounts and subscriptions.</p>
 
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                     <input
