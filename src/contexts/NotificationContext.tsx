@@ -55,12 +55,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             // 2. Fetch counts from local IndexedDB
             const db = await getDB();
 
-            // New Leads
+            // New Leads (filtered by business ID)
             const allLeads = await db.getAll('leads');
-            const newLeadsCount = allLeads.filter(l => l.status === 'new').length;
+            const newLeadsCount = allLeads.filter(l =>
+                l.status === 'new' && l.businessId === businessId
+            ).length;
             setLeadsCount(newLeadsCount);
 
             // Needs Action (Jobs that are Completed, PaymentRequested, or Paid)
+            // Jobs are already filtered by business during hydration
             const allJobs = await db.getAll('jobs');
             const actionableJobsCount = allJobs.filter(j =>
                 j.state === JobState.Completed ||
