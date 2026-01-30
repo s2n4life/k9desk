@@ -63,7 +63,7 @@ export function SubscriptionManager() {
                 return;
             }
 
-            if (settings.subscription_status === 'trial') {
+            if (settings.subscription_status === 'trialing') {
                 const end = parseISO(settings.trial_end_date!);
                 const now = new Date();
                 const diff = differenceInCalendarDays(end, now);

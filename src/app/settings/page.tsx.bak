@@ -82,43 +82,10 @@ export default function SettingsPage() {
     const [isResetting, setIsResetting] = useState(false);
     const [showResetConfirm, setShowResetConfirm] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-    const [showCancelModal, setShowCancelModal] = useState(false);
-    const [cancelConfirmText, setCancelConfirmText] = useState('');
-    const [isCanceling, setIsCanceling] = useState(false);
     const [phone, setPhone] = useState('');
 
     const handleForceReset = () => {
         setShowResetConfirm(true);
-    };
-
-    const handleCancelAccount = async () => {
-        if (cancelConfirmText !== 'CANCEL') {
-            alert('Please type CANCEL to confirm');
-            return;
-        }
-
-        setIsCanceling(true);
-        try {
-            // 1. Update Supabase business status
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                await supabase
-                    .from('businesses')
-                    .update({ subscription_status: 'canceled' })
-                    .eq('owner_id', user.id);
-            }
-
-            // 2. Clear local IndexedDB data
-            await clearLocalData();
-
-            // 3. Log out
-            await supabase.auth.signOut();
-            window.location.href = '/';
-        } catch (error) {
-            console.error('Error canceling account:', error);
-            alert('Failed to cancel account. Please try again.');
-            setIsCanceling(false);
-        }
     };
 
     const confirmForceReset = async () => {
@@ -494,41 +461,20 @@ export default function SettingsPage() {
                         )}
 
                         {!settings.stripe_subscription_id && settings.subscription_status === 'trialing' && (
-                            <>
-                                <Link
-                                    href="/pricing"
-                                    className="btn btn-primary"
-                                    style={{
-                                        width: '100%',
-                                        display: 'flex',
-                                        justifyContent: 'center',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        textDecoration: 'none'
-                                    }}
-                                >
-                                    Upgrade to Pro
-                                </Link>
-
-                                <button
-                                    onClick={() => setShowCancelModal(true)}
-                                    className="btn btn-danger"
-                                    style={{
-                                        width: '100%',
-                                        display: 'flex',
-                                        justifyContent: 'center',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        marginTop: '8px',
-                                        backgroundColor: 'var(--color-danger-muted)',
-                                        color: 'var(--color-danger)',
-                                        border: '1px solid var(--color-danger)'
-                                    }}
-                                >
-                                    <AlertTriangle size={18} />
-                                    Cancel My Account
-                                </button>
-                            </>
+                            <Link
+                                href="/pricing"
+                                className="btn btn-primary"
+                                style={{
+                                    width: '100%',
+                                    display: 'flex',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    textDecoration: 'none'
+                                }}
+                            >
+                                Upgrade to Pro
+                            </Link>
                         )}
                     </div>
                 </div>
@@ -1409,121 +1355,6 @@ export default function SettingsPage() {
                         <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-sm)', lineHeight: 1.5 }}>
                             This will clear all local data and re-download everything from the cloud. This is usually only needed if your device shows incorrect or old data.
                         </p>
-                    </div>
-                </div>
-            </Modal>
-
-            <Modal
-                isOpen={showLogoutConfirm}
-                onClose={() => setShowLogoutConfirm(false)}
-                title="Log Out"
-                footer={
-                    <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                        <button
-                            onClick={() => setShowLogoutConfirm(false)}
-                            className="btn btn-secondary"
-                            style={{ flex: 1 }}
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={confirmLogout}
-                            className="btn btn-primary"
-                            style={{ flex: 1, backgroundColor: 'var(--color-danger)', borderColor: 'var(--color-danger)', color: 'white' }}
-                        >
-                            Log Out
-                        </button>
-                    </div>
-                }
-            >
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-4)', textAlign: 'center', padding: 'var(--space-2) 0' }}>
-                    <div style={{ color: 'var(--color-danger)', backgroundColor: '#fee2e2', padding: '12px', borderRadius: '50%' }}>
-                        <LogOut size={32} />
-                    </div>
-                    <div>
-                        <p style={{ fontWeight: 600, fontSize: 'var(--font-size-lg)', marginBottom: '8px' }}>Are you sure you want to log out?</p>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-sm)', lineHeight: 1.5 }}>
-                            You'll need to sign in again to access your account.
-                        </p>
-                    </div>
-                </div>
-            </Modal>
-
-            <Modal
-                isOpen={showCancelModal}
-                onClose={() => {
-                    setShowCancelModal(false);
-                    setCancelConfirmText('');
-                }}
-                title="Cancel My Account"
-                footer={
-                    <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                        <button
-                            onClick={() => {
-                                setShowCancelModal(false);
-                                setCancelConfirmText('');
-                            }}
-                            className="btn btn-secondary"
-                            style={{ flex: 1 }}
-                        >
-                            Keep My Account
-                        </button>
-                        <button
-                            onClick={handleCancelAccount}
-                            className="btn btn-primary"
-                            disabled={cancelConfirmText !== 'CANCEL' || isCanceling}
-                            style={{
-                                flex: 1,
-                                backgroundColor: 'var(--color-danger)',
-                                borderColor: 'var(--color-danger)',
-                                color: 'white',
-                                opacity: cancelConfirmText !== 'CANCEL' ? 0.5 : 1
-                            }}
-                        >
-                            {isCanceling ? 'Canceling...' : 'Yes, Cancel Account'}
-                        </button>
-                    </div>
-                }
-            >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', padding: 'var(--space-2) 0' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-3)', padding: 'var(--space-3)', backgroundColor: '#fee2e2', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-danger)' }}>
-                        <AlertTriangle size={24} style={{ color: 'var(--color-danger)', flexShrink: 0, marginTop: '2px' }} />
-                        <div>
-                            <p style={{ fontWeight: 600, fontSize: 'var(--font-size-base)', marginBottom: '4px', color: 'var(--color-danger)' }}>
-                                This action cannot be undone
-                            </p>
-                            <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-sm)', lineHeight: 1.5 }}>
-                                Canceling your account will:
-                            </p>
-                            <ul style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-sm)', lineHeight: 1.5, marginTop: '8px', paddingLeft: '20px' }}>
-                                <li>Delete all your local data (jobs, customers, pets, etc.)</li>
-                                <li>Mark your subscription as canceled</li>
-                                <li>Log you out immediately</li>
-                            </ul>
-                            <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-sm)', lineHeight: 1.5, marginTop: '8px', fontStyle: 'italic' }}>
-                                Your account profile will be preserved so you can reactivate in the future.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label style={{ display: 'block', fontWeight: 600, marginBottom: '8px', fontSize: 'var(--font-size-sm)' }}>
-                            Type <span style={{ color: 'var(--color-danger)', fontFamily: 'monospace' }}>CANCEL</span> to confirm:
-                        </label>
-                        <input
-                            type="text"
-                            value={cancelConfirmText}
-                            onChange={(e) => setCancelConfirmText(e.target.value)}
-                            placeholder="Type CANCEL here"
-                            style={{
-                                width: '100%',
-                                padding: 'var(--space-2)',
-                                borderRadius: 'var(--radius-md)',
-                                border: '1px solid var(--border-color)',
-                                fontSize: 'var(--font-size-base)',
-                                fontFamily: 'monospace'
-                            }}
-                        />
                     </div>
                 </div>
             </Modal>

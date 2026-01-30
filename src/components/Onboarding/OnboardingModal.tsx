@@ -49,7 +49,7 @@ export function OnboardingModal() {
 
             const hasCompletedFlag = settings?.onboardingCompleted === true;
             const hasActiveSubscription = settings?.subscription_status === 'active';
-            const hasTrialSubscription = settings?.subscription_status === 'trial';
+            const hasTrialSubscription = settings?.subscription_status === 'trialing';
             const hasBusinessSetup = settings?.businessName && (
                 settings?.venmo || settings?.zelle || settings?.paypal ||
                 settings?.cashapp || settings?.custom_url

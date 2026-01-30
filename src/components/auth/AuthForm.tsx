@@ -68,6 +68,20 @@ export default function AuthForm({ initialMode = 'login' }: { initialMode?: Auth
                     {mode === 'signup' && 'Start your 14-day free trial'}
                     {mode === 'forgot-password' && 'Enter your email to receive a reset link'}
                 </p>
+                {mode === 'signup' && (
+                    <p style={{
+                        fontSize: 'var(--font-size-sm)',
+                        color: 'var(--success)',
+                        fontWeight: 600,
+                        marginTop: 'var(--space-2)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '4px'
+                    }}>
+                        ✓ No credit card required. You will NOT be auto-charged.
+                    </p>
+                )}
             </div>
 
             {error && (

@@ -195,9 +195,6 @@ export default function AdminUsersPage() {
     // Apply status filter
     if (statusFilter !== 'all') {
         processedAccounts = processedAccounts.filter(a => {
-            if (statusFilter === 'trialing') {
-                return a.subscription_status === 'trialing' || a.subscription_status === 'trial';
-            }
             return a.subscription_status === statusFilter;
         });
     }
@@ -271,14 +268,16 @@ export default function AdminUsersPage() {
 
     return (
         <div>
-            <header style={{ marginBottom: '32px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#6c5ce7', marginBottom: '8px' }}>
-                    <Users size={24} />
-                    <h1 style={{ fontSize: '1.875rem', fontWeight: 700, margin: 0, color: 'white' }}>Users</h1>
-                </div>
-                <p style={{ color: '#94a3b8', margin: 0, marginBottom: '24px' }}>Manage user accounts and subscriptions.</p>
+            <header style={{ marginBottom: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                    <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#6c5ce7', marginBottom: '8px' }}>
+                            <Users size={24} />
+                            <h1 style={{ fontSize: '1.875rem', fontWeight: 700, margin: 0, color: 'white' }}>Users</h1>
+                        </div>
+                        <p style={{ color: '#94a3b8', margin: 0 }}>Manage user accounts and subscriptions.</p>
+                    </div>
 
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                     <input
                         type="text"
                         placeholder="Search by name or email..."
@@ -288,392 +287,403 @@ export default function AdminUsersPage() {
                             backgroundColor: '#1e293b',
                             border: '1px solid #334155',
                             color: 'white',
-                            padding: '8px 12px',
-                            borderRadius: '8px',
-                            width: '300px',
-                            outline: 'none'
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            width: '250px',
+                            outline: 'none',
+                            fontSize: '14px'
                         }}
                     />
+                </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Filter size={16} style={{ color: '#94a3b8' }} />
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                            style={{
-                                backgroundColor: '#1e293b',
-                                border: '1px solid #334155',
-                                color: 'white',
-                                padding: '8px 12px',
-                                borderRadius: '8px',
-                                outline: 'none',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            <option value="all">All Status</option>
-                            <option value="trialing">Trialing</option>
-                            <option value="active">Active</option>
-                            <option value="past_due">Past Due</option>
-                            <option value="canceled">Canceled</option>
-                        </select>
-                    </div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Filter size={14} style={{ color: '#94a3b8' }} />
+                    <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        style={{
+                            backgroundColor: '#1e293b',
+                            border: '1px solid #334155',
+                            color: 'white',
+                            padding: '6px 10px',
+                            borderRadius: '6px',
+                            outline: 'none',
+                            cursor: 'pointer',
+                            fontSize: '13px'
+                        }}
+                    >
+                        <option value="all">All Status</option>
+                        <option value="trialing">Trialing</option>
+                        <option value="active">Active</option>
+                        <option value="past_due">Past Due</option>
+                        <option value="canceled">Canceled</option>
+                    </select>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <select
-                            value={activityFilter}
-                            onChange={(e) => setActivityFilter(e.target.value)}
-                            style={{
-                                backgroundColor: '#1e293b',
-                                border: '1px solid #334155',
-                                color: 'white',
-                                padding: '8px 12px',
-                                borderRadius: '8px',
-                                outline: 'none',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            <option value="all">All Activity</option>
-                            <option value="active_7d">Active (7 days)</option>
-                            <option value="recent_30d">Recent (30 days)</option>
-                            <option value="inactive_90d">Inactive (90+ days)</option>
-                            <option value="never">Never Used</option>
-                        </select>
-                    </div>
+                    <select
+                        value={activityFilter}
+                        onChange={(e) => setActivityFilter(e.target.value)}
+                        style={{
+                            backgroundColor: '#1e293b',
+                            border: '1px solid #334155',
+                            color: 'white',
+                            padding: '6px 10px',
+                            borderRadius: '6px',
+                            outline: 'none',
+                            cursor: 'pointer',
+                            fontSize: '13px'
+                        }}
+                    >
+                        <option value="all">All Activity</option>
+                        <option value="active_7d">Active (7d)</option>
+                        <option value="recent_30d">Recent (30d)</option>
+                        <option value="inactive_90d">Inactive (90d+)</option>
+                        <option value="never">Never Used</option>
+                    </select>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <select
-                            value={jobsFilter}
-                            onChange={(e) => setJobsFilter(e.target.value)}
-                            style={{
-                                backgroundColor: '#1e293b',
-                                border: '1px solid #334155',
-                                color: 'white',
-                                padding: '8px 12px',
-                                borderRadius: '8px',
-                                outline: 'none',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            <option value="all">All Jobs</option>
-                            <option value="high">High (20+)</option>
-                            <option value="medium">Medium (5-19)</option>
-                            <option value="low">Low (1-4)</option>
-                            <option value="none">None (0)</option>
-                        </select>
-                    </div>
+                    <select
+                        value={jobsFilter}
+                        onChange={(e) => setJobsFilter(e.target.value)}
+                        style={{
+                            backgroundColor: '#1e293b',
+                            border: '1px solid #334155',
+                            color: 'white',
+                            padding: '6px 10px',
+                            borderRadius: '6px',
+                            outline: 'none',
+                            cursor: 'pointer',
+                            fontSize: '13px'
+                        }}
+                    >
+                        <option value="all">All Jobs</option>
+                        <option value="high">High (20+)</option>
+                        <option value="medium">Medium (5-19)</option>
+                        <option value="low">Low (1-4)</option>
+                        <option value="none">None (0)</option>
+                    </select>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <ArrowUpDown size={16} style={{ color: '#94a3b8' }} />
-                        <select
-                            value={sortBy}
-                            onChange={(e) => setSortBy(e.target.value)}
-                            style={{
-                                backgroundColor: '#1e293b',
-                                border: '1px solid #334155',
-                                color: 'white',
-                                padding: '8px 12px',
-                                borderRadius: '8px',
-                                outline: 'none',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            <option value="created_desc">Newest First</option>
-                            <option value="created_asc">Oldest First</option>
-                            <option value="name_asc">Name (A-Z)</option>
-                            <option value="name_desc">Name (Z-A)</option>
-                            <option value="activity_desc">Most Active</option>
-                            <option value="jobs_desc">Most Jobs</option>
-                            <option value="trial_end">Trial End Date</option>
-                        </select>
-                    </div>
+                    <div style={{ width: '1px', height: '20px', backgroundColor: '#334155', margin: '0 4px' }}></div>
+
+                    <ArrowUpDown size={14} style={{ color: '#94a3b8' }} />
+                    <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        style={{
+                            backgroundColor: '#1e293b',
+                            border: '1px solid #334155',
+                            color: 'white',
+                            padding: '6px 10px',
+                            borderRadius: '6px',
+                            outline: 'none',
+                            cursor: 'pointer',
+                            fontSize: '13px'
+                        }}
+                    >
+                        <option value="created_desc">Newest First</option>
+                        <option value="created_asc">Oldest First</option>
+                        <option value="name_asc">Name (A-Z)</option>
+                        <option value="name_desc">Name (Z-A)</option>
+                        <option value="activity_desc">Most Active</option>
+                        <option value="jobs_desc">Most Jobs</option>
+                        <option value="trial_end">Trial End Date</option>
+                    </select>
                 </div>
             </header>
 
-            <div className="admin-card" style={{ padding: 0 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {processedAccounts.map(account => {
-                    const isTrialing = account.subscription_status === 'trialing' || account.subscription_status === 'trial';
+                    const isTrialing = account.subscription_status === 'trialing';
                     const isOverdue = account.subscription_status === 'past_due' || (isTrialing && new Date(account.trial_end_date) < new Date());
 
                     return (
-                        <div key={account.id} style={{
-                            padding: '24px',
-                            borderBottom: '1px solid #1e293b',
-                            display: 'grid',
-                            gridTemplateColumns: 'minmax(200px, 1.5fr) 1fr 1fr 1.5fr',
-                            alignItems: 'center',
-                            gap: '24px'
+                        <div key={account.id} className="admin-card" style={{
+                            padding: '20px',
+                            border: '1px solid #1e293b',
+                            borderRadius: '12px',
+                            backgroundColor: '#0f172a'
                         }}>
-                            <div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                                    <span style={{ fontWeight: 600, color: 'white' }}>{account.name}</span>
-                                    {account.owner_role === 'super_admin' && (
-                                        <div title="Super Admin" style={{ color: '#6c5ce7', display: 'flex', alignItems: 'center' }}>
-                                            <ShieldCheck size={16} />
+                            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '24px', alignItems: 'start' }}>
+                                {/* Left Column: Business Info & Contact */}
+                                <div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                                        <span style={{ fontWeight: 700, fontSize: '1.125rem', color: 'white' }}>{account.name}</span>
+                                        {account.owner_role === 'super_admin' && (
+                                            <div title="Super Admin" style={{ color: '#6c5ce7', display: 'flex', alignItems: 'center' }}>
+                                                <ShieldCheck size={18} />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Contact Info */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                        <div style={{ fontSize: '0.875rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span>{account.owner_email}</span>
+                                            {account.owner_email && (
+                                                <a
+                                                    href={`mailto:${account.owner_email}`}
+                                                    style={{
+                                                        fontSize: '0.75rem',
+                                                        color: '#6c5ce7',
+                                                        textDecoration: 'none',
+                                                        padding: '2px 8px',
+                                                        borderRadius: '4px',
+                                                        border: '1px solid #6c5ce7',
+                                                        transition: 'all 0.2s'
+                                                    }}
+                                                    onMouseOver={(e) => e.currentTarget.style.background = '#6c5ce7'}
+                                                    onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                                                >
+                                                    Email
+                                                </a>
+                                            )}
+                                        </div>
+                                        {account.owner_phone && (
+                                            <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>{account.owner_phone}</div>
+                                        )}
+                                        <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>
+                                            Joined {format(new Date(account.created_at), 'MMM d, yyyy')}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Middle Column: Metrics */}
+                                <div>
+                                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                        Activity
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                        <div style={{ fontSize: '0.875rem', color: '#cbd5e1' }}>
+                                            Total Jobs: <span style={{ fontWeight: 700, color: 'white' }}>{account.total_jobs || 0}</span>
+                                        </div>
+                                        <div style={{ fontSize: '0.875rem', color: '#cbd5e1' }}>
+                                            Last 30d: <span style={{ fontWeight: 700, color: '#6c5ce7' }}>{account.jobs_last_30_days || 0}</span>
+                                        </div>
+                                        <div style={{ fontSize: '0.875rem', color: '#cbd5e1' }}>
+                                            Last Active: <span style={{ fontWeight: 700, color: '#10b981' }}>
+                                                {account.last_activity ? formatDistanceToNow(new Date(account.last_activity), { addSuffix: true }) : 'Never'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Right Column: Status & Actions */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'flex-end' }}>
+                                    <div style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        padding: '6px 14px',
+                                        borderRadius: '12px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 700,
+                                        backgroundColor: account.subscription_status === 'active' ? '#10b98120' : isOverdue ? '#ef444420' : '#6c5ce720',
+                                        color: account.subscription_status === 'active' ? '#10b981' : isOverdue ? '#ef4444' : '#6c5ce7',
+                                        textTransform: 'uppercase'
+                                    }}>
+                                        {account.subscription_status}
+                                    </div>
+
+                                    {isTrialing && (
+                                        <div style={{ fontSize: '0.75rem', color: isOverdue ? '#ef4444' : '#94a3b8', textAlign: 'right' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end' }}>
+                                                <Clock size={12} /> Trial Ends:
+                                            </div>
+                                            <div style={{ fontWeight: 600, marginTop: '2px' }}>{format(new Date(account.trial_end_date), 'MMM d, yyyy')}</div>
+                                        </div>
+                                    )}
+
+                                    {account.stripe_subscription_id && (
+                                        <div style={{ fontSize: '0.65rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <CreditCard size={10} />
+                                            <span title={account.stripe_subscription_id}>Stripe: {account.stripe_subscription_id.substring(0, 10)}...</span>
+                                            <button
+                                                onClick={() => clearStripeId(account.id)}
+                                                style={{ background: 'none', border: 'none', color: '#6c5ce7', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                                            >
+                                                (Clear)
+                                            </button>
                                         </div>
                                     )}
                                 </div>
-                                <div style={{ fontSize: '0.875rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    📧 {account.owner_email}
-                                    {account.owner_email && (
-                                        <a
-                                            href={`mailto:${account.owner_email}`}
-                                            style={{
-                                                fontSize: '0.75rem',
-                                                color: '#6c5ce7',
-                                                textDecoration: 'none',
-                                                padding: '2px 8px',
-                                                borderRadius: '4px',
-                                                border: '1px solid #6c5ce7',
-                                                transition: 'all 0.2s'
-                                            }}
-                                            onMouseOver={(e) => e.currentTarget.style.background = '#6c5ce7'}
-                                            onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                                        >
-                                            Email
-                                        </a>
-                                    )}
-                                </div>
-                                {account.owner_phone && (
-                                    <div style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '2px' }}>📞 {account.owner_phone}</div>
-                                )}
-
-                                {/* Metrics Section */}
-                                <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#1e293b', borderRadius: '6px' }}>
-                                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px', fontWeight: 600 }}>📊 Metrics</div>
-                                    <div style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>
-                                        • Total Jobs: <span style={{ fontWeight: 600, color: 'white' }}>{account.total_jobs || 0}</span>
-                                    </div>
-                                    <div style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>
-                                        • Last 30 Days: <span style={{ fontWeight: 600, color: '#6c5ce7' }}>{account.jobs_last_30_days || 0}</span>
-                                    </div>
-                                    <div style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>
-                                        • Last Active: <span style={{ fontWeight: 600, color: '#10b981' }}>{account.last_activity ? formatDistanceToNow(new Date(account.last_activity), { addSuffix: true }) : 'Never'}</span>
-                                    </div>
-                                </div>
-
-                                <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '8px' }}>Joined {format(new Date(account.created_at), 'MMM d, yyyy')}</div>
                             </div>
 
-                            <div>
-                                <div style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    padding: '4px 12px',
-                                    borderRadius: '12px',
-                                    fontSize: '0.75rem',
-                                    fontWeight: 700,
-                                    backgroundColor: account.subscription_status === 'active' ? '#10b98120' : isOverdue ? '#ef444420' : '#6c5ce720',
-                                    color: account.subscription_status === 'active' ? '#10b981' : isOverdue ? '#ef4444' : '#6c5ce7',
-                                    textTransform: 'uppercase'
-                                }}>
-                                    {account.subscription_status}
-                                </div>
-                            </div>
+                            {/* Actions Row */}
+                            <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #1e293b' }}>
 
-                            <div style={{ fontSize: '0.875rem' }}>
-                                {isTrialing ? (
-                                    <div style={{ color: isOverdue ? '#ef4444' : '#94a3b8' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                            <Clock size={14} /> Trial Ends:
-                                        </div>
-                                        <div style={{ fontWeight: 500 }}>{format(new Date(account.trial_end_date), 'MMM d')}</div>
-                                    </div>
-                                ) : (
-                                    <div style={{ color: '#94a3b8' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                            <Calendar size={14} /> Active Since:
-                                        </div>
-                                        <div style={{ fontWeight: 500 }}>{format(new Date(account.created_at), 'MMM d')}</div>
-                                    </div>
-                                )}
-                                {account.stripe_subscription_id && (
-                                    <div style={{ marginTop: '8px', fontSize: '0.65rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                        <CreditCard size={10} />
-                                        <span title={account.stripe_subscription_id}>Stripe: {account.stripe_subscription_id.substring(0, 10)}...</span>
-                                        <button
-                                            onClick={() => clearStripeId(account.id)}
-                                            style={{ background: 'none', border: 'none', color: '#6c5ce7', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
-                                        >
-                                            (Clear)
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                                <button
-                                    onClick={() => {
-                                        setSelectedAccount(account);
-                                        setExtensionDays(14);
-                                        setCustomDays('');
-                                        setShowExtendModal(true);
-                                    }}
-                                    className="btn-admin-primary"
-                                    style={{ padding: '6px 12px', fontSize: '0.75rem', backgroundColor: '#334155' }}
-                                >
-                                    Extend Trial
-                                </button>
-                                {account.subscription_status === 'active' ? (
+                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                                     <button
-                                        onClick={() => uncompAccount(account.id)}
-                                        className="btn-admin-primary"
-                                        style={{ padding: '6px 12px', fontSize: '0.75rem', backgroundColor: '#dc262620', color: '#dc2626', border: '1px solid #dc2626' }}
-                                    >
-                                        Un-comp
-                                    </button>
-                                ) : (
-                                    <button
-                                        onClick={() => compAccount(account.id)}
+                                        onClick={() => {
+                                            setSelectedAccount(account);
+                                            setExtensionDays(14);
+                                            setCustomDays('');
+                                            setShowExtendModal(true);
+                                        }}
                                         className="btn-admin-primary"
                                         style={{ padding: '6px 12px', fontSize: '0.75rem', backgroundColor: '#334155' }}
                                     >
-                                        Comp Account
+                                        Extend Trial
                                     </button>
-                                )}
-                                <button
-                                    onClick={() => startImpersonation(account.id)}
-                                    className="btn-admin-primary"
-                                    style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                                >
-                                    <LogIn size={14} /> Login As
-                                </button>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-
-            {/* Trial Extension Modal */}
-            {showExtendModal && selectedAccount && (
-                <div style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 1000
-                }}>
-                    <div style={{
-                        backgroundColor: '#1e293b',
-                        borderRadius: '12px',
-                        padding: '32px',
-                        maxWidth: '500px',
-                        width: '90%',
-                        border: '1px solid #334155'
-                    }}>
-                        <h2 style={{ color: 'white', marginBottom: '8px', fontSize: '1.5rem' }}>Extend Trial Period</h2>
-                        <p style={{ color: '#94a3b8', marginBottom: '24px' }}>
-                            Extend trial for <strong style={{ color: 'white' }}>{selectedAccount.name}</strong>
-                        </p>
-
-                        <div style={{ marginBottom: '24px' }}>
-                            <label style={{ color: '#94a3b8', fontSize: '0.875rem', display: 'block', marginBottom: '12px' }}>
-                                Select Extension Period:
-                            </label>
-                            <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-                                {[7, 14, 30].map(days => (
+                                    {account.subscription_status === 'active' ? (
+                                        <button
+                                            onClick={() => uncompAccount(account.id)}
+                                            className="btn-admin-primary"
+                                            style={{ padding: '6px 12px', fontSize: '0.75rem', backgroundColor: '#dc262620', color: '#dc2626', border: '1px solid #dc2626' }}
+                                        >
+                                            Un-comp
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => compAccount(account.id)}
+                                            className="btn-admin-primary"
+                                            style={{ padding: '6px 12px', fontSize: '0.75rem', backgroundColor: '#334155' }}
+                                        >
+                                            Comp Account
+                                        </button>
+                                    )}
                                     <button
-                                        key={days}
-                                        onClick={() => {
-                                            setExtensionDays(days);
-                                            setCustomDays('');
-                                        }}
-                                        style={{
-                                            flex: 1,
-                                            padding: '12px',
-                                            borderRadius: '8px',
-                                            border: extensionDays === days && !customDays ? '2px solid #6c5ce7' : '1px solid #334155',
-                                            backgroundColor: extensionDays === days && !customDays ? '#6c5ce720' : '#0f172a',
-                                            color: extensionDays === days && !customDays ? '#6c5ce7' : '#94a3b8',
-                                            fontWeight: 600,
-                                            cursor: 'pointer',
-                                            transition: 'all 0.2s'
-                                        }}
+                                        onClick={() => startImpersonation(account.id)}
+                                        className="btn-admin-primary"
+                                        style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                                     >
-                                        {days} Days
+                                        <LogIn size={14} /> Login As
                                     </button>
-                                ))}
+                                </div>
                             </div>
-
-                            <div style={{ marginTop: '16px' }}>
-                                <label style={{ color: '#94a3b8', fontSize: '0.875rem', display: 'block', marginBottom: '8px' }}>
-                                    Or enter custom days:
-                                </label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    max="365"
-                                    value={customDays}
-                                    onChange={(e) => {
-                                        setCustomDays(e.target.value);
-                                        if (e.target.value) {
-                                            setExtensionDays(parseInt(e.target.value) || 14);
-                                        }
-                                    }}
-                                    placeholder="Enter number of days"
-                                    style={{
-                                        width: '100%',
-                                        padding: '10px',
-                                        borderRadius: '8px',
-                                        border: customDays ? '2px solid #6c5ce7' : '1px solid #334155',
-                                        backgroundColor: '#0f172a',
-                                        color: 'white',
-                                        outline: 'none'
-                                    }}
-                                />
-                            </div>
+                            );
+                })}
                         </div>
 
-                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                            <button
-                                onClick={() => {
-                                    setShowExtendModal(false);
-                                    setSelectedAccount(null);
-                                }}
-                                style={{
-                                    padding: '10px 20px',
-                                    borderRadius: '8px',
-                                    border: '1px solid #334155',
-                                    backgroundColor: '#0f172a',
-                                    color: '#94a3b8',
-                                    cursor: 'pointer',
-                                    fontWeight: 500
-                                }}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={() => {
-                                    const days = customDays ? parseInt(customDays) : extensionDays;
-                                    if (days > 0 && days <= 365) {
-                                        extendTrial(selectedAccount.id, days);
-                                        setShowExtendModal(false);
-                                        setSelectedAccount(null);
-                                    } else {
-                                        alert('Please enter a valid number of days (1-365)');
-                                    }
-                                }}
-                                style={{
-                                    padding: '10px 20px',
-                                    borderRadius: '8px',
-                                    border: 'none',
-                                    backgroundColor: '#6c5ce7',
-                                    color: 'white',
-                                    cursor: 'pointer',
-                                    fontWeight: 600
-                                }}
-                            >
-                                Extend Trial
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Trial Extension Modal */ }
+                    {
+                        showExtendModal && selectedAccount && (
+                            <div style={{
+                                position: 'fixed',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                zIndex: 1000
+                            }}>
+                                <div style={{
+                                    backgroundColor: '#1e293b',
+                                    borderRadius: '12px',
+                                    padding: '32px',
+                                    maxWidth: '500px',
+                                    width: '90%',
+                                    border: '1px solid #334155'
+                                }}>
+                                    <h2 style={{ color: 'white', marginBottom: '8px', fontSize: '1.5rem' }}>Extend Trial Period</h2>
+                                    <p style={{ color: '#94a3b8', marginBottom: '24px' }}>
+                                        Extend trial for <strong style={{ color: 'white' }}>{selectedAccount.name}</strong>
+                                    </p>
+
+                                    <div style={{ marginBottom: '24px' }}>
+                                        <label style={{ color: '#94a3b8', fontSize: '0.875rem', display: 'block', marginBottom: '12px' }}>
+                                            Select Extension Period:
+                                        </label>
+                                        <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                                            {[7, 14, 30].map(days => (
+                                                <button
+                                                    key={days}
+                                                    onClick={() => {
+                                                        setExtensionDays(days);
+                                                        setCustomDays('');
+                                                    }}
+                                                    style={{
+                                                        flex: 1,
+                                                        padding: '12px',
+                                                        borderRadius: '8px',
+                                                        border: extensionDays === days && !customDays ? '2px solid #6c5ce7' : '1px solid #334155',
+                                                        backgroundColor: extensionDays === days && !customDays ? '#6c5ce720' : '#0f172a',
+                                                        color: extensionDays === days && !customDays ? '#6c5ce7' : '#94a3b8',
+                                                        fontWeight: 600,
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s'
+                                                    }}
+                                                >
+                                                    {days} Days
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        <div style={{ marginTop: '16px' }}>
+                                            <label style={{ color: '#94a3b8', fontSize: '0.875rem', display: 'block', marginBottom: '8px' }}>
+                                                Or enter custom days:
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max="365"
+                                                value={customDays}
+                                                onChange={(e) => {
+                                                    setCustomDays(e.target.value);
+                                                    if (e.target.value) {
+                                                        setExtensionDays(parseInt(e.target.value) || 14);
+                                                    }
+                                                }}
+                                                placeholder="Enter number of days"
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '10px',
+                                                    borderRadius: '8px',
+                                                    border: customDays ? '2px solid #6c5ce7' : '1px solid #334155',
+                                                    backgroundColor: '#0f172a',
+                                                    color: 'white',
+                                                    outline: 'none'
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                                        <button
+                                            onClick={() => {
+                                                setShowExtendModal(false);
+                                                setSelectedAccount(null);
+                                            }}
+                                            style={{
+                                                padding: '10px 20px',
+                                                borderRadius: '8px',
+                                                border: '1px solid #334155',
+                                                backgroundColor: '#0f172a',
+                                                color: '#94a3b8',
+                                                cursor: 'pointer',
+                                                fontWeight: 500
+                                            }}
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                const days = customDays ? parseInt(customDays) : extensionDays;
+                                                if (days > 0 && days <= 365) {
+                                                    extendTrial(selectedAccount.id, days);
+                                                    setShowExtendModal(false);
+                                                    setSelectedAccount(null);
+                                                } else {
+                                                    alert('Please enter a valid number of days (1-365)');
+                                                }
+                                            }}
+                                            style={{
+                                                padding: '10px 20px',
+                                                borderRadius: '8px',
+                                                border: 'none',
+                                                backgroundColor: '#6c5ce7',
+                                                color: 'white',
+                                                cursor: 'pointer',
+                                                fontWeight: 600
+                                            }}
+                                        >
+                                            Extend Trial
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )
+                    }
         </div>
-    );
+            );
 }

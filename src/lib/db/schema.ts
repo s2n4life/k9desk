@@ -72,7 +72,7 @@ export interface Settings {
   onboardingCompleted?: boolean;
 
   // Subscription Fields
-  subscription_status?: 'trial' | 'trialing' | 'active' | 'past_due' | 'canceled';
+  subscription_status?: 'trialing' | 'active' | 'past_due' | 'canceled';
   trial_start_date?: string; // ISO String
   trial_end_date?: string;   // ISO String
   stripe_customer_id?: string;
