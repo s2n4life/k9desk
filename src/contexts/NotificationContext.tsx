@@ -71,8 +71,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                 j.state === JobState.Paid
             ).length;
 
-            // Total Needs Action = Actionable Jobs + New Leads
-            setNeedsActionCount(actionableJobsCount + newLeadsCount);
+            // Needs Action badge only counts actionable jobs (leads are separate in Leads tab)
+            setNeedsActionCount(actionableJobsCount);
 
         } catch (error) {
             console.error('Error fetching notification counts:', error);
