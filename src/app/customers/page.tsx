@@ -1,11 +1,47 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getDB } from '@/lib/db';
-import { Customer, Pet, Job } from '@/lib/db/schema';
-import { useDataLoader } from '@/hooks/useDataLoader';
+import { supabase } from '@/lib/supabaseClient';
 import Link from 'next/link';
-import { ChevronRight, Dog, Search, Calendar, History, Users } from 'lucide-react';
+import { ChevronRight, Dog, Search, Calendar, History, Users, Building2 } from 'lucide-react';
+
+type Customer = {
+    id: string;
+    name: string;
+    phone: string;
+    email: string;
+    address: string;
+    notes: string;
+    business_id: string;
+    business_name?: string;
+    created_at: string;
+    updated_at: string;
+};
+
+type Pet = {
+    id: string;
+    customer_id: string;
+    name: string;
+    breed: string;
+    notes: string;
+    business_id: string;
+};
+
+type Job = {
+    id: string;
+    customer_id: string;
+    pet_ids: string[];
+    state: string;
+    scheduled_date: string;
+    scheduled_time: string;
+    address: string;
+    notes: string;
+    customer_notes: string;
+    pet_notes: string;
+    business_id: string;
+    created_at: string;
+    updated_at: string;
+};
 
 export default function CustomersPage() {
     const [loading, setLoading] = useState(true);
@@ -16,29 +52,95 @@ export default function CustomersPage() {
     const [activeTab, setActiveTab] = useState<'customers' | 'jobs'>('customers');
     const [jobDisplayLimit, setJobDisplayLimit] = useState(10);
     const [jobFilter, setJobFilter] = useState<'all' | 'completed' | 'cancelled'>('all');
-    const { loadJobs, loadCustomers, loadPets, isImpersonating, impersonatedBusinessId } = useDataLoader();
 
     const loadData = async () => {
         try {
             setLoading(true);
-            const allCustomers = await loadCustomers();
-            const allPets = await loadPets();
-            const allJobs = await loadJobs();
 
+            // Load all customers with business info (admin view - no filtering)
+            const { data: customersData, error: customersError } = await supabase
+                .from('customers')
+                .select(`
+                    *,
+                    businesses:business_id (name)
+                `)
+                .order('name', { ascending: true });
+
+            if (customersError) {
+                console.error('Error loading customers:', customersError);
+            }
+
+            // Load all pets
+            const { data: petsData, error: petsError } = await supabase
+                .from('pets')
+                .select('*');
+
+            if (petsError) {
+                console.error('Error loading pets:', petsError);
+            }
+
+            // Load all jobs
+            const { data: jobsData, error: jobsError } = await supabase
+                .from('jobs')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (jobsError) {
+                console.error('Error loading jobs:', jobsError);
+            }
+
+            // Map customers with business name
+            const mappedCustomers = (customersData || []).map((c: any) => ({
+                id: c.id,
+                name: c.name,
+                phone: c.phone,
+                email: c.email,
+                address: c.address,
+                notes: c.notes,
+                business_id: c.business_id,
+                business_name: c.businesses?.name,
+                created_at: c.created_at,
+                updated_at: c.updated_at
+            }));
+
+            // Build pet map
             const petMap: Record<string, Pet[]> = {};
-            allPets.forEach(p => {
-                if (!petMap[p.customerId]) petMap[p.customerId] = [];
-                petMap[p.customerId].push(p);
+            (petsData || []).forEach((p: any) => {
+                if (!petMap[p.customer_id]) petMap[p.customer_id] = [];
+                petMap[p.customer_id].push({
+                    id: p.id,
+                    customer_id: p.customer_id,
+                    name: p.name,
+                    breed: p.breed,
+                    notes: p.notes,
+                    business_id: p.business_id
+                });
             });
 
-            setCustomers(allCustomers.sort((a, b) => a.name.localeCompare(b.name)));
-            setPets(petMap);
-            // Sort jobs by date descending (newest first)
-            setJobs(allJobs.sort((a, b) => {
-                const dateA = new Date(`${a.scheduledDate} ${a.scheduledTime}`);
-                const dateB = new Date(`${b.scheduledDate} ${b.scheduledTime}`);
+            // Map jobs
+            const mappedJobs = (jobsData || []).map((j: any) => ({
+                id: j.id,
+                customer_id: j.customer_id,
+                pet_ids: j.pet_ids || [],
+                state: j.state,
+                scheduled_date: j.scheduled_date,
+                scheduled_time: j.scheduled_time,
+                address: j.address,
+                notes: j.notes,
+                customer_notes: j.customer_notes,
+                pet_notes: j.pet_notes,
+                business_id: j.business_id,
+                created_at: j.created_at,
+                updated_at: j.updated_at
+            })).sort((a, b) => {
+                const dateA = new Date(`${a.scheduled_date} ${a.scheduled_time}`);
+                const dateB = new Date(`${b.scheduled_date} ${b.scheduled_time}`);
                 return dateB.getTime() - dateA.getTime();
-            }));
+            });
+
+            setCustomers(mappedCustomers);
+            setPets(petMap);
+            setJobs(mappedJobs);
         } catch (error) {
             console.error('Failed to load customers data', error);
         } finally {
@@ -48,7 +150,7 @@ export default function CustomersPage() {
 
     useEffect(() => {
         loadData();
-    }, [isImpersonating, impersonatedBusinessId]);
+    }, []);
 
     // Filter Customers
     const filteredCustomers = customers.filter(c => {
@@ -77,7 +179,7 @@ export default function CustomersPage() {
         // 'all' filter shows everything
 
         const term = searchTerm.toLowerCase();
-        const customer = customers.find(c => c.id === j.customerId);
+        const customer = customers.find(c => c.id === j.customer_id);
         const customerPets = customer ? (pets[customer.id] || []) : [];
 
         // Match Customer Name
@@ -166,9 +268,17 @@ export default function CustomersPage() {
                         <Link key={c.id} href={`/customers/${c.id}`} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div>
                                 <h3 className="text-h2" style={{ fontSize: 'var(--font-size-base)', marginBottom: 4 }}>{c.name}</h3>
-                                <div style={{ display: 'flex', gap: 6, fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
-                                    <Dog size={14} />
-                                    <span>{customerPets.map(p => p.name).join(', ') || 'No pets'}</span>
+                                <div style={{ display: 'flex', gap: 12, fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <Dog size={14} />
+                                        <span>{customerPets.map(p => p.name).join(', ') || 'No pets'}</span>
+                                    </div>
+                                    {c.business_name && (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                            <Building2 size={14} />
+                                            <span>{c.business_name}</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             <ChevronRight size={20} color="var(--text-tertiary)" />
@@ -236,8 +346,8 @@ export default function CustomersPage() {
                         </div>
 
                         {displayedJobs.map(job => {
-                            const customer = customers.find(c => c.id === job.customerId);
-                            const jobPets = (pets[job.customerId] || []).filter(p => job.petIds.includes(p.id));
+                            const customer = customers.find(c => c.id === job.customer_id);
+                            const jobPets = (pets[job.customer_id] || []).filter(p => job.pet_ids.includes(p.id));
 
                             // Fallback if data is missing
                             if (!customer) return null;
@@ -248,7 +358,7 @@ export default function CustomersPage() {
                                         <div>
                                             <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
                                                 <Calendar size={12} />
-                                                {new Date(job.scheduledDate).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} • {job.scheduledTime}
+                                                {new Date(job.scheduled_date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} • {job.scheduled_time}
                                             </div>
                                             <div style={{ fontWeight: 600, fontSize: 'var(--font-size-base)' }}>{customer.name}</div>
                                         </div>

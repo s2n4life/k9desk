@@ -25,6 +25,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
     const [customerModalOpen, setCustomerModalOpen] = useState(false);
     const [petModalOpen, setPetModalOpen] = useState(false);
     const [editingPetId, setEditingPetId] = useState<string | null>(null);
+    const [deletingPetId, setDeletingPetId] = useState<string | null>(null);
 
     const loadData = async () => {
         const db = await getDB();
@@ -96,12 +97,13 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
         setPetModalOpen(false);
     };
 
-    const deletePet = async (petId: string) => {
-        if (!confirm('Are you sure you want to delete this pet permanently?')) return;
+    const confirmDeletePet = async () => {
+        if (!deletingPetId) return;
         const { getActiveBusinessIdSync } = await import('@/contexts/ImpersonationContext');
         const businessId = getActiveBusinessIdSync();
-        await deleteWithSync('pets', petId, businessId || undefined);
-        setPets(prev => prev.filter(p => p.id !== petId));
+        await deleteWithSync('pets', deletingPetId, businessId || undefined);
+        setPets(prev => prev.filter(p => p.id !== deletingPetId));
+        setDeletingPetId(null);
     };
 
     const deleteCustomer = async () => {
@@ -247,7 +249,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                                 <button onClick={() => { setEditingPetId(p.id); setPetModalOpen(true); }} style={{ background: 'none', border: 'none', padding: 4 }}>
                                     <Edit2 size={18} color="var(--text-tertiary)" />
                                 </button>
-                                <button onClick={() => deletePet(p.id)} style={{ background: 'none', border: 'none', padding: 4 }}>
+                                <button onClick={() => setDeletingPetId(p.id)} style={{ background: 'none', border: 'none', padding: 4 }}>
                                     <Trash2 size={18} color="var(--text-tertiary)" />
                                 </button>
                             </div>
@@ -299,6 +301,38 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                     onSave={savePet}
                     onCancel={() => setPetModalOpen(false)}
                 />
+            </Modal>
+
+            <Modal
+                isOpen={!!deletingPetId}
+                onClose={() => setDeletingPetId(null)}
+                title="Delete Pet"
+                footer={
+                    <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                        <button onClick={() => setDeletingPetId(null)} className="btn btn-secondary" style={{ flex: 1 }}>
+                            Cancel
+                        </button>
+                        <button
+                            onClick={confirmDeletePet}
+                            className="btn btn-primary"
+                            style={{ flex: 1, backgroundColor: 'var(--color-danger)', borderColor: 'var(--color-danger)', color: 'white' }}
+                        >
+                            Delete Pet
+                        </button>
+                    </div>
+                }
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-4)', textAlign: 'center' }}>
+                    <div style={{ color: 'var(--color-danger)', backgroundColor: '#fee2e2', padding: '12px', borderRadius: '50%' }}>
+                        <AlertTriangle size={32} />
+                    </div>
+                    <div>
+                        <p style={{ fontWeight: 600, fontSize: 'var(--font-size-lg)', marginBottom: '8px' }}>Are you sure?</p>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-sm)', lineHeight: 1.5 }}>
+                            This will permanently delete {deletingPetId ? pets.find(p => p.id === deletingPetId)?.name : 'this pet'}. This action cannot be undone.
+                        </p>
+                    </div>
+                </div>
             </Modal>
 
         </div>

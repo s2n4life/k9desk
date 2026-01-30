@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
-import { Shield, UserCog, Mail, Calendar, Plus, Trash2, ShieldCheck } from 'lucide-react';
+import { Shield, UserCog, Mail, Calendar, Plus, Trash2, ShieldCheck, Edit2, X } from 'lucide-react';
 import { format } from 'date-fns';
 
 type AdminUser = {
@@ -14,12 +15,45 @@ type AdminUser = {
 };
 
 export default function AdminTeamPage() {
+    const router = useRouter();
     const [admins, setAdmins] = useState<AdminUser[]>([]);
     const [loading, setLoading] = useState(true);
+    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [selectedAdmin, setSelectedAdmin] = useState<AdminUser | null>(null);
+    const [editForm, setEditForm] = useState({ full_name: '', email: '', role: '' });
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
 
     useEffect(() => {
         loadAdminTeam();
+        loadCurrentUser();
     }, []);
+
+    async function loadCurrentUser() {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('role')
+                    .eq('id', user.id)
+                    .single();
+
+                if (!error && data) {
+                    setCurrentUserRole(data.role);
+
+                    // Only super_admin can access team management
+                    if (data.role !== 'super_admin') {
+                        router.replace('/admin');
+                        return;
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('Error loading current user:', err);
+        }
+    }
 
     async function loadAdminTeam() {
         try {
@@ -36,6 +70,68 @@ export default function AdminTeamPage() {
         } finally {
             setLoading(false);
         }
+    }
+
+    function handleEdit(admin: AdminUser) {
+        setSelectedAdmin(admin);
+        setEditForm({
+            full_name: admin.full_name || '',
+            email: admin.email || '',
+            role: admin.role || ''
+        });
+        setError(null);
+        setEditModalOpen(true);
+    }
+
+    async function handleSave() {
+        if (!selectedAdmin) return;
+
+        // Validation
+        if (!editForm.full_name.trim()) {
+            setError('Name is required');
+            return;
+        }
+
+        setSaving(true);
+        setError(null);
+
+        try {
+            // Prepare update object
+            const updateData: any = { full_name: editForm.full_name.trim() };
+
+            // Only super admins can update roles
+            if (currentUserRole === 'super_admin' && editForm.role) {
+                updateData.role = editForm.role;
+            }
+
+            const { error } = await supabase
+                .from('profiles')
+                .update(updateData)
+                .eq('id', selectedAdmin.id);
+
+            if (error) throw error;
+
+            // Update local state
+            setAdmins(admins.map(a =>
+                a.id === selectedAdmin.id
+                    ? { ...a, full_name: editForm.full_name.trim(), role: editForm.role || a.role }
+                    : a
+            ));
+
+            setEditModalOpen(false);
+            setSelectedAdmin(null);
+        } catch (err) {
+            console.error('Error updating admin:', err);
+            setError('Failed to update profile. Please try again.');
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    function handleCloseModal() {
+        setEditModalOpen(false);
+        setSelectedAdmin(null);
+        setError(null);
     }
 
     const getRoleBadge = (role: string) => {
@@ -143,6 +239,31 @@ export default function AdminTeamPage() {
                                                 {admin.full_name || 'No name set'}
                                             </span>
                                             {getRoleBadge(admin.role)}
+                                            <button
+                                                onClick={() => handleEdit(admin)}
+                                                style={{
+                                                    padding: '6px',
+                                                    borderRadius: '6px',
+                                                    border: '1px solid #475569',
+                                                    backgroundColor: 'transparent',
+                                                    color: '#94a3b8',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    transition: 'all 0.2s ease'
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    e.currentTarget.style.backgroundColor = '#1e293b';
+                                                    e.currentTarget.style.color = '#f8fafc';
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                                    e.currentTarget.style.color = '#94a3b8';
+                                                }}
+                                                title="Edit profile"
+                                            >
+                                                <Edit2 size={14} />
+                                            </button>
                                         </div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '0.875rem', color: '#94a3b8' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -203,6 +324,219 @@ export default function AdminTeamPage() {
                     <li><strong style={{ color: '#10b981' }}>Support Staff:</strong> Can only manage support tickets</li>
                 </ul>
             </div>
+
+            {/* Edit Modal */}
+            {editModalOpen && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1000,
+                        padding: '20px'
+                    }}
+                    onClick={handleCloseModal}
+                >
+                    <div
+                        style={{
+                            backgroundColor: '#0f172a',
+                            border: '1px solid #334155',
+                            borderRadius: '16px',
+                            padding: '32px',
+                            maxWidth: '500px',
+                            width: '100%',
+                            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                            <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0, color: 'white' }}>
+                                Edit Team Member
+                            </h2>
+                            <button
+                                onClick={handleCloseModal}
+                                style={{
+                                    padding: '8px',
+                                    borderRadius: '8px',
+                                    border: 'none',
+                                    backgroundColor: 'transparent',
+                                    color: '#94a3b8',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    transition: 'all 0.2s ease'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#1e293b';
+                                    e.currentTarget.style.color = '#f8fafc';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                    e.currentTarget.style.color = '#94a3b8';
+                                }}
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Form */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                            {/* Full Name */}
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#f8fafc', fontSize: '0.875rem' }}>
+                                    Full Name *
+                                </label>
+                                <input
+                                    type="text"
+                                    value={editForm.full_name}
+                                    onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+                                    placeholder="Enter full name"
+                                    style={{
+                                        width: '100%',
+                                        padding: '12px 16px',
+                                        borderRadius: '8px',
+                                        border: '1px solid #334155',
+                                        backgroundColor: '#1e293b',
+                                        color: 'white',
+                                        fontSize: '1rem',
+                                        outline: 'none',
+                                        transition: 'border-color 0.2s ease'
+                                    }}
+                                    onFocus={(e) => e.currentTarget.style.borderColor = '#6c5ce7'}
+                                    onBlur={(e) => e.currentTarget.style.borderColor = '#334155'}
+                                />
+                            </div>
+
+                            {/* Role (only for super admin) */}
+                            {currentUserRole === 'super_admin' && (
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#f8fafc', fontSize: '0.875rem' }}>
+                                        Role *
+                                    </label>
+                                    <select
+                                        value={editForm.role}
+                                        onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
+                                        style={{
+                                            width: '100%',
+                                            padding: '12px 16px',
+                                            borderRadius: '8px',
+                                            border: '1px solid #334155',
+                                            backgroundColor: '#1e293b',
+                                            color: 'white',
+                                            fontSize: '1rem',
+                                            outline: 'none',
+                                            cursor: 'pointer',
+                                            transition: 'border-color 0.2s ease'
+                                        }}
+                                        onFocus={(e) => e.currentTarget.style.borderColor = '#6c5ce7'}
+                                        onBlur={(e) => e.currentTarget.style.borderColor = '#334155'}
+                                    >
+                                        <option value="super_admin" style={{ backgroundColor: '#1e293b' }}>Super Admin</option>
+                                        <option value="admin" style={{ backgroundColor: '#1e293b' }}>Admin</option>
+                                        <option value="support_staff" style={{ backgroundColor: '#1e293b' }}>Support Staff</option>
+                                    </select>
+                                    <p style={{ margin: '6px 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>
+                                        Only super admins can change roles
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Email (read-only) */}
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#f8fafc', fontSize: '0.875rem' }}>
+                                    Email
+                                </label>
+                                <input
+                                    type="email"
+                                    value={editForm.email}
+                                    readOnly
+                                    style={{
+                                        width: '100%',
+                                        padding: '12px 16px',
+                                        borderRadius: '8px',
+                                        border: '1px solid #334155',
+                                        backgroundColor: '#0f172a',
+                                        color: '#64748b',
+                                        fontSize: '1rem',
+                                        cursor: 'not-allowed'
+                                    }}
+                                />
+                                <p style={{ margin: '6px 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>
+                                    Email cannot be changed as it's linked to authentication
+                                </p>
+                            </div>
+
+                            {/* Error Message */}
+                            {error && (
+                                <div style={{
+                                    padding: '12px 16px',
+                                    borderRadius: '8px',
+                                    backgroundColor: '#7f1d1d',
+                                    border: '1px solid #991b1b',
+                                    color: '#fca5a5',
+                                    fontSize: '0.875rem'
+                                }}>
+                                    {error}
+                                </div>
+                            )}
+
+                            {/* Buttons */}
+                            <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                                <button
+                                    onClick={handleCloseModal}
+                                    disabled={saving}
+                                    style={{
+                                        flex: 1,
+                                        padding: '12px 24px',
+                                        borderRadius: '8px',
+                                        border: '1px solid #475569',
+                                        backgroundColor: 'transparent',
+                                        color: '#94a3b8',
+                                        fontSize: '1rem',
+                                        fontWeight: 600,
+                                        cursor: saving ? 'not-allowed' : 'pointer',
+                                        opacity: saving ? 0.5 : 1,
+                                        transition: 'all 0.2s ease'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        if (!saving) {
+                                            e.currentTarget.style.backgroundColor = '#1e293b';
+                                            e.currentTarget.style.color = '#f8fafc';
+                                        }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor = 'transparent';
+                                        e.currentTarget.style.color = '#94a3b8';
+                                    }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSave}
+                                    disabled={saving}
+                                    className="btn-admin-primary"
+                                    style={{
+                                        flex: 1,
+                                        padding: '12px 24px',
+                                        fontSize: '1rem',
+                                        opacity: saving ? 0.7 : 1,
+                                        cursor: saving ? 'not-allowed' : 'pointer'
+                                    }}
+                                >
+                                    {saving ? 'Saving...' : 'Save Changes'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -52,24 +52,31 @@ const transformForRemote = (entityType: string, data: any, user: any, businessId
         }
     }
     else if (entityType === 'PET') {
-        if (!remote.customerId && !remote.customer_id) {
+        // Skip validation for DELETE actions - we only need the ID
+        if (remote.customerId || remote.customer_id) {
+            if (remote.customerId) {
+                remote.customer_id = remote.customerId;
+                delete remote.customerId;
+            }
+        } else if (Object.keys(remote).length > 2) {
+            // Only validate if this appears to be a CREATE/UPDATE (has more than just id and business_id)
             throw new Error(`PET ${remote.id} is missing a customer relationship and cannot be synced.`);
-        }
-        if (remote.customerId) {
-            remote.customer_id = remote.customerId;
-            delete remote.customerId;
         }
     }
     else if (entityType === 'SERVICE') {
         // no specific changes
     }
     else if (entityType === 'JOB') {
-        // VALIDATION: Ensure customerId is present
-        if (!data.customerId && !data.customer_id) {
-            throw new Error(`JOB ${data.id} is missing a customer relationship and cannot be synced.`);
-        }
-        if (!data.petIds && !data.pet_ids) {
-            throw new Error(`JOB ${data.id} is missing pet relationships and cannot be synced.`);
+        // Skip validation for DELETE actions - we only need the ID
+        // Only validate if this appears to be a CREATE/UPDATE (has meaningful data)
+        if (Object.keys(data).length > 2) {
+            // VALIDATION: Ensure customerId is present
+            if (!data.customerId && !data.customer_id) {
+                throw new Error(`JOB ${data.id} is missing a customer relationship and cannot be synced.`);
+            }
+            if (!data.petIds && !data.pet_ids) {
+                throw new Error(`JOB ${data.id} is missing pet relationships and cannot be synced.`);
+            }
         }
 
         // CRITICAL: Only map fields if they exist to avoid nullifying relationships

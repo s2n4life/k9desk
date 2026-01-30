@@ -34,7 +34,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     return;
                 }
 
-                // 2. Check if user has super_admin role
+                // 2. Check if user has admin access (super_admin, admin, or support_staff)
                 const { data: profile, error } = await supabase
                     .from('profiles')
                     .select('role')
@@ -47,8 +47,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     return;
                 }
 
-                if (profile.role !== 'super_admin') {
-                    console.warn('User is not a super_admin, access denied');
+                // Allow super_admin, admin, and support_staff
+                const allowedRoles = ['super_admin', 'admin', 'support_staff'];
+                if (!allowedRoles.includes(profile.role)) {
+                    console.warn('User does not have admin access, access denied');
                     router.replace('/dashboard');
                     return;
                 }
