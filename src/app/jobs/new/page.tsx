@@ -230,28 +230,46 @@ const NewJobContent = () => {
                 setJobNotes(prev => prev ? `${prev}\n${lead!.notes}` : lead!.notes || '');
             }
 
-            // 4. Pre-fill Preferred Time (simplified)
+            // 4. Pre-fill Preferred Date (NEW: Simplified Booking Flow Format)
             if (lead.preferredDates && lead.preferredDates.length > 0) {
-                // Parse date string "Mon, Oct 24 at 10:00 AM"
-                // Very rough parsing
                 const first = lead.preferredDates[0];
-                // Try to extract time?
-                // Just append to notes for now to be safe
-                setJobNotes(prev => `${prev}\nPreferred: ${lead.preferredDates.join(', ')}`);
+                console.log('[Lead Conversion] Parsing preferred date:', first);
 
-                // Try parse
-                parsePreferredDate(lead.preferredDates[0]);
+                // Try to parse and set the date
+                parsePreferredDate(first);
+
+                // Also add to notes for reference
+                setJobNotes(prev => `${prev}\nPreferred: ${lead.preferredDates.join(', ')}`);
             }
         }
 
-        // Helper defined inside to ensure scope access (though strictly it should have worked derived, being safer here)
-        // actually function declarations are hoisted so we can call it above.
+        // Helper to parse preferred date from simplified booking flow
+        // Format: "YYYY-MM-DD at Morning (8am - 12pm)" or old format "Mon, Oct 24 at 10:00 AM"
         function parsePreferredDate(dateStr: string) {
             try {
                 if (!dateStr.includes(' at ')) return;
-                const parts = dateStr.split(' at ');
-                const timePart = parts[1];
 
+                const parts = dateStr.split(' at ');
+                const datePart = parts[0].trim();
+                const timePart = parts[1].trim();
+
+                // NEW FORMAT: "YYYY-MM-DD at Morning (8am - 12pm)"
+                if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+                    console.log('[Lead Conversion] Setting date from ISO format:', datePart);
+                    setDate(datePart);
+
+                    // Map time window to default time
+                    if (timePart.toLowerCase().includes('morning')) {
+                        setTime('09:00');
+                    } else if (timePart.toLowerCase().includes('afternoon')) {
+                        setTime('13:00');
+                    } else if (timePart.toLowerCase().includes('evening')) {
+                        setTime('17:00');
+                    }
+                    return;
+                }
+
+                // OLD FORMAT: "Mon, Oct 24 at 10:00 AM" (legacy support)
                 if (timePart.includes(':')) {
                     let [time, modifier] = timePart.split(' ');
                     let [hours, minutes] = time.split(':');
@@ -261,10 +279,10 @@ const NewJobContent = () => {
                 }
 
                 const currentYear = new Date().getFullYear();
-                const datePartParts = parts[0].split(', ');
+                const datePartParts = datePart.split(', ');
                 if (datePartParts.length > 1) {
-                    const datePart = datePartParts[1];
-                    const parsed = new Date(`${datePart}, ${currentYear}`);
+                    const datePartOnly = datePartParts[1];
+                    const parsed = new Date(`${datePartOnly}, ${currentYear}`);
                     if (!isNaN(parsed.getTime())) {
                         setDate(format(parsed, 'yyyy-MM-dd'));
                     }
@@ -845,14 +863,19 @@ const NewJobContent = () => {
                 <div style={{ marginBottom: 'var(--space-3)' }}>
                     <input
                         type="date"
-                        className="card"
+                        className="input"
                         value={date}
                         onChange={e => {
                             setDate(e.target.value);
                             // Auto-close the date picker by blurring the input
                             e.target.blur();
                         }}
-                        style={{ width: '100%' }}
+                        style={{
+                            width: '100%',
+                            padding: 'var(--space-3)',
+                            fontSize: 'var(--font-size-base)',
+                            textAlign: 'center'
+                        }}
                         required
                     />
                 </div>
