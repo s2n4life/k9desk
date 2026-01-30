@@ -55,7 +55,7 @@ export default function AdminUsersPage() {
                 .select(`
                     *,
                     profiles:owner_id (email, role, phone),
-                    jobs:jobs!business_id (id, created_at)
+                    jobs:jobs!business_id (id, created_at, state)
                 `)
                 .order('created_at', { ascending: false });
 
@@ -64,14 +64,16 @@ export default function AdminUsersPage() {
                 const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
                 const mapped = data.map((b: any) => {
-                    const jobs = b.jobs || [];
-                    const jobsLast30Days = jobs.filter((j: any) =>
+                    const allJobs = b.jobs || [];
+                    // Only count completed jobs
+                    const completedJobs = allJobs.filter((j: any) => j.state === 'Completed');
+                    const jobsLast30Days = completedJobs.filter((j: any) =>
                         new Date(j.created_at) >= thirtyDaysAgo
                     );
 
                     // Find last activity (most recent job or business creation)
-                    const lastJobDate = jobs.length > 0
-                        ? new Date(Math.max(...jobs.map((j: any) => new Date(j.created_at).getTime())))
+                    const lastJobDate = allJobs.length > 0
+                        ? new Date(Math.max(...allJobs.map((j: any) => new Date(j.created_at).getTime())))
                         : null;
                     const lastActivity = lastJobDate || new Date(b.created_at);
 
@@ -81,7 +83,7 @@ export default function AdminUsersPage() {
                         owner_role: b.profiles?.role,
                         owner_phone: b.profiles?.phone,
                         stripe_subscription_id: b.stripe_subscription_id,
-                        total_jobs: jobs.length,
+                        total_jobs: completedJobs.length,
                         jobs_last_30_days: jobsLast30Days.length,
                         last_activity: lastActivity.toISOString()
                     };
@@ -399,7 +401,7 @@ export default function AdminUsersPage() {
                             padding: '20px',
                             border: '1px solid #1e293b',
                             borderRadius: '12px',
-                            backgroundColor: '#0f172a'
+                            backgroundColor: '#1e293b'
                         }}>
                             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '24px', alignItems: 'start' }}>
                                 {/* Left Column: Business Info & Contact */}
@@ -548,142 +550,143 @@ export default function AdminUsersPage() {
                                     </button>
                                 </div>
                             </div>
-                            );
-                })}
                         </div>
+                    );
+                })}
+            </div>
 
-            {/* Trial Extension Modal */ }
-                    {
-                        showExtendModal && selectedAccount && (
-                            <div style={{
-                                position: 'fixed',
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                zIndex: 1000
-                            }}>
-                                <div style={{
-                                    backgroundColor: '#1e293b',
-                                    borderRadius: '12px',
-                                    padding: '32px',
-                                    maxWidth: '500px',
-                                    width: '90%',
-                                    border: '1px solid #334155'
-                                }}>
-                                    <h2 style={{ color: 'white', marginBottom: '8px', fontSize: '1.5rem' }}>Extend Trial Period</h2>
-                                    <p style={{ color: '#94a3b8', marginBottom: '24px' }}>
-                                        Extend trial for <strong style={{ color: 'white' }}>{selectedAccount.name}</strong>
-                                    </p>
+            {/* Trial Extension Modal */}
+            {
+                showExtendModal && selectedAccount && (
+                    <div style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1000
+                    }}>
+                        <div style={{
+                            backgroundColor: '#1e293b',
+                            borderRadius: '12px',
+                            padding: '32px',
+                            maxWidth: '500px',
+                            width: '90%',
+                            border: '1px solid #334155'
+                        }}>
+                            <h2 style={{ color: 'white', marginBottom: '8px', fontSize: '1.5rem' }}>Extend Trial Period</h2>
+                            <p style={{ color: '#94a3b8', marginBottom: '24px' }}>
+                                Extend trial for <strong style={{ color: 'white' }}>{selectedAccount.name}</strong>
+                            </p>
 
-                                    <div style={{ marginBottom: '24px' }}>
-                                        <label style={{ color: '#94a3b8', fontSize: '0.875rem', display: 'block', marginBottom: '12px' }}>
-                                            Select Extension Period:
-                                        </label>
-                                        <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-                                            {[7, 14, 30].map(days => (
-                                                <button
-                                                    key={days}
-                                                    onClick={() => {
-                                                        setExtensionDays(days);
-                                                        setCustomDays('');
-                                                    }}
-                                                    style={{
-                                                        flex: 1,
-                                                        padding: '12px',
-                                                        borderRadius: '8px',
-                                                        border: extensionDays === days && !customDays ? '2px solid #6c5ce7' : '1px solid #334155',
-                                                        backgroundColor: extensionDays === days && !customDays ? '#6c5ce720' : '#0f172a',
-                                                        color: extensionDays === days && !customDays ? '#6c5ce7' : '#94a3b8',
-                                                        fontWeight: 600,
-                                                        cursor: 'pointer',
-                                                        transition: 'all 0.2s'
-                                                    }}
-                                                >
-                                                    {days} Days
-                                                </button>
-                                            ))}
-                                        </div>
-
-                                        <div style={{ marginTop: '16px' }}>
-                                            <label style={{ color: '#94a3b8', fontSize: '0.875rem', display: 'block', marginBottom: '8px' }}>
-                                                Or enter custom days:
-                                            </label>
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                max="365"
-                                                value={customDays}
-                                                onChange={(e) => {
-                                                    setCustomDays(e.target.value);
-                                                    if (e.target.value) {
-                                                        setExtensionDays(parseInt(e.target.value) || 14);
-                                                    }
-                                                }}
-                                                placeholder="Enter number of days"
-                                                style={{
-                                                    width: '100%',
-                                                    padding: '10px',
-                                                    borderRadius: '8px',
-                                                    border: customDays ? '2px solid #6c5ce7' : '1px solid #334155',
-                                                    backgroundColor: '#0f172a',
-                                                    color: 'white',
-                                                    outline: 'none'
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                            <div style={{ marginBottom: '24px' }}>
+                                <label style={{ color: '#94a3b8', fontSize: '0.875rem', display: 'block', marginBottom: '12px' }}>
+                                    Select Extension Period:
+                                </label>
+                                <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                                    {[7, 14, 30].map(days => (
                                         <button
+                                            key={days}
                                             onClick={() => {
-                                                setShowExtendModal(false);
-                                                setSelectedAccount(null);
+                                                setExtensionDays(days);
+                                                setCustomDays('');
                                             }}
                                             style={{
-                                                padding: '10px 20px',
+                                                flex: 1,
+                                                padding: '12px',
                                                 borderRadius: '8px',
-                                                border: '1px solid #334155',
-                                                backgroundColor: '#0f172a',
-                                                color: '#94a3b8',
+                                                border: extensionDays === days && !customDays ? '2px solid #6c5ce7' : '1px solid #334155',
+                                                backgroundColor: extensionDays === days && !customDays ? '#6c5ce720' : '#0f172a',
+                                                color: extensionDays === days && !customDays ? '#6c5ce7' : '#94a3b8',
+                                                fontWeight: 600,
                                                 cursor: 'pointer',
-                                                fontWeight: 500
+                                                transition: 'all 0.2s'
                                             }}
                                         >
-                                            Cancel
+                                            {days} Days
                                         </button>
-                                        <button
-                                            onClick={() => {
-                                                const days = customDays ? parseInt(customDays) : extensionDays;
-                                                if (days > 0 && days <= 365) {
-                                                    extendTrial(selectedAccount.id, days);
-                                                    setShowExtendModal(false);
-                                                    setSelectedAccount(null);
-                                                } else {
-                                                    alert('Please enter a valid number of days (1-365)');
-                                                }
-                                            }}
-                                            style={{
-                                                padding: '10px 20px',
-                                                borderRadius: '8px',
-                                                border: 'none',
-                                                backgroundColor: '#6c5ce7',
-                                                color: 'white',
-                                                cursor: 'pointer',
-                                                fontWeight: 600
-                                            }}
-                                        >
-                                            Extend Trial
-                                        </button>
-                                    </div>
+                                    ))}
+                                </div>
+
+                                <div style={{ marginTop: '16px' }}>
+                                    <label style={{ color: '#94a3b8', fontSize: '0.875rem', display: 'block', marginBottom: '8px' }}>
+                                        Or enter custom days:
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="365"
+                                        value={customDays}
+                                        onChange={(e) => {
+                                            setCustomDays(e.target.value);
+                                            if (e.target.value) {
+                                                setExtensionDays(parseInt(e.target.value) || 14);
+                                            }
+                                        }}
+                                        placeholder="Enter number of days"
+                                        style={{
+                                            width: '100%',
+                                            padding: '10px',
+                                            borderRadius: '8px',
+                                            border: customDays ? '2px solid #6c5ce7' : '1px solid #334155',
+                                            backgroundColor: '#0f172a',
+                                            color: 'white',
+                                            outline: 'none'
+                                        }}
+                                    />
                                 </div>
                             </div>
-                        )
-                    }
+
+                            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                                <button
+                                    onClick={() => {
+                                        setShowExtendModal(false);
+                                        setSelectedAccount(null);
+                                    }}
+                                    style={{
+                                        padding: '10px 20px',
+                                        borderRadius: '8px',
+                                        border: '1px solid #334155',
+                                        backgroundColor: '#0f172a',
+                                        color: '#94a3b8',
+                                        cursor: 'pointer',
+                                        fontWeight: 500
+                                    }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        const days = customDays ? parseInt(customDays) : extensionDays;
+                                        if (days > 0 && days <= 365) {
+                                            extendTrial(selectedAccount.id, days);
+                                            setShowExtendModal(false);
+                                            setSelectedAccount(null);
+                                        } else {
+                                            alert('Please enter a valid number of days (1-365)');
+                                        }
+                                    }}
+                                    style={{
+                                        padding: '10px 20px',
+                                        borderRadius: '8px',
+                                        border: 'none',
+                                        backgroundColor: '#6c5ce7',
+                                        color: 'white',
+                                        cursor: 'pointer',
+                                        fontWeight: 600
+                                    }}
+                                >
+                                    Extend Trial
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
         </div>
-            );
+    );
 }
