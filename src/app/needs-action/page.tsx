@@ -4,27 +4,22 @@ import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { JobCard } from '@/components/Jobs/JobCard';
 import { getDB } from '@/lib/db';
-import { Job, Customer, Pet, JobState, Lead, Settings, Service } from '@/lib/db/schema';
+import { Job, Customer, Pet, JobState, Settings, Service } from '@/lib/db/schema';
 import { JobStateMachine } from '@/lib/jobs/stateMachine';
 import { triggerSMSAction } from '@/lib/sms';
-import { LeadCard } from '@/components/Leads/LeadCard';
 import { useDataLoader } from '@/hooks/useDataLoader';
 
 import { PaymentModal } from '@/components/Jobs/PaymentModal';
 import { RequestPaymentModal } from '@/components/Jobs/RequestPaymentModal';
 
-import { useRouter } from 'next/navigation'; // Added
-
 export default function NeedsActionPage() {
-    const router = useRouter(); // Added
     const [loading, setLoading] = useState(true);
     const [jobs, setJobs] = useState<Job[]>([]);
-    const [leads, setLeads] = useState<Lead[]>([]); // NEW
     const [customers, setCustomers] = useState<Record<string, Customer>>({});
     const [pets, setPets] = useState<Record<string, Pet>>({});
     const [allServices, setAllServices] = useState<Service[]>([]);
     const [settings, setSettings] = useState<Settings | null>(null);
-    const { loadJobs, loadCustomers, loadPets, loadLeads, isImpersonating, impersonatedBusinessId, getActiveBusinessId } = useDataLoader();
+    const { loadJobs, loadCustomers, loadPets, isImpersonating, impersonatedBusinessId } = useDataLoader();
 
     // Payment Modal State
     const [paymentModalOpen, setPaymentModalOpen] = useState(false);
@@ -38,7 +33,6 @@ export default function NeedsActionPage() {
             const allJobs = await loadJobs();
             const allCustomers = await loadCustomers();
             const allPets = await loadPets();
-            const allLeads = await loadLeads();
 
             const db = await getDB();
             const custMap: Record<string, Customer> = {};
@@ -58,9 +52,6 @@ export default function NeedsActionPage() {
                 return a.scheduledTime.localeCompare(b.scheduledTime);
             });
             setJobs(actionable);
-
-            // Filter new leads
-            setLeads(allLeads.filter(l => l.status === 'new'));
 
             const s = await db.get('settings', 'default');
             setSettings(s || null);
@@ -110,28 +101,6 @@ export default function NeedsActionPage() {
         }
     };
 
-    const handleLeadAction = async (leadId: string, action: 'accept' | 'reject') => {
-        if (action === 'accept') {
-            router.push(`/jobs/new?leadId=${leadId}`);
-        } else {
-            if (!confirm('Mark this lead as dead?')) return;
-            // Mark as dead
-            try {
-                const db = await getDB();
-                const lead = leads.find(l => l.id === leadId);
-                if (lead) {
-                    const updated = { ...lead, status: 'dead' as const }; // Fix type issue
-                    await db.put('leads', updated);
-                    // trigger sync if we had it
-                    // Local state update
-                    setLeads(prev => prev.filter(l => l.id !== leadId));
-                    window.dispatchEvent(new CustomEvent('data-changed'));
-                }
-            } catch (e) {
-                console.error('Failed to reject lead', e);
-            }
-        }
-    };
 
     if (loading) return <div className="container" style={{ paddingTop: '2rem' }}>Loading...</div>;
 
@@ -140,29 +109,18 @@ export default function NeedsActionPage() {
             <header style={{ marginBottom: 'var(--space-6)' }}>
                 <h1 className="text-h1" style={{ color: 'var(--color-warning)' }}>Needs Action</h1>
                 <p className="text-body" style={{ fontWeight: 500 }}>
-                    You have {jobs.length + leads.length} items that need attention
+                    You have {jobs.length} {jobs.length === 1 ? 'item' : 'items'} that need attention
                 </p>
             </header>
 
-            {jobs.length === 0 && leads.length === 0 ? (
+            {jobs.length === 0 ? (
                 <div className="card" style={{ padding: 'var(--space-8)', textAlign: 'center' }}>
                     <div style={{ fontSize: '48px', marginBottom: 'var(--space-4)' }}>🎉</div>
                     <h3 className="text-h2">All caught up!</h3>
-                    <p className="text-body">No new leads or pending payments.</p>
+                    <p className="text-body">No pending payments or reviews.</p>
                 </div>
             ) : (
                 <div className="job-list">
-                    {/* Render Leads First */}
-                    {leads.map(lead => (
-                        <LeadCard
-                            key={lead.id}
-                            lead={lead}
-                            onAccept={(id) => handleLeadAction(id, 'accept')}
-                            onArchive={(id) => handleLeadAction(id, 'reject')}
-                            onDelete={(id) => handleLeadAction(id, 'reject')}
-                        />
-                    ))}
-
                     {/* Render Jobs */}
                     {jobs.map(job => (
                         <JobCard
