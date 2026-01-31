@@ -248,7 +248,17 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
                 console.log('[BookingWizard] Success! Setting success state to true');
                 setSuccess(true);
             } else {
-                console.error('[BookingWizard] Submission failed:', result?.error);
+                // Check if it's a rate limit error (expected behavior, not a bug)
+                const isRateLimitError = result?.error?.includes('Too many booking requests');
+
+                if (isRateLimitError) {
+                    // Use console.warn for rate limiting (expected behavior, not an error)
+                    console.warn('[BookingWizard] Rate limit reached:', result?.error);
+                } else {
+                    // Use console.error for actual unexpected errors
+                    console.error('[BookingWizard] Submission failed:', result?.error);
+                }
+
                 setSubmitError(result?.error || 'Unknown error occurred.');
             }
         } catch (e) {
@@ -278,7 +288,7 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
                     inputMode="numeric"
                     pattern="[0-9]*"
                     maxLength={5}
-                    className="w-full text-5xl p-6 pl-12 text-center font-black tracking-[0.2em] border-2 border-slate-100 rounded-3xl bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all font-mono placeholder:text-slate-100 shadow-sm group-hover:border-slate-300"
+                    className="w-full text-5xl p-6 pl-12 text-center font-black tracking-[0.2em] border-2 border-slate-100 rounded-3xl bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all font-mono placeholder:text-slate-100 shadow-sm group-hover:border-slate-300 text-slate-900"
                     placeholder="00000"
                     value={formData.zip}
                     onChange={e => updateForm('zip', e.target.value)}
@@ -315,7 +325,7 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
                 <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-900 uppercase tracking-wide ml-1">Full Name</label>
                     <input
-                        className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-lg shadow-sm"
+                        className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-lg text-slate-900 shadow-sm"
                         placeholder="e.g. Jane Doe"
                         value={formData.ownerName}
                         onChange={e => updateForm('ownerName', e.target.value)}
@@ -324,7 +334,7 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
                 <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-900 uppercase tracking-wide ml-1">Mobile Phone</label>
                     <input
-                        className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-lg shadow-sm"
+                        className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-lg text-slate-900 shadow-sm"
                         type="tel"
                         placeholder="(555) 123-4567"
                         value={formData.ownerPhone}
@@ -415,7 +425,7 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
                             <div className="space-y-1">
                                 <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Name</label>
                                 <input
-                                    className="w-full p-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-semibold"
+                                    className="w-full p-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-semibold text-slate-900"
                                     placeholder="Buddy"
                                     value={pet.name}
                                     onChange={e => updatePet(idx, 'name', e.target.value)}
@@ -424,7 +434,7 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
                             <div className="space-y-1">
                                 <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Breed</label>
                                 <input
-                                    className="w-full p-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-semibold"
+                                    className="w-full p-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-semibold text-slate-900"
                                     placeholder="Poodle"
                                     value={pet.breed}
                                     onChange={e => updatePet(idx, 'breed', e.target.value)}
@@ -435,7 +445,7 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
                             <div className="space-y-1">
                                 <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Age</label>
                                 <input
-                                    className="w-full p-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-semibold"
+                                    className="w-full p-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-semibold text-slate-900"
                                     placeholder="2 yrs"
                                     value={pet.age}
                                     onChange={e => updatePet(idx, 'age', e.target.value)}
@@ -444,7 +454,7 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
                             <div className="space-y-1">
                                 <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Weight</label>
                                 <input
-                                    className="w-full p-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-semibold"
+                                    className="w-full p-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-semibold text-slate-900"
                                     placeholder="20 lbs"
                                     value={pet.weight}
                                     onChange={e => updatePet(idx, 'weight', e.target.value)}
@@ -602,7 +612,7 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
                 <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-900 uppercase tracking-wide ml-1">Notes <span className="font-normal text-slate-400 normal-case">(Access Instructions, Behavior, etc.)</span></label>
                     <textarea
-                        className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium min-h-[100px] resize-none shadow-sm"
+                        className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium min-h-[100px] resize-none shadow-sm text-slate-900"
                         placeholder="e.g. Behaves well, gate code is 1234..."
                         value={formData.notes}
                         onChange={e => updateForm('notes', e.target.value)}
