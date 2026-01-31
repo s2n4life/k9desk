@@ -1,3 +1,4 @@
+// Schema definitions - updated 2026-01-31
 export enum JobState {
   Scheduled = 'scheduled',
   ReminderSent = 'reminder_sent',
@@ -79,6 +80,9 @@ export interface Settings {
   stripe_customer_id?: string;
   stripe_subscription_id?: string;
   subscription_plan_id?: string;
+  payment_failed_at?: string; // ISO String - when payment first failed
+  grace_period_day2_notified?: boolean; // Day 2 notification sent
+  grace_period_final_notified?: boolean; // Day 3/4 notification sent
 
   // Scheduling & Service Area
   schedule_start_hour?: number;
@@ -94,6 +98,9 @@ export interface Settings {
   business_hours?: {
     [key: string]: { start: string; end: string; isOpen: boolean };
   };
+
+  // Appointment Confirmation
+  showAppointmentConfirmation?: boolean; // Default: true. Show confirmation modal after creating jobs
 
   updatedAt: number;
 }
