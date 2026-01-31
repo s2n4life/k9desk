@@ -16,6 +16,7 @@ export function useDataLoader() {
 
     const loadJobs = async (): Promise<Job[]> => {
         if (isImpersonating && impersonatedBusinessId) {
+            console.log('[IMPERSONATION] Loading jobs for business:', impersonatedBusinessId);
             // Load from Supabase
             const { data, error } = await supabase
                 .from('jobs')
@@ -28,7 +29,8 @@ export function useDataLoader() {
                 return [];
             }
 
-            // Map Supabase data to local schema format
+            console.log(`[IMPERSONATION] Loaded ${data?.length || 0} jobs from Supabase`);
+            // Map Supabase data to local schema format with ALL fields
             return (data || []).map((j: any) => ({
                 id: j.id,
                 customerId: j.customer_id,
@@ -40,10 +42,16 @@ export function useDataLoader() {
                 jobNotes: j.notes,
                 customerNotes: j.customer_notes,
                 petNotes: j.pet_notes,
+                services: j.services || [],
+                payment_amount: j.payment_amount,
+                payment_method: j.payment_method,
+                payment_logged_at: j.payment_logged_at ? new Date(j.payment_logged_at).getTime() : undefined,
+                payment_source: j.payment_source,
                 createdAt: new Date(j.created_at).getTime(),
                 updatedAt: new Date(j.updated_at).getTime()
             }));
         } else {
+            console.log('[DATA LOADER] Loading jobs from IndexedDB');
             // Load from IndexedDB (existing behavior)
             const db = await getDB();
             return await db.getAll('jobs');
@@ -52,6 +60,7 @@ export function useDataLoader() {
 
     const loadCustomers = async (): Promise<Customer[]> => {
         if (isImpersonating && impersonatedBusinessId) {
+            console.log('[IMPERSONATION] Loading customers for business:', impersonatedBusinessId);
             // Load from Supabase
             const { data, error } = await supabase
                 .from('customers')
@@ -64,6 +73,7 @@ export function useDataLoader() {
                 return [];
             }
 
+            console.log(`[IMPERSONATION] Loaded ${data?.length || 0} customers from Supabase`);
             return (data || []).map((c: any) => ({
                 id: c.id,
                 name: c.name,
@@ -75,6 +85,7 @@ export function useDataLoader() {
                 updatedAt: new Date(c.updated_at).getTime()
             }));
         } else {
+            console.log('[DATA LOADER] Loading customers from IndexedDB');
             // Load from IndexedDB
             const db = await getDB();
             return await db.getAll('customers');
@@ -83,6 +94,7 @@ export function useDataLoader() {
 
     const loadPets = async (): Promise<Pet[]> => {
         if (isImpersonating && impersonatedBusinessId) {
+            console.log('[IMPERSONATION] Loading pets for business:', impersonatedBusinessId);
             // Load from Supabase
             const { data, error } = await supabase
                 .from('pets')
@@ -94,6 +106,7 @@ export function useDataLoader() {
                 return [];
             }
 
+            console.log(`[IMPERSONATION] Loaded ${data?.length || 0} pets from Supabase`);
             return (data || []).map((p: any) => ({
                 id: p.id,
                 customerId: p.customer_id,
@@ -104,6 +117,7 @@ export function useDataLoader() {
                 updatedAt: new Date(p.updated_at).getTime()
             }));
         } else {
+            console.log('[DATA LOADER] Loading pets from IndexedDB');
             // Load from IndexedDB
             const db = await getDB();
             return await db.getAll('pets');

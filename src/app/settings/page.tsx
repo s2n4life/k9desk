@@ -1324,7 +1324,7 @@ export default function SettingsPage() {
                     Data Management
                 </h3>
                 <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: 'var(--space-4)' }}>
-                    Having trouble with sync or seeing old data? This will clear your device's local cache and download a fresh copy from the cloud.
+                    <strong>⚠️ Advanced troubleshooting only.</strong> This will completely clear your device's local cache and re-download all data from the cloud. Use this if you're experiencing serious sync issues or seeing corrupted data.
                 </p>
                 <button
                     onClick={handleForceReset}
@@ -1341,7 +1341,7 @@ export default function SettingsPage() {
                     }}
                 >
                     <RefreshCw size={18} className={isResetting ? 'animate-spin' : ''} />
-                    {isResetting ? 'Resetting Data...' : 'Force Reset & Re-sync'}
+                    {isResetting ? 'Clearing Cache...' : 'Clear Cache & Re-download All Data'}
                 </button>
             </section>
 

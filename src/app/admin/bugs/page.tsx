@@ -18,6 +18,7 @@ import {
     Check
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { Modal } from '@/components/UI/Modal';
 
 type SystemLog = {
     id: string;
@@ -36,6 +37,7 @@ export default function BugsPage() {
     const [expandedLog, setExpandedLog] = useState<string | null>(null);
     const [emailsEnabled, setEmailsEnabled] = useState(false);
     const [updatingConfig, setUpdatingConfig] = useState(false);
+    const [showClearConfirm, setShowClearConfirm] = useState(false);
 
     useEffect(() => {
         const loadData = async () => {
@@ -87,11 +89,14 @@ export default function BugsPage() {
         setUpdatingConfig(false);
     };
 
-    const clearLogs = async () => {
-        if (confirm('Are you sure you want to clear all system logs?')) {
-            await supabase.from('system_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            setLogs([]);
-        }
+    const clearLogs = () => {
+        setShowClearConfirm(true);
+    };
+
+    const confirmClearLogs = async () => {
+        await supabase.from('system_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        setLogs([]);
+        setShowClearConfirm(false);
     };
 
     const resolveLog = async (id: string, e: React.MouseEvent) => {
@@ -272,6 +277,48 @@ export default function BugsPage() {
                     </div>
                 )}
             </div>
+
+            <Modal
+                isOpen={showClearConfirm}
+                onClose={() => setShowClearConfirm(false)}
+                title="Clear All Logs"
+                footer={
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                            onClick={() => setShowClearConfirm(false)}
+                            className="btn btn-secondary"
+                            style={{ flex: 1 }}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={confirmClearLogs}
+                            className="btn btn-primary"
+                            style={{
+                                flex: 1,
+                                backgroundColor: '#ef4444',
+                                borderColor: '#ef4444',
+                                color: 'white',
+                                backgroundImage: 'none'
+                            }}
+                        >
+                            Clear All Logs
+                        </button>
+                    </div>
+                }
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center' }}>
+                    <div style={{ color: '#ef4444', backgroundColor: '#fee2e2', padding: '12px', borderRadius: '50%' }}>
+                        <Trash2 size={32} />
+                    </div>
+                    <div>
+                        <p style={{ fontWeight: 600, fontSize: '1.125rem', marginBottom: '8px', color: 'white' }}>Are you sure?</p>
+                        <p style={{ color: '#94a3b8', fontSize: '0.875rem', lineHeight: 1.5 }}>
+                            This will permanently delete all system logs. This action cannot be undone.
+                        </p>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }

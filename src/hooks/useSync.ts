@@ -216,7 +216,8 @@ export function useSync() {
                 const lastUserId = localStorage.getItem('crm_last_user_id');
 
                 // Also track active business ID to detect context changes (Impersonation)
-                const currentBusinessId = impersonatedBusinessId || currentUserId;
+                // CRITICAL: Use getActiveBusinessIdSync() instead of React context to avoid stale values
+                const currentBusinessId = getActiveBusinessIdSync() || currentUserId;
                 const lastBusinessId = localStorage.getItem('crm_last_business_id');
 
                 // 1. User changed -> Wipe everything
@@ -251,7 +252,7 @@ export function useSync() {
                     if (!hasHydrated || currentUserId !== lastUserId || businessIdChanged) {
                         console.log('[useSync] Triggering hydration');
                         setIsHydrating(true);
-                        const success = await hydrateLocalDB(currentUserId);
+                        const success = await hydrateLocalDB(currentBusinessId || currentUserId);
                         console.log('[useSync] Hydration result:', success);
                         setIsHydrating(false);
                     } else {

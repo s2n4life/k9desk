@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import Link from 'next/link';
 import { ChevronRight, Dog, Search, Calendar, History, Users, Building2 } from 'lucide-react';
+import { useImpersonationContextSafe } from '@/contexts/ImpersonationContext';
 
 type Customer = {
     id: string;
@@ -53,12 +54,14 @@ export default function CustomersPage() {
     const [jobDisplayLimit, setJobDisplayLimit] = useState(10);
     const [jobFilter, setJobFilter] = useState<'all' | 'completed' | 'cancelled'>('all');
 
+    const { isImpersonating, impersonatedBusinessId } = useImpersonationContextSafe();
+
     const loadData = async () => {
         try {
             setLoading(true);
 
-            // Load all customers with business info (admin view - no filtering)
-            const { data: customersData, error: customersError } = await supabase
+            // Build query for customers
+            let customersQuery = supabase
                 .from('customers')
                 .select(`
                     *,
@@ -66,24 +69,41 @@ export default function CustomersPage() {
                 `)
                 .order('name', { ascending: true });
 
+            // Filter by business_id if impersonating
+            if (isImpersonating && impersonatedBusinessId) {
+                console.log('[CUSTOMERS PAGE] Filtering by business_id:', impersonatedBusinessId);
+                customersQuery = customersQuery.eq('business_id', impersonatedBusinessId);
+            }
+
+            const { data: customersData, error: customersError } = await customersQuery;
+
             if (customersError) {
                 console.error('Error loading customers:', customersError);
             }
 
-            // Load all pets
-            const { data: petsData, error: petsError } = await supabase
-                .from('pets')
-                .select('*');
+            // Build query for pets
+            let petsQuery = supabase.from('pets').select('*');
+            if (isImpersonating && impersonatedBusinessId) {
+                petsQuery = petsQuery.eq('business_id', impersonatedBusinessId);
+            }
+
+            const { data: petsData, error: petsError } = await petsQuery;
 
             if (petsError) {
                 console.error('Error loading pets:', petsError);
             }
 
-            // Load all jobs
-            const { data: jobsData, error: jobsError } = await supabase
+            // Build query for jobs
+            let jobsQuery = supabase
                 .from('jobs')
                 .select('*')
                 .order('created_at', { ascending: false });
+
+            if (isImpersonating && impersonatedBusinessId) {
+                jobsQuery = jobsQuery.eq('business_id', impersonatedBusinessId);
+            }
+
+            const { data: jobsData, error: jobsError } = await jobsQuery;
 
             if (jobsError) {
                 console.error('Error loading jobs:', jobsError);
@@ -150,7 +170,7 @@ export default function CustomersPage() {
 
     useEffect(() => {
         loadData();
-    }, []);
+    }, [isImpersonating, impersonatedBusinessId]);
 
     // Filter Customers
     const filteredCustomers = customers.filter(c => {

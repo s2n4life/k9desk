@@ -173,6 +173,7 @@ export default function TodayPage() {
       const job = jobs.find(j => j.id === jobId);
       const customer = job ? customers[job.customerId] : null;
 
+      // Modal-based actions that don't transition state immediately
       if (action === 'REQUEST_PAYMENT') {
         setSelectedJobId(jobId);
         setRequestPaymentModalOpen(true);
@@ -185,27 +186,39 @@ export default function TodayPage() {
         return;
       }
 
-      if (job && customer && ['SEND_REMINDER', 'SEND_REVIEW_REQUEST'].includes(action)) {
+      // Review link setup modal
+      if (action === 'SEND_REVIEW_REQUEST') {
         const db = await getDB();
         const settings = await db.get('settings', 'default');
-
-        if (action === 'SEND_REVIEW_REQUEST' && !settings?.review_url) {
+        if (!settings?.review_url) {
           setSelectedJobId(jobId);
           setReviewLinkModalOpen(true);
           return;
         }
-        triggerSMSAction(job, customer, action, { settings });
-      }
-
-      if (!['REQUEST_PAYMENT', 'LOG_PAYMENT', 'SEND_REMINDER', 'SEND_REVIEW_REQUEST'].includes(action)) {
+        // If review URL exists, send SMS and transition
+        if (job && customer) {
+          triggerSMSAction(job, customer, action, { settings });
+        }
         await JobStateMachine.transition(jobId, action);
         await loadData();
+        return;
       }
 
-      if (['SEND_REMINDER', 'SEND_REVIEW_REQUEST', 'SKIP_REVIEW'].includes(action)) {
+      // SMS-based actions that also transition state
+      if (action === 'SEND_REMINDER') {
+        if (job && customer) {
+          const db = await getDB();
+          const settings = await db.get('settings', 'default');
+          triggerSMSAction(job, customer, action, { settings });
+        }
         await JobStateMachine.transition(jobId, action);
         await loadData();
+        return;
       }
+
+      // All other state transitions (MARK_IN_PROGRESS, MARK_COMPLETE, SKIP_REVIEW, etc.)
+      await JobStateMachine.transition(jobId, action);
+      await loadData();
     } catch (e) {
       console.error('Transition failed', e);
       alert('Action failed');

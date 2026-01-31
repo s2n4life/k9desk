@@ -6,6 +6,8 @@ import { Shield, Users, DollarSign, Activity, AlertTriangle, LogIn, TrendingUp, 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { captureLog } from '@/lib/admin/sentinel';
+import { formatDistanceToNow } from 'date-fns';
+import AtRiskUsersModal from '@/components/Admin/AtRiskUsersModal';
 
 type StatCardProps = {
     label: string;
@@ -14,11 +16,16 @@ type StatCardProps = {
     trend?: string;
     trendUp?: boolean;
     color: string;
+    onClick?: () => void;
 };
 
-function StatCard({ label, value, icon: Icon, trend, trendUp, color }: StatCardProps) {
+function StatCard({ label, value, icon: Icon, trend, trendUp, color, onClick }: StatCardProps) {
     return (
-        <div className="admin-card">
+        <div
+            className="admin-card"
+            onClick={onClick}
+            style={{ cursor: onClick ? 'pointer' : 'default' }}
+        >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                     <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginBottom: '4px' }}>{label}</p>
@@ -31,7 +38,7 @@ function StatCard({ label, value, icon: Icon, trend, trendUp, color }: StatCardP
             {trend && (
                 <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.875rem' }}>
                     <span style={{ color: trendUp ? '#10b981' : '#ef4444', fontWeight: 600 }}>{trend}</span>
-                    <span style={{ color: '#64748b' }}>vs last month</span>
+                    <span style={{ color: '#64748b' }}>vs last 30 days</span>
                 </div>
             )}
         </div>
@@ -41,22 +48,61 @@ function StatCard({ label, value, icon: Icon, trend, trendUp, color }: StatCardP
 export default function AdminDashboard() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
-    const [stats, setStats] = useState({
-        mrr: 0,
-        activeBusinesses: 0,
-        trialBusinesses: 0,
-        churnRate: 0,
-        openTickets: 0,
-        recentErrors: 0
+    const [showAtRiskModal, setShowAtRiskModal] = useState(false);
+    const [kpis, setKpis] = useState({
+        mrr: { value: 0, change: 0, changePercent: 0 },
+        netNewMrr: { value: 0, isPositive: true },
+        activeMembers: { value: 0, change: 0 },
+        activeTrials: { value: 0, change: 0 },
+        trialConversion: { value: 0, change: 0 },
+        atRisk: { value: 0 }
     });
     const [recentErrorLogs, setRecentErrorLogs] = useState<any[]>([]);
+    const [recentTickets, setRecentTickets] = useState<any[]>([]);
 
     useEffect(() => {
         let channel: any;
 
-        const loadStats = async () => {
+        const loadDashboard = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
+
+            // Fetch all KPIs in parallel
+            const [mrrRes, netMrrRes, membersRes, trialsRes, conversionRes, atRiskRes] = await Promise.all([
+                fetch('/api/admin/kpis/mrr').then(r => r.json()),
+                fetch('/api/admin/kpis/net-new-mrr').then(r => r.json()),
+                fetch('/api/admin/kpis/active-members').then(r => r.json()),
+                fetch('/api/admin/kpis/active-trials').then(r => r.json()),
+                fetch('/api/admin/kpis/trial-conversion').then(r => r.json()),
+                fetch('/api/admin/kpis/at-risk-users').then(r => r.json()),
+            ]);
+
+            setKpis({
+                mrr: {
+                    value: mrrRes.mrr || 0,
+                    change: mrrRes.change || 0,
+                    changePercent: mrrRes.changePercent || 0
+                },
+                netNewMrr: {
+                    value: netMrrRes.netNewMrr || 0,
+                    isPositive: netMrrRes.isPositive !== false
+                },
+                activeMembers: {
+                    value: membersRes.activeMembers || 0,
+                    change: membersRes.change || 0
+                },
+                activeTrials: {
+                    value: trialsRes.activeTrials || 0,
+                    change: trialsRes.change || 0
+                },
+                trialConversion: {
+                    value: conversionRes.conversionRate || 0,
+                    change: conversionRes.change || 0
+                },
+                atRisk: {
+                    value: atRiskRes.atRiskCount || 0
+                }
+            });
 
             // Fetch recent error logs from system_logs
             const fetchLogs = async () => {
@@ -68,10 +114,6 @@ export default function AdminDashboard() {
                     .limit(5);
 
                 setRecentErrorLogs(errorLogs || []);
-                setStats(prev => ({
-                    ...prev,
-                    recentErrors: errorLogs?.length || 0
-                }));
             };
 
             await fetchLogs();
@@ -89,20 +131,35 @@ export default function AdminDashboard() {
                 )
                 .subscribe();
 
-            // Mock stats
-            setStats(prev => ({
-                ...prev,
-                mrr: 12450,
-                activeBusinesses: 142,
-                trialBusinesses: 28,
-                churnRate: 2.1,
-                openTickets: 5
-            }));
+            // Fetch actual tickets for display and count
+            const { data: tickets } = await supabase
+                .from('support_tickets')
+                .select(`
+                    *,
+                    businesses:business_id (name),
+                    profiles:user_id (email)
+                `)
+                .order('created_at', { ascending: false })
+                .limit(5);
 
+            // Filter for new tickets and prepare display data
+            let displayTickets: Array<{ subject: string; business_name: string; created_at: string; priority: string }> = [];
+
+            if (tickets && tickets.length > 0) {
+                const newTickets = tickets.filter((t: any) => t.status === 'new');
+                displayTickets = newTickets.slice(0, 2).map((t: any) => ({
+                    subject: t.subject,
+                    business_name: t.businesses?.name || 'Unknown Business',
+                    created_at: t.created_at,
+                    priority: t.priority
+                }));
+            }
+
+            setRecentTickets(displayTickets);
             setLoading(false);
         };
 
-        loadStats();
+        loadDashboard();
 
         return () => {
             if (channel) {
@@ -116,10 +173,6 @@ export default function AdminDashboard() {
 
         // Optimistic UI update
         setRecentErrorLogs(prev => prev.filter(log => log.id !== id));
-        setStats(prev => ({
-            ...prev,
-            recentErrors: Math.max(0, prev.recentErrors - 1)
-        }));
 
         const { error } = await supabase
             .from('system_logs')
@@ -153,39 +206,64 @@ export default function AdminDashboard() {
                 <p style={{ color: '#94a3b8', margin: 0 }}>Operational health and growth metrics.</p>
             </header>
 
-            {/* KPI Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '24px', marginBottom: '40px' }}>
+            {/* KPI Grid - 3x2 Layout */}
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '24px',
+                marginBottom: '40px'
+            }}>
+                {/* Top Row */}
                 <StatCard
-                    label="Monthly Revenue"
-                    value={`$${stats.mrr.toLocaleString()}`}
+                    label="Monthly Recurring Revenue"
+                    value={`$${kpis.mrr.value.toLocaleString()}`}
                     icon={DollarSign}
-                    trend="+12.5%"
-                    trendUp={true}
+                    trend={kpis.mrr.changePercent !== 0 ? `${kpis.mrr.changePercent > 0 ? '+' : ''}${kpis.mrr.changePercent}%` : undefined}
+                    trendUp={kpis.mrr.changePercent >= 0}
                     color="#6c5ce7"
                 />
                 <StatCard
+                    label="Net New MRR"
+                    value={`${kpis.netNewMrr.value >= 0 ? '+' : ''}$${kpis.netNewMrr.value.toLocaleString()}`}
+                    icon={TrendingUp}
+                    trend={kpis.netNewMrr.isPositive ? "Growing" : "Declining"}
+                    trendUp={kpis.netNewMrr.isPositive}
+                    color={kpis.netNewMrr.isPositive ? "#10b981" : "#ef4444"}
+                />
+                <StatCard
+                    label="Users At Risk"
+                    value={kpis.atRisk.value}
+                    icon={AlertCircle}
+                    trend={kpis.atRisk.value > 0 ? "Needs attention" : "All clear"}
+                    trendUp={kpis.atRisk.value === 0}
+                    color="#f59e0b"
+                    onClick={() => setShowAtRiskModal(true)}
+                />
+
+                {/* Bottom Row */}
+                <StatCard
                     label="Active Members"
-                    value={stats.activeBusinesses}
+                    value={kpis.activeMembers.value}
                     icon={Users}
-                    trend="+4"
-                    trendUp={true}
+                    trend={kpis.activeMembers.change !== 0 ? `${kpis.activeMembers.change > 0 ? '+' : ''}${kpis.activeMembers.change}` : undefined}
+                    trendUp={kpis.activeMembers.change >= 0}
                     color="#10b981"
                 />
                 <StatCard
                     label="Active Trials"
-                    value={stats.trialBusinesses}
+                    value={kpis.activeTrials.value}
                     icon={Clock}
-                    trend="-2.4%"
-                    trendUp={false}
+                    trend={kpis.activeTrials.change !== 0 ? `${kpis.activeTrials.change > 0 ? '+' : ''}${kpis.activeTrials.change}` : undefined}
+                    trendUp={kpis.activeTrials.change >= 0}
                     color="#3b82f6"
                 />
                 <StatCard
-                    label="Active Alerts"
-                    value={stats.recentErrors}
-                    icon={AlertTriangle}
-                    trend={stats.recentErrors > 0 ? "Needs review" : "Healthy"}
-                    trendUp={stats.recentErrors === 0}
-                    color={stats.recentErrors > 0 ? "#ef4444" : "#10b981"}
+                    label="Trial → Paid Conversion"
+                    value={`${kpis.trialConversion.value}%`}
+                    icon={Activity}
+                    trend={kpis.trialConversion.change !== 0 ? `${kpis.trialConversion.change > 0 ? '+' : ''}${kpis.trialConversion.change}%` : undefined}
+                    trendUp={kpis.trialConversion.change >= 0}
+                    color="#8b5cf6"
                 />
             </div>
 
@@ -243,24 +321,37 @@ export default function AdminDashboard() {
                 <div className="admin-card">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                         <h3 style={{ fontSize: '1.125rem', fontWeight: 600, margin: 0 }}>Support Queue</h3>
-                        <span style={{ backgroundColor: '#6c5ce7', color: 'white', padding: '2px 8px', borderRadius: '10px', fontSize: '0.75rem' }}>{stats.openTickets} NEW</span>
+                        <span style={{ backgroundColor: '#6c5ce7', color: 'white', padding: '2px 8px', borderRadius: '10px', fontSize: '0.75rem' }}>{recentTickets.length} NEW</span>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingBottom: '12px', borderBottom: '1px solid #334155' }}>
-                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444' }} />
-                            <div style={{ flex: 1 }}>
-                                <p style={{ fontSize: '0.875rem', fontWeight: 500, margin: 0 }}>Cannot upload pet image</p>
-                                <p style={{ fontSize: '0.75rem', color: '#64748b', margin: 0 }}>John's Grooming • 10m ago</p>
-                            </div>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#f59e0b' }} />
-                            <div style={{ flex: 1 }}>
-                                <p style={{ fontSize: '0.875rem', fontWeight: 500, margin: 0 }}>Question about billing cycle</p>
-                                <p style={{ fontSize: '0.75rem', color: '#64748b', margin: 0 }}>Happy Paws • 2h ago</p>
-                            </div>
-                        </div>
+                        {recentTickets.length > 0 ? (
+                            recentTickets.map((ticket, idx) => {
+                                const timeAgo = formatDistanceToNow(new Date(ticket.created_at), { addSuffix: true });
+                                const priorityColor = ticket.priority === 'high' || ticket.priority === 'urgent' ? '#ef4444' : '#f59e0b';
+
+                                return (
+                                    <div
+                                        key={idx}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '12px',
+                                            paddingBottom: idx < recentTickets.length - 1 ? '12px' : '0',
+                                            borderBottom: idx < recentTickets.length - 1 ? '1px solid #334155' : 'none'
+                                        }}
+                                    >
+                                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: priorityColor }} />
+                                        <div style={{ flex: 1 }}>
+                                            <p style={{ fontSize: '0.875rem', fontWeight: 500, margin: 0 }}>{ticket.subject}</p>
+                                            <p style={{ fontSize: '0.75rem', color: '#64748b', margin: 0 }}>{ticket.business_name} • {timeAgo}</p>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <p style={{ color: '#94a3b8', textAlign: 'center', padding: '24px' }}>No new tickets</p>
+                        )}
                     </div>
 
                     <Link href="/admin/tickets" style={{ display: 'block', textAlign: 'center', marginTop: '24px', color: '#94a3b8', fontSize: '0.875rem', textDecoration: 'none' }}>Go to Ticket Portal</Link>
@@ -276,6 +367,23 @@ export default function AdminDashboard() {
                     to { transform: rotate(360deg); }
                 }
             `}</style>
+
+            {/* At-Risk Users Modal */}
+            <AtRiskUsersModal
+                isOpen={showAtRiskModal}
+                onClose={() => setShowAtRiskModal(false)}
+                onDismiss={() => {
+                    // Refresh at-risk count after dismissal
+                    fetch('/api/admin/kpis/at-risk-users')
+                        .then(r => r.json())
+                        .then(data => {
+                            setKpis(prev => ({
+                                ...prev,
+                                atRisk: { value: data.atRiskCount || 0 }
+                            }));
+                        });
+                }}
+            />
         </div>
     );
 }

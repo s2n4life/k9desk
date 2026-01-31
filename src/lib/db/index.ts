@@ -43,6 +43,11 @@ interface GroomerDB extends DBSchema {
         value: any; // Using any to match Lease schema or strict Lead type
         indexes: { 'by-status': string };
     };
+    recurrence_rules: {
+        key: string;
+        value: any; // RecurrenceRule type
+        indexes: { 'by-business': string; 'by-status': string };
+    };
     dead_letter: {
         key: string;
         value: SyncQueueItem & { failureReason?: string; failedAt: number };
@@ -51,7 +56,7 @@ interface GroomerDB extends DBSchema {
 }
 
 const DB_NAME = 'groomer-crm-db';
-const DB_VERSION = 6;
+const DB_VERSION = 7; // Incremented for recurrence_rules
 
 let dbPromise: Promise<IDBPDatabase<GroomerDB>>;
 
@@ -107,6 +112,13 @@ export const getDB = () => {
                 // Leads
                 if (!db.objectStoreNames.contains('leads')) {
                     const store = db.createObjectStore('leads', { keyPath: 'id' });
+                    store.createIndex('by-status', 'status');
+                }
+
+                // Recurrence Rules (v7)
+                if (!db.objectStoreNames.contains('recurrence_rules')) {
+                    const store = db.createObjectStore('recurrence_rules', { keyPath: 'id' });
+                    store.createIndex('by-business', 'businessId');
                     store.createIndex('by-status', 'status');
                 }
 

@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Shield, Users, LayoutDashboard, Bug, Ticket, Settings, LogOut, ChevronRight, UserCog } from 'lucide-react';
+import { Shield, Users, LayoutDashboard, Bug, Ticket, Settings, LogOut, ChevronRight, UserCog, BarChart3 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { supabase } from '@/lib/supabaseClient';
 import { useEffect, useState } from 'react';
 
 const ADMIN_NAV_ITEMS = [
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/admin/analytics', label: 'KPI & Analytics', icon: BarChart3 },
     { href: '/admin/tickets', label: 'Support Tickets', icon: Ticket },
     { href: '/admin/bugs', label: 'The Sentinel: Logs', icon: Bug },
     { href: '/admin/users', label: 'Users', icon: Users },

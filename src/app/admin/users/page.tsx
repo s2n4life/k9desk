@@ -65,8 +65,9 @@ export default function AdminUsersPage() {
 
                 const mapped = data.map((b: any) => {
                     const allJobs = b.jobs || [];
-                    // Only count completed jobs
-                    const completedJobs = allJobs.filter((j: any) => j.state === 'Completed');
+                    // Count all completed/closed jobs (completed, payment_requested, paid, closed)
+                    const completedStates = ['completed', 'payment_requested', 'paid', 'closed'];
+                    const completedJobs = allJobs.filter((j: any) => completedStates.includes(j.state));
                     const jobsLast30Days = completedJobs.filter((j: any) =>
                         new Date(j.created_at) >= thirtyDaysAgo
                     );

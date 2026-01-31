@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
-import { Shield, UserCog, Mail, Calendar, Plus, Trash2, ShieldCheck, Edit2, X } from 'lucide-react';
+import { Shield, UserCog, Mail, Calendar, Plus, Trash2, ShieldCheck, Edit2, X, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
+import { Modal } from '@/components/UI/Modal';
 
 type AdminUser = {
     id: string;
@@ -24,6 +25,9 @@ export default function AdminTeamPage() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+    const [showAddAdminModal, setShowAddAdminModal] = useState(false);
+    const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+    const [adminToRemove, setAdminToRemove] = useState<AdminUser | null>(null);
 
     useEffect(() => {
         loadAdminTeam();
@@ -180,7 +184,7 @@ export default function AdminTeamPage() {
                 <button
                     className="btn-admin-primary"
                     style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-                    onClick={() => alert('Add Admin feature coming soon!')}
+                    onClick={() => setShowAddAdminModal(true)}
                 >
                     <Plus size={18} />
                     Add Admin
@@ -295,7 +299,10 @@ export default function AdminTeamPage() {
                                             fontWeight: 500,
                                             transition: 'all 0.2s ease'
                                         }}
-                                        onClick={() => alert('Remove admin feature coming soon!')}
+                                        onClick={() => {
+                                            setAdminToRemove(admin);
+                                            setShowRemoveConfirm(true);
+                                        }}
                                     >
                                         <Trash2 size={14} />
                                         Remove
@@ -537,6 +544,94 @@ export default function AdminTeamPage() {
                     </div>
                 </div>
             )}
+
+            {/* Add Admin Modal */}
+            <Modal
+                isOpen={showAddAdminModal}
+                onClose={() => setShowAddAdminModal(false)}
+                title="Add Admin"
+                footer={
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                            onClick={() => setShowAddAdminModal(false)}
+                            className="btn btn-secondary"
+                            style={{ flex: 1 }}
+                        >
+                            Close
+                        </button>
+                    </div>
+                }
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center' }}>
+                    <div style={{ color: '#6c5ce7', backgroundColor: '#6c5ce720', padding: '12px', borderRadius: '50%' }}>
+                        <Plus size={32} />
+                    </div>
+                    <div>
+                        <p style={{ fontWeight: 600, fontSize: '1.125rem', marginBottom: '8px', color: 'white' }}>Feature Coming Soon</p>
+                        <p style={{ color: '#94a3b8', fontSize: '0.875rem', lineHeight: 1.5 }}>
+                            The ability to add new admin users will be available in a future update.
+                        </p>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Remove Admin Confirmation Modal */}
+            <Modal
+                isOpen={showRemoveConfirm}
+                onClose={() => {
+                    setShowRemoveConfirm(false);
+                    setAdminToRemove(null);
+                }}
+                title="Remove Admin"
+                footer={
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                            onClick={() => {
+                                setShowRemoveConfirm(false);
+                                setAdminToRemove(null);
+                            }}
+                            className="btn btn-secondary"
+                            style={{ flex: 1 }}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={() => {
+                                // TODO: Implement remove admin logic
+                                setShowRemoveConfirm(false);
+                                setAdminToRemove(null);
+                            }}
+                            className="btn btn-primary"
+                            style={{
+                                flex: 1,
+                                backgroundColor: '#ef4444',
+                                borderColor: '#ef4444',
+                                color: 'white',
+                                backgroundImage: 'none'
+                            }}
+                        >
+                            Remove Admin
+                        </button>
+                    </div>
+                }
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center' }}>
+                    <div style={{ color: '#ef4444', backgroundColor: '#fee2e2', padding: '12px', borderRadius: '50%' }}>
+                        <AlertTriangle size={32} />
+                    </div>
+                    <div>
+                        <p style={{ fontWeight: 600, fontSize: '1.125rem', marginBottom: '8px', color: 'white' }}>Feature Coming Soon</p>
+                        <p style={{ color: '#94a3b8', fontSize: '0.875rem', lineHeight: 1.5 }}>
+                            The ability to remove admin users will be available in a future update.
+                        </p>
+                        {adminToRemove && (
+                            <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '8px' }}>
+                                Selected: {adminToRemove.full_name || adminToRemove.email}
+                            </p>
+                        )}
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }

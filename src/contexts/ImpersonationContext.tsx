@@ -8,7 +8,7 @@ interface ImpersonationContextType {
     isImpersonating: boolean;
     isAdmin: boolean;
     getActiveBusinessId: () => Promise<string | null>;
-    startImpersonation: (businessId: string) => void;
+    startImpersonation: (businessId: string) => Promise<void>;
     stopImpersonation: () => void;
 }
 
@@ -96,14 +96,33 @@ export function ImpersonationProvider({ children }: { children: ReactNode }) {
         return null;
     }, [impersonatedBusinessId, userBusinessId]);
 
-    const startImpersonation = React.useCallback((businessId: string) => {
+    const startImpersonation = React.useCallback(async (businessId: string) => {
         if (!isAdmin) return;
+
+        console.log('[IMPERSONATION] Starting impersonation for business:', businessId);
+
+        // Clear IndexedDB to prevent data pollution from admin account
+        try {
+            const { getDB } = await import('@/lib/db');
+            const db = await getDB();
+            console.log('[IMPERSONATION] Clearing IndexedDB stores...');
+            await db.clear('jobs');
+            await db.clear('customers');
+            await db.clear('pets');
+            await db.clear('services');
+            console.log('[IMPERSONATION] IndexedDB cleared successfully');
+        } catch (error) {
+            console.error('[IMPERSONATION] Error clearing IndexedDB:', error);
+            // Continue anyway - the Supabase queries should still work
+        }
+
         localStorage.setItem(IMPERSONATION_KEY, businessId);
         setImpersonatedBusinessId(businessId);
         window.location.href = '/dashboard';
     }, [isAdmin]);
 
     const stopImpersonation = React.useCallback(() => {
+        console.log('[IMPERSONATION] Stopping impersonation');
         localStorage.removeItem(IMPERSONATION_KEY);
         setImpersonatedBusinessId(null);
         window.location.href = '/admin/users';
@@ -141,7 +160,7 @@ export function useImpersonationContextSafe() {
         isImpersonating: false,
         isAdmin: false,
         getActiveBusinessId: async () => null,
-        startImpersonation: (id: string) => { },
+        startImpersonation: async (id: string) => { },
         stopImpersonation: () => { }
     };
 }

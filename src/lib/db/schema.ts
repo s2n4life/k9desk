@@ -56,6 +56,7 @@ export interface Job {
   payment_method?: 'cash' | 'check' | 'venmo' | 'zelle' | 'stripe' | 'other';
   payment_logged_at?: number;
   payment_source?: 'manual';
+  recurrenceRuleId?: string; // Link to recurrence rule if this is a recurring job
   createdAt: number;
   updatedAt: number;
 }
@@ -119,8 +120,35 @@ export interface Lead {
   notes?: string;
 }
 
+export enum RecurrenceFrequency {
+  Weekly = 'weekly',
+  Biweekly = 'biweekly',
+  Monthly = 'monthly',
+  Every6Weeks = 'every_6_weeks',
+  Every2Months = 'every_2_months'
+}
+
+export enum RecurrenceStatus {
+  Active = 'active',
+  Paused = 'paused',
+  Canceled = 'canceled'
+}
+
+export interface RecurrenceRule {
+  id: string;
+  businessId: string;
+  customerId: string;
+  frequency: RecurrenceFrequency;
+  intervalDays: number;
+  status: RecurrenceStatus;
+  nextRunDate?: string; // ISO date string
+  lastGeneratedJobId?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export type SyncActionType = 'CREATE' | 'UPDATE' | 'DELETE';
-export type EntityType = 'CUSTOMER' | 'PET' | 'JOB' | 'SETTINGS' | 'SERVICE' | 'PROFILE' | 'LEAD';
+export type EntityType = 'CUSTOMER' | 'PET' | 'JOB' | 'SETTINGS' | 'SERVICE' | 'PROFILE' | 'LEAD' | 'RECURRENCE_RULE';
 
 export type SyncQueueItem = {
   id: string;

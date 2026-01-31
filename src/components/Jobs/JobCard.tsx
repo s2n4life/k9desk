@@ -46,6 +46,7 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
     // But for the Card, let's offer "Start Job" if Reminder Sent, then "Finish Job" if In Progress.
 
     const [showNavSheet, setShowNavSheet] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
 
     const handleNavigation = () => {
         setShowNavSheet(true);
@@ -129,22 +130,26 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
             {job.state === JobState.Completed ? (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
                     <button
-                        className={clsx('btn', 'btn-primary')}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onAction('LOG_PAYMENT');
-                        }}
-                    >
-                        Log Payment
-                    </button>
-                    <button
                         className={clsx('btn', 'btn-secondary')}
+                        disabled={isProcessing}
                         onClick={(e) => {
                             e.stopPropagation();
+                            setIsProcessing(true);
                             onAction('REQUEST_PAYMENT');
                         }}
                     >
                         Ask for payment
+                    </button>
+                    <button
+                        className={clsx('btn', 'btn-primary')}
+                        disabled={isProcessing}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setIsProcessing(true);
+                            onAction('LOG_PAYMENT');
+                        }}
+                    >
+                        Log Payment
                     </button>
                 </div>
             ) : job.state === JobState.PaymentRequested ? (
@@ -152,8 +157,10 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
                     <button
                         className={clsx('btn', 'btn-primary')}
                         style={{ width: '100%' }}
+                        disabled={isProcessing}
                         onClick={(e) => {
                             e.stopPropagation();
+                            setIsProcessing(true);
                             onAction('LOG_PAYMENT');
                         }}
                     >
@@ -164,8 +171,10 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
                     <button
                         className={clsx('btn', 'btn-primary')}
+                        disabled={isProcessing}
                         onClick={(e) => {
                             e.stopPropagation();
+                            setIsProcessing(true);
                             onAction('SEND_REVIEW_REQUEST');
                         }}
                     >
@@ -173,8 +182,10 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
                     </button>
                     <button
                         className={clsx('btn', 'btn-secondary')}
+                        disabled={isProcessing}
                         onClick={(e) => {
                             e.stopPropagation();
+                            setIsProcessing(true);
                             onAction('SKIP_REVIEW');
                         }}
                     >
@@ -184,8 +195,10 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
             ) : config.button ? (
                 <button
                     className={clsx('btn', 'btn-primary', styles.actionBtn)}
+                    disabled={isProcessing}
                     onClick={(e) => {
                         e.stopPropagation();
+                        setIsProcessing(true);
                         if (config.action) onAction(config.action);
                     }}
                 >

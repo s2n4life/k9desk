@@ -98,13 +98,20 @@ export class JobStateMachine {
 
         await saveWithSync('jobs', updatedJob, 'UPDATE', businessId || undefined);
 
+        // RECURRENCE: If job is being marked as completed and has a recurrence rule, generate next job
+        if (nextState === JobState.Completed && updatedJob.recurrenceRuleId) {
+            try {
+                const { generateNextJob } = await import('./recurrence');
+                await generateNextJob(updatedJob.recurrenceRuleId, businessId || '');
+                console.log(`[Recurrence] Generated next job for rule ${updatedJob.recurrenceRuleId}`);
+            } catch (error) {
+                // Don't block job completion if recurrence fails
+                console.error('[Recurrence] Failed to generate next job:', error);
+            }
+        }
+
         // Notify UI of changes
         window.dispatchEvent(new CustomEvent('data-changed'));
-
-        return updatedJob;
-
-        // In a real implementation with sync, we would queue this change here
-        // queueSync('UPDATE', 'JOB', jobId, { state: nextState });
 
         return updatedJob;
     }

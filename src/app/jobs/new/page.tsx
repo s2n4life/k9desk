@@ -3,12 +3,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getDB } from '@/lib/db';
-import { Customer, Pet, JobState, Service, Lead, Settings, Job } from '@/lib/db/schema';
+import { Customer, Pet, JobState, Service, Lead, Settings, Job, RecurrenceFrequency } from '@/lib/db/schema';
 import { ChevronLeft, Search, Plus, User, Dog, Edit2, Check, X, Scissors, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { useScheduling } from '@/hooks/useScheduling';
 import { Modal } from '@/components/UI/Modal';
+import { RecurringToggle } from '@/components/Jobs/RecurringToggle';
 import { addToSyncQueue } from '@/lib/db/sync';
 import { saveWithSync, deleteWithSync } from '@/lib/db/transactions';
 import { createClient } from '@/utils/supabase/client';
@@ -43,6 +44,10 @@ const NewJobContent = () => {
     const [time, setTime] = useState('09:00');
     const [jobAddress, setJobAddress] = useState('');
     const [jobNotes, setJobNotes] = useState('');
+
+    // Recurring State
+    const [isRecurring, setIsRecurring] = useState(false);
+    const [recurringFrequency, setRecurringFrequency] = useState<RecurrenceFrequency>(RecurrenceFrequency.Weekly);
 
     // -- Modals State --
     const [customerModalOpen, setCustomerModalOpen] = useState(false);
@@ -629,6 +634,18 @@ const NewJobContent = () => {
 
         await saveWithSync('jobs', newJob, 'CREATE', activeBusinessId || undefined);
 
+        // -- CREATE RECURRENCE RULE IF ENABLED --
+        if (isRecurring) {
+            try {
+                const { createRecurrenceRule } = await import('@/lib/jobs/recurrence');
+                await createRecurrenceRule(jobId, recurringFrequency, activeBusinessId || '');
+                console.log(`[Recurrence] Created recurrence rule for job ${jobId}`);
+            } catch (error) {
+                console.error('[Recurrence] Failed to create recurrence rule:', error);
+                // Don't block job creation if recurrence fails
+            }
+        }
+
         // -- AUTO-UPDATE LEAD STATUS --
         if (leadId) {
             // We need to update local DB and Sync.
@@ -906,6 +923,14 @@ const NewJobContent = () => {
                     )}
                 </div>
             </div>
+
+            {/* Recurring Toggle */}
+            <RecurringToggle
+                enabled={isRecurring}
+                frequency={recurringFrequency}
+                onToggle={setIsRecurring}
+                onFrequencyChange={setRecurringFrequency}
+            />
 
             <div className="card" style={{ marginBottom: 'var(--space-6)' }}>
 

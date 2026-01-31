@@ -113,25 +113,24 @@
     margin-bottom: var(--space-3);
     border: 1px solid var(--border-strong);
     border-radius: 12px;
-    overflow: hidden;
     transition: all 0.2s;
     background: var(--surface-secondary);
 }
 
 .faqQuestion {
     width: 100%;
-    padding: var(--space-4);
+    padding: var(--space-3);
     display: flex;
     justify-content: space-between;
     align-items: center;
     background: var(--surface-secondary);
     border: none;
     font-weight: 600;
-    font-size: var(--font-size-base);
+    font-size: var(--font-size-sm);
     text-align: left;
     color: var(--text-primary);
     cursor: pointer;
-    gap: var(--space-3);
+    gap: var(--space-2);
 }
 
 .faqQuestion:hover {
@@ -139,9 +138,9 @@
 }
 
 .faqAnswer {
-    padding: 0 var(--space-4) var(--space-4) var(--space-4);
-    background: var(--surface-primary);
-    color: var(--text-secondary);
+    padding: var(--space-4);
+    background: var(--surface-secondary);
+    color: var(--text-primary);
     font-size: var(--font-size-sm);
     line-height: 1.6;
     border-top: 1px solid var(--border-subtle);

@@ -4,14 +4,14 @@ import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { getDB } from '@/lib/db';
-import { Job, Customer, Pet, JobState, Settings, Service } from '@/lib/db/schema';
+import { Job, Customer, Pet, JobState, Settings, Service, RecurrenceRule, RecurrenceFrequency } from '@/lib/db/schema';
 import { JobStateMachine, JobAction } from '@/lib/jobs/stateMachine';
 import { saveWithSync } from '@/lib/db/transactions';
 import { triggerSMSAction } from '@/lib/sms';
 import { v4 as uuidv4 } from 'uuid';
 import { formatTime12Hour } from '@/lib/format';
 
-import { ChevronLeft, MapPin, Clock, Send, CreditCard, Star, CheckSquare, DollarSign, Edit2, Trash2, Plus, AlertTriangle, Scissors, X, Phone, MessageCircle, MoreVertical, Check } from 'lucide-react';
+import { ChevronLeft, MapPin, Clock, Send, CreditCard, Star, CheckSquare, DollarSign, Edit2, Trash2, Plus, AlertTriangle, Scissors, X, Phone, MessageCircle, MoreVertical, Check, Repeat } from 'lucide-react';
 import { useScheduling } from '@/hooks/useScheduling';
 import Link from 'next/link';
 import { PaymentModal } from '@/components/Jobs/PaymentModal';
@@ -19,6 +19,9 @@ import { RequestPaymentModal } from '@/components/Jobs/RequestPaymentModal';
 import { Modal } from '@/components/UI/Modal';
 import { CustomerForm } from '@/components/Customers/CustomerForm';
 import { ActionSheet } from '@/components/UI/ActionSheet';
+import { RecurringBadge } from '@/components/Jobs/RecurringBadge';
+import { RecurringManagementModal } from '@/components/Jobs/RecurringManagementModal';
+import { RecurringToggle } from '@/components/Jobs/RecurringToggle';
 
 export default function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const router = useRouter();
@@ -68,6 +71,12 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     const [pAge, setPAge] = useState('');
     const [pNotes, setPNotes] = useState('');
 
+    // Recurring State
+    const [recurrenceRule, setRecurrenceRule] = useState<RecurrenceRule | null>(null);
+    const [recurringManagementOpen, setRecurringManagementOpen] = useState(false);
+    const [makeRecurringOpen, setMakeRecurringOpen] = useState(false);
+    const [newRecurringFrequency, setNewRecurringFrequency] = useState<RecurrenceFrequency>(RecurrenceFrequency.Weekly);
+
     const loadData = async () => {
         const db = await getDB();
         const j = await db.get('jobs', id);
@@ -100,6 +109,14 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
 
         const s = await db.get('settings', 'default');
         setSettings(s || null);
+
+        // Load recurrence rule if job has one
+        if (j.recurrenceRuleId) {
+            const rule = await db.get('recurrence_rules', j.recurrenceRuleId);
+            setRecurrenceRule(rule || null);
+        } else {
+            setRecurrenceRule(null);
+        }
 
         setLoading(false);
     };
@@ -285,6 +302,59 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
         }
     };
 
+    // Recurring Handlers
+    const handleMakeRecurring = async () => {
+        if (!job) return;
+        try {
+            const { createRecurrenceRule } = await import('@/lib/jobs/recurrence');
+            const { getActiveBusinessIdSync } = await import('@/contexts/ImpersonationContext');
+            const businessId = getActiveBusinessIdSync();
+
+            await createRecurrenceRule(job.id, newRecurringFrequency, businessId || '');
+            setMakeRecurringOpen(false);
+            loadData(); // Reload to get the new recurrence rule
+        } catch (error) {
+            console.error('Failed to create recurrence:', error);
+            alert('Failed to make recurring: ' + (error as Error).message);
+        }
+    };
+
+    const handlePauseRecurrence = async () => {
+        if (!recurrenceRule) return;
+        const { pauseRecurrence } = await import('@/lib/jobs/recurrence');
+        const { getActiveBusinessIdSync } = await import('@/contexts/ImpersonationContext');
+        const businessId = getActiveBusinessIdSync();
+        await pauseRecurrence(recurrenceRule.id, businessId || '');
+        loadData();
+    };
+
+    const handleResumeRecurrence = async () => {
+        if (!recurrenceRule) return;
+        const { resumeRecurrence } = await import('@/lib/jobs/recurrence');
+        const { getActiveBusinessIdSync } = await import('@/contexts/ImpersonationContext');
+        const businessId = getActiveBusinessIdSync();
+        await resumeRecurrence(recurrenceRule.id, businessId || '');
+        loadData();
+    };
+
+    const handleChangeFrequency = async (newFrequency: RecurrenceFrequency) => {
+        if (!recurrenceRule) return;
+        const { updateRecurrenceFrequency } = await import('@/lib/jobs/recurrence');
+        const { getActiveBusinessIdSync } = await import('@/contexts/ImpersonationContext');
+        const businessId = getActiveBusinessIdSync();
+        await updateRecurrenceFrequency(recurrenceRule.id, newFrequency, businessId || '');
+        loadData();
+    };
+
+    const handleCancelRecurrence = async () => {
+        if (!recurrenceRule) return;
+        const { cancelRecurrence } = await import('@/lib/jobs/recurrence');
+        const { getActiveBusinessIdSync } = await import('@/contexts/ImpersonationContext');
+        const businessId = getActiveBusinessIdSync();
+        await cancelRecurrence(recurrenceRule.id, businessId || '');
+        loadData();
+    };
+
     // Helper to determine main button action
     // Helper to determine button layout - matching JobCard exactly
     const getButtonLayout = () => {
@@ -293,8 +363,8 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
         // Completed state: can log payment OR request payment
         if (job.state === JobState.Completed) {
             return {
-                primary: { label: 'Log Payment', action: 'LOG_PAYMENT' as JobAction, color: 'btn-primary' },
-                secondary: { label: 'Ask for payment', action: 'REQUEST_PAYMENT' as JobAction, color: 'btn-secondary' }
+                primary: { label: 'Ask for payment', action: 'REQUEST_PAYMENT' as JobAction, color: 'btn-secondary' },
+                secondary: { label: 'Log Payment', action: 'LOG_PAYMENT' as JobAction, color: 'btn-primary' }
             };
         }
 
@@ -334,11 +404,14 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     return (
         <div className="container" style={{ paddingBottom: 'var(--space-4)', paddingTop: 'var(--space-4)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <button onClick={() => router.back()} style={{ background: 'none', border: 'none', padding: 0, marginRight: 'var(--space-2)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flex: 1 }}>
+                    <button onClick={() => router.back()} style={{ background: 'none', border: 'none', padding: 0 }}>
                         <ChevronLeft size={28} color="var(--brand-primary)" />
                     </button>
                     <h1 className="text-h2" style={{ marginBottom: 0 }}>Job Details</h1>
+                    {recurrenceRule && (
+                        <RecurringBadge frequency={recurrenceRule.frequency} status={recurrenceRule.status} size="sm" />
+                    )}
                 </div>
                 {/* Three-dot menu - only show for active jobs */}
                 {job.state !== JobState.Closed && job.state !== JobState.Cancelled && job.state !== JobState.NoShow && (
@@ -499,6 +572,25 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                     style={{ width: '100%', minHeight: 100, fontSize: 'var(--font-size-base)' }}
                 />
             </div>
+
+            {/* Recurring Toggle - Only show if job doesn't have a recurrence rule */}
+            {!recurrenceRule && (
+                <RecurringToggle
+                    enabled={makeRecurringOpen}
+                    frequency={newRecurringFrequency}
+                    onToggle={(enabled) => {
+                        setMakeRecurringOpen(enabled);
+                        if (!enabled) {
+                            // If user disables after enabling, we don't need to do anything
+                            // The rule will only be created when they explicitly save
+                        } else if (enabled) {
+                            // Auto-create the recurrence rule when toggled on
+                            handleMakeRecurring();
+                        }
+                    }}
+                    onFrequencyChange={setNewRecurringFrequency}
+                />
+            )}
 
             {/* Action Buttons - Matching JobCard Layout */}
             {buttonLayout && (
@@ -870,6 +962,14 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 onClose={() => setMoreActionsOpen(false)}
                 title="Job Actions"
                 options={[
+                    // Recurring management option (only if job has a recurrence rule)
+                    ...(recurrenceRule ? [{
+                        label: 'Manage Recurring',
+                        action: () => {
+                            setMoreActionsOpen(false);
+                            setRecurringManagementOpen(true);
+                        }
+                    }] : []),
                     {
                         label: 'Mark as Cancelled',
                         action: () => setConfirmCancelOpen(true),
@@ -924,6 +1024,19 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                     This will mark the job as a no-show and remove it from your active schedule. The job will still be visible in Past Jobs.
                 </p>
             </Modal>
+
+            {/* Recurring Management Modal */}
+            {recurrenceRule && (
+                <RecurringManagementModal
+                    isOpen={recurringManagementOpen}
+                    onClose={() => setRecurringManagementOpen(false)}
+                    rule={recurrenceRule}
+                    onPause={handlePauseRecurrence}
+                    onResume={handleResumeRecurrence}
+                    onChangeFrequency={handleChangeFrequency}
+                    onCancel={handleCancelRecurrence}
+                />
+            )}
 
         </div>
     );

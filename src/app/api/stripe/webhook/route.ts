@@ -15,7 +15,7 @@ export const runtime = 'nodejs';
  */
 async function handleSubscriptionDeleted(
     subscription: Stripe.Subscription,
-    supabase: ReturnType<typeof createClient>
+    supabase: any
 ) {
     console.log('[WEBHOOK] Subscription deleted:', subscription.id);
 
@@ -24,7 +24,7 @@ async function handleSubscriptionDeleted(
         .update({
             subscription_status: 'canceled',
             stripe_subscription_id: null
-        })
+        } as any)
         .eq('stripe_customer_id', subscription.customer as string);
 
     if (error) {
@@ -41,7 +41,7 @@ async function handleSubscriptionDeleted(
  */
 async function handleSubscriptionUpdated(
     subscription: Stripe.Subscription,
-    supabase: ReturnType<typeof createClient>
+    supabase: any
 ) {
     console.log('[WEBHOOK] Subscription updated:', subscription.id, 'Status:', subscription.status);
 
@@ -71,7 +71,7 @@ async function handleSubscriptionUpdated(
         .update({
             subscription_status: status,
             stripe_subscription_id: subscription.id
-        })
+        } as any)
         .eq('stripe_customer_id', subscription.customer as string);
 
     if (error) {
@@ -88,13 +88,13 @@ async function handleSubscriptionUpdated(
  */
 async function handlePaymentFailed(
     invoice: Stripe.Invoice,
-    supabase: ReturnType<typeof createClient>
+    supabase: any
 ) {
     console.log('[WEBHOOK] Payment failed for invoice:', invoice.id);
 
     const { error } = await supabase
         .from('businesses')
-        .update({ subscription_status: 'past_due' })
+        .update({ subscription_status: 'past_due' } as any)
         .eq('stripe_customer_id', invoice.customer as string);
 
     if (error) {
