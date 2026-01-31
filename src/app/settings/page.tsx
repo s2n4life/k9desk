@@ -167,6 +167,7 @@ export default function SettingsPage() {
                         businessName: business.name,
                         subscription_status: business.subscription_status,
                         trial_end_date: business.trial_end_date,
+                        showAppointmentConfirmation: business.show_appointment_confirmation,
                         updatedAt: Date.now(),
                         // Add other fields as needed
                     });
