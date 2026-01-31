@@ -27,6 +27,7 @@ export default async function BookingPage({ params }: { params: Promise<{ busine
             schedule_start_hour, 
             schedule_end_hour, 
             schedule_work_days,
+            business_hours,
             services (
                 id,
                 name,
@@ -67,7 +68,22 @@ export default async function BookingPage({ params }: { params: Promise<{ busine
                             zips: business.service_area_zips,
                             startHour: business.schedule_start_hour,
                             endHour: business.schedule_end_hour,
-                            workDays: business.schedule_work_days,
+                            workDays: (() => {
+                                // Extract work days from business_hours
+                                const dayMap: Record<string, number> = {
+                                    sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
+                                    thursday: 4, friday: 5, saturday: 6
+                                };
+                                const workDays: number[] = [];
+                                if (business.business_hours) {
+                                    Object.entries(business.business_hours).forEach(([day, config]: [string, any]) => {
+                                        if (config?.isOpen && dayMap[day.toLowerCase()] !== undefined) {
+                                            workDays.push(dayMap[day.toLowerCase()]);
+                                        }
+                                    });
+                                }
+                                return workDays.sort((a, b) => a - b);
+                            })(),
                             services: (business.services || []).map((s: any) => ({
                                 id: s.id,
                                 name: s.name,
