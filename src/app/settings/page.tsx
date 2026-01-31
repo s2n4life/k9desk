@@ -274,13 +274,22 @@ export default function SettingsPage() {
 
             const updatedSettings = {
                 ...settings,
-                schedule_work_days: derivedWorkDays, // SYNC derived array
+                schedule_work_days: derivedWorkDays,
                 updatedAt: Date.now()
             };
 
-            await saveWithSync('settings', updatedSettings, 'UPDATE', businessId || undefined);
+            // Call API directly instead of using broken sync
+            const response = await fetch('/api/settings/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedSettings)
+            });
 
-            // Update local state to reflect the derived array immediately
+            if (!response.ok) {
+                throw new Error('Failed to save settings');
+            }
+
+            // Update local state
             setSettings(updatedSettings);
 
             setMsg('Saved successfully!');
@@ -780,6 +789,30 @@ export default function SettingsPage() {
                         </div>
                     </div>
                 )}
+            </section>
+
+            {/* Appointment Confirmation Section */}
+            <section className="card" style={{ marginBottom: 'var(--space-4)', padding: 'var(--space-6)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-3)' }}>
+                    <div style={{ flex: 1 }}>
+                        <h3 className="text-h3" style={{ marginBottom: '4px' }}>Show Appointment Confirmation Prompt</h3>
+                        <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginBottom: 0 }}>
+                            Reminds you to confirm appointments with customers after scheduling
+                        </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={settings.showAppointmentConfirmation !== false}
+                            onChange={e => {
+                                handleChange('showAppointmentConfirmation', e.target.checked);
+                                handleSaveSettings();
+                            }}
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
             </section>
 
             {/* Services Section */}
