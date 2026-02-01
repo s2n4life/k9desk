@@ -12,10 +12,10 @@ import type { NextRequest } from 'next/server';
  * - /api/cron/* - Vercel Cron jobs
  */
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
-    console.log('[MIDDLEWARE] Processing request:', pathname);
+    console.log('[PROXY] Processing request:', pathname);
 
     // List of public API paths that should NEVER redirect to login
     const publicPaths = [
@@ -30,15 +30,16 @@ export function middleware(request: NextRequest) {
     const isPublicPath = publicPaths.some(path => pathname.startsWith(path));
 
     if (isPublicPath) {
-        console.log('[MIDDLEWARE] Public path detected, allowing access:', pathname);
+        console.log('[PROXY] Public path detected, allowing access:', pathname);
         // Allow the request to proceed without any authentication checks
         return NextResponse.next();
     }
 
-    console.log('[MIDDLEWARE] Not a public path, continuing:', pathname);
+    console.log('[PROXY] Not a public path, continuing:', pathname);
     // For all other routes, continue with normal processing
     return NextResponse.next();
 }
+
 
 
 // Configure which routes this middleware runs on
