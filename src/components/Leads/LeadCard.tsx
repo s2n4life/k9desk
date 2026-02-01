@@ -24,7 +24,7 @@ export function LeadCard({ lead, onAccept, onArchive, onDelete, isArchived, busi
     const firstName = lead.ownerName.split(' ')[0];
     const bizName = businessName || 'our business';
     const smsBody = `Hi ${firstName}, this is ${bizName}. `;
-    const smsHref = `sms:${lead.ownerPhone}${navigator.userAgent.match(/iPhone/i) ? '&' : '?'}body=${encodeURIComponent(smsBody)}`;
+    const smsHref = `sms:${lead.ownerPhone}?body=${encodeURIComponent(smsBody)}`;
 
     // COLLAPSED VIEW
     if (!isOpen) {

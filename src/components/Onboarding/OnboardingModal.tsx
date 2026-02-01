@@ -135,6 +135,22 @@ export function OnboardingModal() {
                     .from('profiles')
                     .update({ phone: phone.trim() })
                     .eq('id', user.id);
+
+                // Send welcome email (don't block onboarding if it fails)
+                try {
+                    await fetch('/api/emails/welcome', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            email: user.email,
+                            businessName: businessName.trim(),
+                        }),
+                    });
+                    console.log('[Onboarding] Welcome email sent');
+                } catch (emailError) {
+                    console.error('[Onboarding] Failed to send welcome email:', emailError);
+                    // Don't show error to user - email is not critical for onboarding
+                }
             }
 
             setIsOpen(false);

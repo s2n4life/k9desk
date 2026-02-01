@@ -1,0 +1,243 @@
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: var(--space-4);
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.modal {
+    background: #ffffff;
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    max-width: 500px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.3s ease-out;
+    position: relative;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .modal {
+        background: #1f2937;
+        color: #f9fafb;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.closeButton {
+    position: absolute;
+    top: var(--space-4);
+    right: var(--space-4);
+    background: transparent;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: var(--space-2);
+    border-radius: var(--radius-md);
+    transition: all 0.2s;
+}
+
+.closeButton:hover {
+    background: var(--surface-sunken);
+    color: var(--text-primary);
+}
+
+.header {
+    text-align: center;
+    margin-bottom: var(--space-4);
+}
+
+.icon {
+    font-size: 40px;
+    margin-bottom: var(--space-2);
+}
+
+.title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: var(--space-2);
+    color: var(--text-primary);
+}
+
+.subtitle {
+    font-size: 14px;
+    color: var(--text-primary);
+    line-height: 1.4;
+}
+
+.subtitle strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.details {
+    background: var(--surface-sunken);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    margin-bottom: var(--space-4);
+}
+
+.detailRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-2) 0;
+}
+
+.detailRow:not(:last-child) {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.label {
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.value {
+    font-size: 16px;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+    align-items: center;
+}
+
+.callButton,
+.smsButton {
+    width: 100%;
+    max-width: 320px;
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    font-size: 16px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    transition: all 0.2s;
+}
+
+.callButton {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.callButton:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+}
+
+.callButton:active {
+    transform: translateY(0);
+}
+
+.smsButton {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.smsButton:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+}
+
+.smsButton:active {
+    transform: translateY(0);
+}
+
+.skipButton {
+    width: 100%;
+    padding: var(--space-3);
+    background: transparent;
+    border: none;
+    color: var(--text-tertiary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    transition: all 0.2s;
+}
+
+.skipButton:hover {
+    background: var(--surface-sunken);
+    color: var(--text-secondary);
+}
+
+.noPhone {
+    text-align: center;
+    padding: var(--space-4);
+}
+
+.noPhone p {
+    color: var(--text-secondary);
+    margin-bottom: var(--space-4);
+    font-size: 16px;
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+    .modal {
+        padding: var(--space-5);
+    }
+
+    .title {
+        font-size: 18px;
+    }
+
+    .subtitle {
+        font-size: 13px;
+    }
+
+    .icon {
+        font-size: 36px;
+        margin-bottom: var(--space-2);
+    }
+
+    .callButton,
+    .smsButton {
+        padding: var(--space-3);
+        font-size: 15px;
+    }
+}

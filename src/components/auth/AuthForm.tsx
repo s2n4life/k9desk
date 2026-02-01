@@ -28,7 +28,14 @@ export default function AuthForm({ initialMode = 'login' }: { initialMode?: Auth
 
             let authPromise;
             if (mode === 'signup') {
-                authPromise = supabase.auth.signUp({ email, password });
+                // For signup, include email redirect URL for confirmation
+                authPromise = supabase.auth.signUp({
+                    email,
+                    password,
+                    options: {
+                        emailRedirectTo: `${window.location.origin}/auth/confirm`,
+                    }
+                });
             } else if (mode === 'login') {
                 authPromise = supabase.auth.signInWithPassword({ email, password });
             } else if (mode === 'forgot-password') {
@@ -43,13 +50,27 @@ export default function AuthForm({ initialMode = 'login' }: { initialMode?: Auth
 
                 if (mode === 'forgot-password') {
                     setMessage('Password reset link sent! Please check your email.');
+                } else if (mode === 'signup') {
+                    // For signup, show "check your email" message instead of redirecting
+                    setMessage('Account created! Please check your email to verify your account. You must confirm your email before you can log in.');
                 } else {
+                    // For login, redirect to dashboard
                     router.push('/dashboard');
                 }
             }
         } catch (err: any) {
             console.error('Auth error:', err);
-            setError(err.message === 'Load failed' ? 'Network error: Failed to connect to server.' : err.message);
+
+            // Handle specific error cases
+            if (err.message?.includes('Email not confirmed')) {
+                setError('Please verify your email address first. Check your inbox for the confirmation link we sent you.');
+            } else if (err.message?.includes('Invalid login credentials')) {
+                setError('Invalid email or password. Please try again.');
+            } else if (err.message === 'Load failed') {
+                setError('Network error: Failed to connect to server.');
+            } else {
+                setError(err.message);
+            }
         } finally {
             setLoading(false);
         }

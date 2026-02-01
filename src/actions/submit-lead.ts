@@ -6,6 +6,31 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export async function submitLead(formData: any) {
+    // 0. Rate Limiting Check (Spam Prevention)
+    // Only enforce if Redis is configured (allows dev without Upstash)
+    if (typeof window === 'undefined') { // Server-side only
+        try {
+            const { rateLimiters, isRateLimitingEnabled } = await import('@/lib/rate-limiter');
+
+            if (isRateLimitingEnabled()) {
+                // Use phone or email as identifier (more accurate than IP for mobile users)
+                const identifier = formData.ownerPhone || formData.ownerEmail || 'unknown';
+                const { success } = await rateLimiters.publicBooking.limit(`booking:${identifier}`);
+
+                if (!success) {
+                    console.warn('[LeadSubmission] Rate limit exceeded for:', identifier);
+                    return {
+                        success: false,
+                        error: 'Too many booking requests. Please try again in an hour.'
+                    };
+                }
+            }
+        } catch (rateLimitError) {
+            // If rate limiting fails, log but don't block the request
+            console.error('[LeadSubmission] Rate limit check failed:', rateLimitError);
+        }
+    }
+
     // 1. Get Service Role Key (Server Side Only)
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 

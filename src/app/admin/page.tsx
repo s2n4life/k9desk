@@ -8,6 +8,8 @@ import { useRouter } from 'next/navigation';
 import { captureLog } from '@/lib/admin/sentinel';
 import { formatDistanceToNow } from 'date-fns';
 import AtRiskUsersModal from '@/components/Admin/AtRiskUsersModal';
+import AdminToDoWidget from '@/components/Admin/AdminToDoWidget';
+import AdminToDoModal from '@/components/Admin/AdminToDoModal';
 
 type StatCardProps = {
     label: string;
@@ -49,6 +51,7 @@ export default function AdminDashboard() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [showAtRiskModal, setShowAtRiskModal] = useState(false);
+    const [showToDoModal, setShowToDoModal] = useState(false);
     const [kpis, setKpis] = useState({
         mrr: { value: 0, change: 0, changePercent: 0 },
         netNewMrr: { value: 0, isPositive: true },
@@ -267,7 +270,12 @@ export default function AdminDashboard() {
                 />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
+            {/* ToDo List - Full Width */}
+            <div style={{ marginBottom: '24px' }}>
+                <AdminToDoWidget onOpenModal={() => setShowToDoModal(true)} />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '24px' }}>
                 {/* Active Alerts List */}
                 <div className="admin-card">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
@@ -382,6 +390,16 @@ export default function AdminDashboard() {
                                 atRisk: { value: data.atRiskCount || 0 }
                             }));
                         });
+                }}
+            />
+
+            {/* ToDo Modal */}
+            <AdminToDoModal
+                isOpen={showToDoModal}
+                onClose={() => setShowToDoModal(false)}
+                onTaskUpdate={() => {
+                    // Refresh widget when tasks are updated
+                    // The widget will auto-refresh via its own useEffect
                 }}
             />
         </div>

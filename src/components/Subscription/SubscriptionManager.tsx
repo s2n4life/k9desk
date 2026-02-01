@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getDB } from '@/lib/db';
 import { Settings } from '@/lib/db/schema';
-import { Lock, AlertTriangle, CreditCard } from 'lucide-react';
+import { Lock, AlertTriangle, CreditCard, ExternalLink } from 'lucide-react';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
 
 export function SubscriptionManager() {
@@ -12,6 +12,7 @@ export function SubscriptionManager() {
     const [isOpen, setIsOpen] = useState(false);
     const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
     const [isLoading, setIsLoading] = useState(false);
+    const [settings, setSettings] = useState<Settings | null>(null);
 
     const handleUpgrade = async () => {
         setIsLoading(true);
@@ -42,6 +43,17 @@ export function SubscriptionManager() {
         }
     };
 
+    const handlePortal = async () => {
+        setIsLoading(true);
+        try {
+            window.location.href = '/api/stripe/customer-portal';
+        } catch (error) {
+            console.error(error);
+            alert('Something went wrong opening the customer portal.');
+            setIsLoading(false);
+        }
+    };
+
     useEffect(() => {
         checkSubscription();
         window.addEventListener('focus', checkSubscription);
@@ -51,20 +63,22 @@ export function SubscriptionManager() {
     const checkSubscription = async () => {
         try {
             const db = await getDB();
-            const settings = await db.get('settings', 'default');
+            const settingsData = await db.get('settings', 'default');
 
-            if (!settings || !settings.subscription_status) {
+            setSettings(settingsData || null);
+
+            if (!settingsData || !settingsData.subscription_status) {
                 setStatus('active');
                 return;
             }
 
-            if (settings.subscription_status === 'active') {
+            if (settingsData.subscription_status === 'active') {
                 setStatus('active');
                 return;
             }
 
-            if (settings.subscription_status === 'trialing') {
-                const end = parseISO(settings.trial_end_date!);
+            if (settingsData.subscription_status === 'trialing') {
+                const end = parseISO(settingsData.trial_end_date!);
                 const now = new Date();
                 const diff = differenceInCalendarDays(end, now);
                 setDaysLeft(diff);
@@ -84,7 +98,30 @@ export function SubscriptionManager() {
                 } else {
                     setStatus('active');
                 }
-            } else if (settings.subscription_status === 'past_due' || settings.subscription_status === 'canceled') {
+            } else if (settingsData.subscription_status === 'past_due') {
+                // Payment failure - check grace period
+                if (settingsData.payment_failed_at) {
+                    const failedAt = parseISO(settingsData.payment_failed_at);
+                    const now = new Date();
+                    const daysSinceFailure = differenceInCalendarDays(now, failedAt);
+                    const daysRemaining = Math.max(0, 3 - daysSinceFailure);
+
+                    setDaysLeft(daysRemaining);
+
+                    if (daysSinceFailure >= 4) {
+                        // Grace period expired - lock account
+                        setStatus('locked');
+                        setIsOpen(true);
+                    } else {
+                        // Still in grace period - allow access
+                        setStatus('active');
+                    }
+                } else {
+                    // No timestamp - lock immediately
+                    setStatus('locked');
+                    setIsOpen(true);
+                }
+            } else if (settingsData.subscription_status === 'canceled') {
                 setStatus('locked');
                 setIsOpen(true);
             }
@@ -133,7 +170,11 @@ export function SubscriptionManager() {
 
                 <p style={{ color: 'var(--text-secondary)', marginBottom: '32px', lineHeight: 1.5 }}>
                     {isLocked
-                        ? <>Your free trial has ended. <br />To keep your schedule, client history, and payments in one place, choose a plan below.</>
+                        ? (
+                            settings?.subscription_status === 'past_due'
+                                ? <>Your payment method needs to be updated. <br />To keep your schedule, client history, and payments in one place, update your payment method below.</>
+                                : <>Your free trial has ended. <br />To keep your schedule, client history, and payments in one place, choose a plan below.</>
+                        )
                         : "Your free trial is ending soon. To keep your schedule, client history, and payments in one place, upgrade your plan now."}
                 </p>
 
@@ -183,11 +224,13 @@ export function SubscriptionManager() {
                 <button
                     className="btn btn-primary"
                     style={{ width: '100%', marginBottom: '12px', padding: '16px', fontSize: '18px', display: 'flex', justifyContent: 'center', gap: '8px' }}
-                    onClick={handleUpgrade}
+                    onClick={settings?.subscription_status === 'past_due' ? handlePortal : handleUpgrade}
                     disabled={isLoading}
                 >
-                    {isLoading ? <span className="animate-spin">...</span> : <CreditCard size={22} />}
-                    {isLocked ? 'Upgrade Now' : 'Upgrade Plan'}
+                    {isLoading ? <span className="animate-spin">...</span> : (
+                        settings?.subscription_status === 'past_due' ? <ExternalLink size={22} /> : <CreditCard size={22} />
+                    )}
+                    {settings?.subscription_status === 'past_due' ? 'Update Payment Method' : (isLocked ? 'Upgrade Now' : 'Upgrade Plan')}
                 </button>
 
                 <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '16px' }}>

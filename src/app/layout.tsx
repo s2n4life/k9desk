@@ -22,6 +22,7 @@ export const viewport: Viewport = {
 };
 
 import { SyncIndicator } from "@/components/Sync/SyncIndicator";
+import { PaymentFailedBanner } from "@/components/Subscription/PaymentFailedBanner";
 
 export default function RootLayout({
   children,
@@ -35,6 +36,7 @@ export default function RootLayout({
         <ImpersonationProvider>
           <NotificationProvider>
             <AppShell>
+              <PaymentFailedBanner />
               {children}
               <SyncIndicator />
             </AppShell>

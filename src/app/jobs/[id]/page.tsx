@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import { getDB } from '@/lib/db';
 import { Job, Customer, Pet, JobState, Settings, Service, RecurrenceRule, RecurrenceFrequency } from '@/lib/db/schema';
 import { JobStateMachine, JobAction } from '@/lib/jobs/stateMachine';
-import { saveWithSync } from '@/lib/db/transactions';
+import { saveWithSync, deleteWithSync } from '@/lib/db/transactions';
 import { triggerSMSAction } from '@/lib/sms';
 import { v4 as uuidv4 } from 'uuid';
 import { formatTime12Hour } from '@/lib/format';
@@ -239,6 +239,33 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
         setPAge(pet.age || '');
         setPNotes(pet.notes || '');
         setPetModalOpen(true);
+    };
+
+    const deletePet = async () => {
+        if (!editingPetId || !job) return;
+        if (!confirm('Delete this pet? This will remove the pet from your records and this job.')) return;
+
+        const { getActiveBusinessIdSync } = await import('@/contexts/ImpersonationContext');
+        const businessId = getActiveBusinessIdSync();
+
+        // Delete the pet
+        await deleteWithSync('pets', editingPetId, businessId || undefined);
+
+        // Update the job to remove this pet
+        const updatedPetIds = job.petIds.filter(id => id !== editingPetId);
+        const updatedServices = job.services?.filter(s => s.petId !== editingPetId) || [];
+
+        const updatedJob = {
+            ...job,
+            petIds: updatedPetIds,
+            services: updatedServices,
+            updatedAt: Date.now()
+        };
+
+        await saveWithSync('jobs', updatedJob, 'UPDATE', businessId || undefined);
+
+        setPetModalOpen(false);
+        loadData(); // Reload to refresh the UI
     };
 
     const saveSchedule = async () => {
@@ -939,7 +966,29 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 onClose={() => setPetModalOpen(false)}
                 title="Edit Pet"
                 footer={(
-                    <button onClick={savePet} className="btn btn-primary" style={{ width: '100%' }}>Save Pet</button>
+                    <div style={{ display: 'flex', gap: 'var(--space-2)', width: '100%' }}>
+                        <button
+                            onClick={deletePet}
+                            className="btn btn-secondary"
+                            style={{
+                                flex: 1,
+                                background: 'var(--color-danger)',
+                                color: 'white',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 2,
+                                padding: '12px 16px'
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}>
+                                <Trash2 size={16} /> Delete Pet
+                            </div>
+                            <div style={{ fontSize: '11px', opacity: 0.9, fontWeight: 400 }}>Permanent</div>
+                        </button>
+                        <button onClick={savePet} className="btn btn-primary" style={{ flex: 1 }}>Save Pet</button>
+                    </div>
                 )}
             >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>

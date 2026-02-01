@@ -24,6 +24,28 @@ export async function POST(req: Request) {
         const userEmail = context?.userEmail || 'unknown@example.com';
         const businessName = context?.businessName || 'Unknown Business';
 
+        // 2. Rate Limiting Check (Spam Prevention)
+        try {
+            const { rateLimiters, isRateLimitingEnabled, getClientIdentifier } = await import('@/lib/rate-limiter');
+
+            if (isRateLimitingEnabled()) {
+                // Use email as identifier, fallback to IP
+                const identifier = userEmail !== 'unknown@example.com' ? userEmail : getClientIdentifier(req);
+                const { success } = await rateLimiters.supportTickets.limit(`ticket:${identifier}`);
+
+                if (!success) {
+                    console.warn('[Ticket API] Rate limit exceeded for:', identifier);
+                    return NextResponse.json(
+                        { error: 'Too many support requests. Please wait before submitting another ticket.' },
+                        { status: 429 }
+                    );
+                }
+            }
+        } catch (rateLimitError) {
+            // If rate limiting fails, log but don't block the request
+            console.error('[Ticket API] Rate limit check failed:', rateLimitError);
+        }
+
         const metadataString = `
 --- BUSINESS METADATA ---
 Business: ${businessName}

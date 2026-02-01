@@ -82,12 +82,8 @@ export function triggerSMSAction(job: Job, customer: Customer | null, action: Jo
     }
 
     if (body) {
-        window.location.href = `sms:${phone}&body=${encodeURIComponent(body)}`; // iOS often needs &body for body prefill if ? is used for phone. Try ?& or just ?
-        // Standard sms: scheme is sms:phone?body=... but some devices vary. 
-        // Safer to stick to standard but maybe check user agent if needed? No, standard first.
-        // Actually, previous code used ?body. Let's stick to ?body but ensure phone doesn't have separators?
-        // Reuse previous implementation style but careful with separators.
-        // Reverting to ?body as it was in original file.
+        // Standard SMS URL scheme: sms:PHONE?body=MESSAGE
+        // Works on both iOS and Android
         window.location.href = `sms:${phone}?body=${encodeURIComponent(body)}`;
         return true;
     }

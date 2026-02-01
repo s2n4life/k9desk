@@ -104,7 +104,7 @@ export default function LeadsPage() {
         const url = `${bookingBaseUrl}${slug}`;
         const name = businessName || 'our business';
         const body = `Hi! This is ${name}. You can view our services and book your appointment online here: ${url}`;
-        window.location.href = `sms:?&body=${encodeURIComponent(body)}`;
+        window.location.href = `sms:?body=${encodeURIComponent(body)}`;
     };
 
     // -- Handlers --

@@ -10,6 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useScheduling } from '@/hooks/useScheduling';
 import { Modal } from '@/components/UI/Modal';
 import { RecurringToggle } from '@/components/Jobs/RecurringToggle';
+import { ConfirmAppointmentModal } from '@/components/Jobs/ConfirmAppointmentModal';
 import { addToSyncQueue } from '@/lib/db/sync';
 import { saveWithSync, deleteWithSync } from '@/lib/db/transactions';
 import { createClient } from '@/utils/supabase/client';
@@ -79,6 +80,17 @@ const NewJobContent = () => {
 
     // -- Conversion State --
     const [convertingLead, setConvertingLead] = useState<Lead | null>(null);
+
+    // -- Confirmation Modal State --
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [confirmModalData, setConfirmModalData] = useState<{
+        customerName: string;
+        customerPhone: string;
+        petName: string;
+        appointmentDate: string;
+        appointmentTime: string;
+        businessName: string;
+    } | null>(null);
 
 
     // -- Initialization --
@@ -514,6 +526,23 @@ const NewJobContent = () => {
         }
     };
 
+    const deletePet = async () => {
+        if (!pFormId) return;
+        if (!confirm('Delete this pet? This will remove the pet from your records.')) return;
+
+        const activeBusinessId = await getActiveBusinessId();
+        await deleteWithSync('pets', pFormId, activeBusinessId || undefined);
+
+        // Remove from local state
+        setAllPets(prev => prev.filter(p => p.id !== pFormId));
+        // Remove from selected pets if it was selected
+        setSelectedPetIds(prev => prev.filter(id => id !== pFormId));
+        // Remove any services associated with this pet
+        setSelectedServices(prev => prev.filter(s => s.petId !== pFormId));
+
+        setPetModalOpen(false);
+    };
+
     // Service Handlers
     const toggleServiceForPet = (s: Service, petId: string) => {
         const exists = selectedServices.find(x => x.id === s.id && x.petId === petId);
@@ -669,6 +698,27 @@ const NewJobContent = () => {
             }
         }
 
+        // -- SHOW CONFIRMATION MODAL (if enabled in settings) --
+        const settings = await db.get('settings', 'default');
+        const shouldShowModal = settings?.showAppointmentConfirmation !== false; // Default: true
+
+        if (shouldShowModal && customer) {
+            const firstPet = myPets[0];
+            const formattedTime = format(new Date(`2000-01-01T${time}`), 'h:mm a');
+
+            setConfirmModalData({
+                customerName: customer.name,
+                customerPhone: customer.phone || '',
+                petName: firstPet?.name || 'Pet',
+                appointmentDate: date,
+                appointmentTime: formattedTime,
+                businessName: settings?.businessName || 'K9Desk',
+            });
+            setShowConfirmModal(true);
+            window.dispatchEvent(new CustomEvent('data-changed'));
+            return; // Don't navigate yet
+        }
+
         window.dispatchEvent(new CustomEvent('data-changed'));
         router.push('/');
     };
@@ -816,8 +866,8 @@ const NewJobContent = () => {
                                             width: 24,
                                             height: 24,
                                             borderRadius: '50%',
-                                            border: `2px solid ${selectedPetIds.includes(p.id) ? 'var(--brand-primary)' : 'var(--border-color)'}`,
-                                            backgroundColor: selectedPetIds.includes(p.id) ? 'var(--brand-primary)' : 'transparent',
+                                            border: `2px solid ${selectedPetIds.includes(p.id) ? 'var(--brand-primary)' : 'var(--text-tertiary)'}`,
+                                            backgroundColor: selectedPetIds.includes(p.id) ? 'var(--brand-primary)' : 'var(--bg-card)',
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
@@ -981,7 +1031,31 @@ const NewJobContent = () => {
                 onClose={() => setPetModalOpen(false)}
                 title={pFormId ? "Edit Pet" : "New Pet"}
                 footer={(
-                    <button onClick={savePet} className="btn btn-primary" style={{ width: '100%' }}>Save Pet</button>
+                    <div style={{ display: 'flex', gap: 'var(--space-2)', width: '100%' }}>
+                        {pFormId && (
+                            <button
+                                onClick={deletePet}
+                                className="btn btn-secondary"
+                                style={{
+                                    flex: 1,
+                                    background: 'var(--color-danger)',
+                                    color: 'white',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 2,
+                                    padding: '12px 16px'
+                                }}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}>
+                                    <Trash2 size={16} /> Delete Pet
+                                </div>
+                                <div style={{ fontSize: '11px', opacity: 0.9, fontWeight: 400 }}>Permanent</div>
+                            </button>
+                        )}
+                        <button onClick={savePet} className="btn btn-primary" style={{ flex: 1 }}>Save Pet</button>
+                    </div>
                 )}
             >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
@@ -1135,6 +1209,18 @@ const NewJobContent = () => {
                     </button>
                 </div>
             </Modal>
+
+            {/* Confirmation Modal (for lead conversions) */}
+            {showConfirmModal && confirmModalData && (
+                <ConfirmAppointmentModal
+                    isOpen={showConfirmModal}
+                    onClose={() => {
+                        setShowConfirmModal(false);
+                        router.push('/');
+                    }}
+                    {...confirmModalData}
+                />
+            )}
 
         </div>
     );

@@ -25,6 +25,27 @@ export async function GET(
     };
 
     try {
+        // 0. Rate Limiting Check (API Abuse Prevention)
+        try {
+            const { rateLimiters, isRateLimitingEnabled, getClientIdentifier } = await import('@/lib/rate-limiter');
+
+            if (isRateLimitingEnabled()) {
+                const identifier = getClientIdentifier(request);
+                const { success } = await rateLimiters.availability.limit(`availability:${identifier}`);
+
+                if (!success) {
+                    console.warn('[Availability API] Rate limit exceeded for IP:', identifier);
+                    return NextResponse.json(
+                        { error: 'Too many requests. Please slow down.' },
+                        { status: 429, headers }
+                    );
+                }
+            }
+        } catch (rateLimitError) {
+            // If rate limiting fails, log but don't block the request
+            console.error('[Availability API] Rate limit check failed:', rateLimitError);
+        }
+
         const { slug } = await params;
         const { searchParams } = new URL(request.url);
         const date = searchParams.get('date');

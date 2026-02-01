@@ -128,6 +128,37 @@ const transformForRemote = (entityType: string, data: any, user: any, businessId
             remote.onboarding_completed = remote.onboardingCompleted;
             delete remote.onboardingCompleted;
         }
+
+        // Sync business_hours to schedule_work_days for booking page compatibility
+        if ('business_hours' in remote && remote.business_hours) {
+            const dayMap: { [key: string]: number } = {
+                'sunday': 0,
+                'monday': 1,
+                'tuesday': 2,
+                'wednesday': 3,
+                'thursday': 4,
+                'friday': 5,
+                'saturday': 6
+            };
+
+            const workDays: number[] = [];
+            Object.keys(remote.business_hours).forEach(dayName => {
+                const dayConfig = remote.business_hours[dayName];
+                if (dayConfig && dayConfig.isOpen) {
+                    const dayIndex = dayMap[dayName.toLowerCase()];
+                    if (dayIndex !== undefined) {
+                        workDays.push(dayIndex);
+                    }
+                }
+            });
+
+            // Sort the days (Sunday=0, Monday=1, etc.)
+            workDays.sort((a, b) => a - b);
+            remote.schedule_work_days = workDays;
+        }
+
+        // Don't set owner_id - it causes unique constraint violations
+        // The businessId should already be correct from the profile
         delete remote.business_id;
         delete remote.id;
     }
@@ -470,6 +501,32 @@ export function useSync() {
                                         // In a real app, we might trigger a merge UI. For now, we log it and proceed.
                                     }
                                 }
+                            }
+
+
+
+                            // SETTINGS: Use UPDATE instead of UPSERT
+                            // The unique_business_per_owner constraint (likely on owner_email) prevents
+                            // upsert from working when the businessId doesn't exist (it tries to INSERT)
+                            if (item.entityType === 'SETTINGS') {
+                                payload.id = businessId;
+                                console.log('[SETTINGS SYNC] businessId:', businessId);
+                                console.log('[SETTINGS SYNC] Using UPDATE instead of UPSERT');
+                                // Use update with eq to force UPDATE operation only
+                                const { error } = await supabase
+                                    .from(tableName)
+                                    .update(payload)
+                                    .eq('id', businessId);
+
+                                if (error) {
+                                    console.error('[SETTINGS SYNC] Update failed:', error);
+                                    if (error.code === 'PGRST116') {
+                                        // No rows updated - businessId doesn't exist
+                                        console.error('[SETTINGS SYNC] businessId does not exist in database:', businessId);
+                                        console.error('[SETTINGS SYNC] You need to fix the profile.business_id to match an actual business');
+                                    }
+                                }
+                                return { error };
                             }
 
                             return await supabase.from(tableName).upsert(payload);
