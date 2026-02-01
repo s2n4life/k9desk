@@ -86,6 +86,10 @@ export default function SettingsPage() {
     const [cancelConfirmText, setCancelConfirmText] = useState('');
     const [isCanceling, setIsCanceling] = useState(false);
     const [phone, setPhone] = useState('');
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deleteConfirmText, setDeleteConfirmText] = useState('');
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
 
     const handleForceReset = () => {
         setShowResetConfirm(true);
@@ -542,6 +546,7 @@ export default function SettingsPage() {
                     </div>
                 </div>
             </section>
+
 
             {shouldShowPrompt() && (
                 <section
@@ -1405,6 +1410,99 @@ export default function SettingsPage() {
                 </p>
             </section>
 
+            {/* GDPR Data Management Section */}
+            <section className="card" style={{
+                padding: 'var(--space-6)',
+                marginBottom: 'var(--space-4)',
+                border: '1px solid var(--border-subtle)'
+            }}>
+                <h3 className="text-h3" style={{ marginBottom: 'var(--space-4)' }}>Data Management</h3>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                    {/* Export Data Button */}
+                    <button
+                        onClick={async () => {
+                            setIsExporting(true);
+                            setMsg('Preparing your data export... This may take a few moments.');
+                            try {
+                                const res = await fetch('/api/account/export', { method: 'POST' });
+                                if (!res.ok) throw new Error('Export failed');
+
+                                const blob = await res.blob();
+                                const url = window.URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = `k9desk-export-${new Date().toISOString().split('T')[0]}.csv`;
+                                document.body.appendChild(a);
+                                a.click();
+                                window.URL.revokeObjectURL(url);
+                                document.body.removeChild(a);
+
+                                setMsg('Data exported successfully!');
+                                setTimeout(() => setMsg(''), 3000);
+                            } catch (err) {
+                                console.error('Export error:', err);
+                                setMsg('Failed to export data. Please try again.');
+                            } finally {
+                                setIsExporting(false);
+                            }
+                        }}
+                        disabled={isExporting}
+                        className="btn btn-secondary"
+                        style={{
+                            width: '100%',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '10px 16px',
+                            fontSize: '14px',
+                            opacity: isExporting ? 0.6 : 1,
+                            cursor: isExporting ? 'not-allowed' : 'pointer'
+                        }}
+                    >
+                        {isExporting ? (
+                            <>
+                                <RefreshCw size={16} className="animate-spin" />
+                                Exporting...
+                            </>
+                        ) : (
+                            <>
+                                <Database size={16} />
+                                Export My Data
+                            </>
+                        )}
+                    </button>
+                    <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '-8px' }}>
+                        Download all your data in CSV format (GDPR compliant). This may take a few moments for large datasets.
+                    </p>
+
+                    {/* Delete Account Permanently Button */}
+                    <button
+                        onClick={() => setShowDeleteModal(true)}
+                        className="btn btn-danger"
+                        style={{
+                            width: '100%',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '10px 16px',
+                            fontSize: '14px',
+                            backgroundColor: 'var(--color-danger-muted)',
+                            color: 'var(--color-danger)',
+                            border: '1px solid var(--color-danger)'
+                        }}
+                    >
+                        <AlertTriangle size={16} />
+                        Delete Account Permanently
+                    </button>
+                    <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '-8px' }}>
+                        ⚠️ This will export your data and permanently delete your account. This cannot be undone.
+                    </p>
+                </div>
+            </section>
+
             <InstallPwaPrompt
                 isOpen={showInstallPrompt}
                 onClose={() => setShowInstallPrompt(false)}
@@ -1548,6 +1646,121 @@ export default function SettingsPage() {
                             value={cancelConfirmText}
                             onChange={(e) => setCancelConfirmText(e.target.value)}
                             placeholder="Type CANCEL here"
+                            style={{
+                                width: '100%',
+                                padding: 'var(--space-2)',
+                                borderRadius: 'var(--radius-md)',
+                                border: '1px solid var(--border-color)',
+                                fontSize: 'var(--font-size-base)',
+                                fontFamily: 'monospace'
+                            }}
+                        />
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Permanent Deletion Modal */}
+            <Modal
+                isOpen={showDeleteModal}
+                onClose={() => {
+                    setShowDeleteModal(false);
+                    setDeleteConfirmText('');
+                }}
+                title="Delete Account Permanently"
+                footer={
+                    <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                        <button
+                            onClick={() => {
+                                setShowDeleteModal(false);
+                                setDeleteConfirmText('');
+                            }}
+                            className="btn btn-secondary"
+                            style={{ flex: 1 }}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={async () => {
+                                if (deleteConfirmText !== 'DELETE') {
+                                    alert('Please type DELETE to confirm');
+                                    return;
+                                }
+
+                                setIsDeleting(true);
+                                try {
+                                    const res = await fetch('/api/account/delete-permanent', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ confirmation: 'DELETE' })
+                                    });
+
+                                    const data = await res.json();
+
+                                    if (!res.ok) {
+                                        throw new Error(data.error || 'Deletion failed');
+                                    }
+
+                                    // Clear local data
+                                    await clearLocalData();
+
+                                    // Show success message
+                                    alert('Account deleted. Export sent to your email.');
+
+                                    // Redirect to landing page
+                                    window.location.href = '/';
+                                } catch (error: any) {
+                                    console.error('Deletion error:', error);
+                                    alert(`Failed to delete account: ${error.message}`);
+                                    setIsDeleting(false);
+                                }
+                            }}
+                            className="btn btn-primary"
+                            disabled={deleteConfirmText !== 'DELETE' || isDeleting}
+                            style={{
+                                flex: 1,
+                                backgroundColor: 'var(--color-danger)',
+                                borderColor: 'var(--color-danger)',
+                                color: 'white',
+                                opacity: deleteConfirmText !== 'DELETE' ? 0.5 : 1
+                            }}
+                        >
+                            {isDeleting ? 'Deleting...' : 'Delete Permanently'}
+                        </button>
+                    </div>
+                }
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', padding: 'var(--space-2) 0' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-3)', padding: 'var(--space-3)', backgroundColor: '#fee2e2', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-danger)' }}>
+                        <AlertTriangle size={24} style={{ color: 'var(--color-danger)', flexShrink: 0, marginTop: '2px' }} />
+                        <div>
+                            <p style={{ fontWeight: 600, fontSize: 'var(--font-size-base)', marginBottom: '4px', color: 'var(--color-danger)' }}>
+                                ⚠️ This action is PERMANENT and IRREVERSIBLE
+                            </p>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-sm)', lineHeight: 1.5 }}>
+                                Permanently deleting your account will:
+                            </p>
+                            <ul style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-sm)', lineHeight: 1.5, marginTop: '8px', paddingLeft: '20px' }}>
+                                <li>Export all your data and email it to you</li>
+                                <li>Delete ALL data from our servers (customers, pets, jobs, services, leads)</li>
+                                <li>Remove your business and profile records</li>
+                                <li>Delete your authentication account</li>
+                                <li>Log you out immediately</li>
+                            </ul>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-sm)', lineHeight: 1.5, marginTop: '8px', fontWeight: 600 }}>
+                                This complies with GDPR Article 17 (Right to be Forgotten).
+                            </p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style={{ display: 'block', fontWeight: 600, marginBottom: '8px', fontSize: 'var(--font-size-sm)' }}>
+                            Type <span style={{ color: 'var(--color-danger)', fontFamily: 'monospace' }}>DELETE</span> to confirm:
+                        </label>
+                        <input
+                            type="text"
+                            value={deleteConfirmText}
+                            onChange={(e) => setDeleteConfirmText(e.target.value)}
+                            placeholder="Type DELETE here"
                             style={{
                                 width: '100%',
                                 padding: 'var(--space-2)',
