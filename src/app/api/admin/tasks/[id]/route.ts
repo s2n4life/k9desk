@@ -3,13 +3,14 @@ import { createClient } from '@supabase/supabase-js';
 
 export async function PATCH(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
         const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+        const { id } = await params;
         const body = await request.json();
         const { headline, notes, priority, due_date, completed } = body;
 
@@ -35,7 +36,7 @@ export async function PATCH(
         const { data: task, error } = await supabase
             .from('admin_tasks')
             .update(updates)
-            .eq('id', params.id)
+            .eq('id', id)
             .select()
             .single();
 
@@ -53,17 +54,18 @@ export async function PATCH(
 
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
         const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+        const { id } = await params;
         const { error } = await supabase
             .from('admin_tasks')
             .delete()
-            .eq('id', params.id);
+            .eq('id', id);
 
         if (error) {
             console.error('[Admin Tasks API] Error deleting task:', error);
