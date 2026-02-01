@@ -1,41 +1,24 @@
-import { NextRequest, NextResponse } from 'next/server';
-
 /**
- * Public Health Check Endpoint
- * Used by uptime monitoring services (UptimeRobot, Pingdom, etc.)
- * 
- * IMPORTANT: This endpoint is PUBLIC and does NOT require authentication
- * 
- * Returns:
- * - 200 OK if app is running
- * - Simple JSON response without database checks to avoid auth issues
+ * Ultra-Simple Public Health Check
+ * NO imports, NO dependencies, NO authentication
  */
 
-export async function GET(req: NextRequest) {
-    try {
-        // Simple health check - just verify the app is running
-        return NextResponse.json({
-            status: 'healthy',
-            timestamp: new Date().toISOString(),
-            service: 'k9desk',
-            version: '1.0.0'
-        }, {
+export async function GET() {
+    return new Response(
+        JSON.stringify({
+            status: 'ok',
+            timestamp: new Date().toISOString()
+        }),
+        {
             status: 200,
             headers: {
-                'Cache-Control': 'no-store, max-age=0'
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-store'
             }
-        });
-
-    } catch (error: any) {
-        return NextResponse.json({
-            status: 'unhealthy',
-            timestamp: new Date().toISOString(),
-            error: error.message
-        }, { status: 500 });
-    }
+        }
+    );
 }
 
-// Support HEAD requests (some monitoring services use this)
-export async function HEAD(req: NextRequest) {
-    return new NextResponse(null, { status: 200 });
+export async function HEAD() {
+    return new Response(null, { status: 200 });
 }
