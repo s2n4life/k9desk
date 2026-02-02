@@ -31,20 +31,11 @@ export async function submitLead(formData: any) {
         }
     }
 
-    // 1. Get Service Role Key (Server Side Only)
+    // TEMPORARY: Using service role key until we fix RLS policies for leads table
+    // TODO: Fix RLS policies and switch back to anon key
+    // Issue: Lead INSERT is being blocked even with anon_insert_leads policy
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    // 2. Determine which key to use (Prefer Service Role to bypass RLS)
-    const adminKey = serviceKey || supabaseAnonKey;
-
-    console.log(`[LeadSubmission] Using ${serviceKey ? 'SERVICE_ROLE' : 'ANON'} key. KeyLength: ${adminKey?.length || 0}`);
-
-    if (!serviceKey) {
-        console.warn('[LeadSubmission] WARNING: SUPABASE_SERVICE_ROLE_KEY is missing from process.env!');
-    }
-
-    // 3. Initialize Client inside the action to ensure fresh env variables
-    const supabase = createClient(supabaseUrl, adminKey, {
+    const supabase = createClient(supabaseUrl, serviceKey || supabaseAnonKey, {
         auth: {
             persistSession: false
         }
@@ -68,6 +59,19 @@ export async function submitLead(formData: any) {
         console.error('[LeadSubmission] Validation failed:', { businessId: !!businessId, ownerName: !!ownerName, ownerPhone: !!ownerPhone });
         return { success: false, error: 'Missing required fields' };
     }
+
+    // TODO: Re-enable business validation once we confirm RLS policies are working
+    // The validation query itself needs the public_read_business_for_availability policy
+    // const { data: businessExists, error: businessCheckError } = await supabase
+    //     .from('businesses')
+    //     .select('id')
+    //     .eq('id', businessId)
+    //     .single();
+    //
+    // if (businessCheckError || !businessExists) {
+    //     console.error('[LeadSubmission] Invalid business_id:', businessId);
+    //     return { success: false, error: 'Invalid business' };
+    // }
 
     console.log('[LeadSubmission] Attempting to insert lead:', {
         businessId,

@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { format } from 'date-fns';
 
-// Use service role to bypass RLS for read-only queries
+// Use anon key with RLS policies for public availability queries
+// RLS policies defined in: supabase/migrations/20260201_public_availability_rls.sql
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 // Mark this route as public (no auth required)
@@ -106,27 +107,34 @@ export async function GET(
         const businessId = businesses[0].id;
         console.log('[Availability API] Found business ID:', businessId);
 
-        // 2. Get business settings
-        console.log('[Availability API] Fetching settings for business:', businessId);
-        const { data: settings, error: settingsError } = await supabase
-            .from('settings')
-            .select('*')
-            .eq('id', 'default')
-            .eq('business_id', businessId)
+        // Security: Log all availability requests for monitoring
+        console.log('[Availability API] Public request:', {
+            slug,
+            businessId,
+            date,
+            timestamp: new Date().toISOString()
+        });
+
+        // 2. Get business schedule settings (stored in businesses table)
+        console.log('[Availability API] Fetching schedule settings for business:', businessId);
+        const { data: business, error: businessSettingsError } = await supabase
+            .from('businesses')
+            .select('schedule_start_hour, schedule_end_hour, drive_buffer_minutes, appointment_duration_minutes')
+            .eq('id', businessId)
             .single();
 
-        console.log('[Availability API] Settings result:', { settings, settingsError });
+        console.log('[Availability API] Business settings result:', { business, businessSettingsError });
 
-        if (settingsError) {
-            console.error('Settings error:', settingsError);
+        if (businessSettingsError) {
+            console.error('Business settings error:', businessSettingsError);
             // Use defaults if settings not found, but log it
             console.log('[Availability API] Using default settings');
         }
 
-        const startHour = settings?.schedule_start_hour || 8;
-        const endHour = settings?.schedule_end_hour || 20;
-        const driveBuffer = settings?.drive_buffer_minutes || 30;
-        const appointmentDuration = settings?.appointment_duration_minutes || 60;
+        const startHour = business?.schedule_start_hour || 8;
+        const endHour = business?.schedule_end_hour || 20;
+        const driveBuffer = business?.drive_buffer_minutes || 30;
+        const appointmentDuration = business?.appointment_duration_minutes || 60;
 
         // 3. Get existing jobs for this date
         const { data: jobs, error: jobsError } = await supabase

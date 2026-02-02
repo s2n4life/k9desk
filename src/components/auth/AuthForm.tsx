@@ -15,11 +15,37 @@ export default function AuthForm({ initialMode = 'login' }: { initialMode?: Auth
     const [message, setMessage] = useState<string | null>(null);
     const router = useRouter();
 
+    const validatePassword = (pwd: string): string | null => {
+        if (pwd.length < 8) {
+            return 'Password must be at least 8 characters long';
+        }
+        if (!/[A-Z]/.test(pwd)) {
+            return 'Password must contain at least one uppercase letter';
+        }
+        if (!/[a-z]/.test(pwd)) {
+            return 'Password must contain at least one lowercase letter';
+        }
+        if (!/[0-9]/.test(pwd)) {
+            return 'Password must contain at least one number';
+        }
+        return null;
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
         setMessage(null);
+
+        // Validate password strength for signup
+        if (mode === 'signup') {
+            const passwordError = validatePassword(password);
+            if (passwordError) {
+                setError(passwordError);
+                setLoading(false);
+                return;
+            }
+        }
 
         try {
             const timeoutPromise = new Promise((_, reject) =>
@@ -177,6 +203,15 @@ export default function AuthForm({ initialMode = 'login' }: { initialMode?: Auth
                             placeholder="••••••••"
                             style={{ width: '100%' }}
                         />
+                        {mode === 'signup' && (
+                            <p style={{
+                                fontSize: 'var(--font-size-sm)',
+                                color: 'var(--text-secondary)',
+                                marginTop: 'var(--space-2)'
+                            }}>
+                                Must be 8+ characters with uppercase, lowercase, and number
+                            </p>
+                        )}
                     </div>
                 )}
 
