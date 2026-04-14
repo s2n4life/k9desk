@@ -408,7 +408,8 @@ export function useSync() {
                 CUSTOMER: 2,
                 LEAD: 2,
                 PET: 3,
-                JOB: 4
+                JOB: 4,
+                RECURRENCE_RULE: 5
             };
 
             queue.sort((a, b) => {
@@ -437,6 +438,7 @@ export function useSync() {
                     SETTINGS: 'businesses',
                     PROFILE: 'profiles',
                     LEAD: 'leads',
+                    RECURRENCE_RULE: 'recurrence_rules',
                 };
 
                 const tableName = tableMap[item.entityType];
@@ -793,7 +795,8 @@ export async function processQueueSync() {
             CUSTOMER: 2,
             LEAD: 2,
             PET: 3,
-            JOB: 4
+            JOB: 4,
+            RECURRENCE_RULE: 5
         };
 
         queue.sort((a, b) => {
@@ -810,6 +813,7 @@ export async function processQueueSync() {
             SETTINGS: 'businesses',
             PROFILE: 'profiles',
             LEAD: 'leads',
+            RECURRENCE_RULE: 'recurrence_rules',
         };
 
         for (const item of queue) {

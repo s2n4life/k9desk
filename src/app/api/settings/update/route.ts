@@ -35,6 +35,17 @@ export async function POST(request: Request) {
                 schedule_start_hour: settings.schedule_start_hour,
                 schedule_end_hour: settings.schedule_end_hour,
                 schedule_work_days: settings.schedule_work_days,
+                appointment_duration_minutes: settings.appointment_duration_minutes,
+                drive_buffer_minutes: settings.drive_buffer_minutes,
+                // Payment links
+                venmo: settings.venmo,
+                zelle: settings.zelle,
+                paypal: settings.paypal,
+                cashapp: settings.cashapp,
+                custom_url: settings.custom_url,
+                review_url: settings.review_url,
+                // Preferences
+                show_appointment_confirmation: settings.showAppointmentConfirmation,
                 updated_at: new Date().toISOString()
             })
             .eq('id', businessId)

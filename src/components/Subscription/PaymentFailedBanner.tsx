@@ -56,9 +56,24 @@ export function PaymentFailedBanner() {
         sessionStorage.setItem('payment_banner_dismissed', 'true');
     };
 
-    const handleUpdatePayment = () => {
-        // Link to Stripe Customer Portal
-        window.location.href = '/api/stripe/customer-portal';
+    const handleUpdatePayment = async () => {
+        try {
+            const res = await fetch('/api/stripe/create-portal-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ origin: window.location.origin }),
+            });
+            const data = await res.json();
+            if (data.url) {
+                window.location.href = data.url;
+            } else {
+                // Fallback to settings page
+                window.location.href = '/settings';
+            }
+        } catch (error) {
+            console.error('[PaymentFailedBanner] Failed to open billing portal:', error);
+            window.location.href = '/settings';
+        }
     };
 
     if (!isVisible || isDismissed) return null;

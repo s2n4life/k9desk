@@ -80,7 +80,8 @@ function mapStoreToEntity(storeName: string): EntityType {
         services: 'SERVICE',
         settings: 'SETTINGS',
         leads: 'LEAD',
-        profiles: 'PROFILE'
+        profiles: 'PROFILE',
+        recurrence_rules: 'RECURRENCE_RULE'
     };
     return map[storeName] || 'CUSTOMER';
 }

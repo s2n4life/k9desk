@@ -102,6 +102,21 @@ export async function hydrateLocalDB(userId: string) {
                         trial_end_date: business.trial_end_date,
                         stripe_customer_id: business.stripe_customer_id,
                         stripe_subscription_id: business.stripe_subscription_id,
+                        subscription_plan_id: business.subscription_plan_id,
+                        payment_failed_at: business.payment_failed_at,
+                        grace_period_day2_notified: business.grace_period_day2_notified,
+                        grace_period_final_notified: business.grace_period_final_notified,
+                        // Scheduling & Service Area
+                        schedule_start_hour: business.schedule_start_hour,
+                        schedule_end_hour: business.schedule_end_hour,
+                        schedule_work_days: business.schedule_work_days,
+                        appointment_duration_minutes: business.appointment_duration_minutes,
+                        drive_buffer_minutes: business.drive_buffer_minutes,
+                        service_area_mode: business.service_area_mode,
+                        service_area_zips: business.service_area_zips,
+                        business_hours: business.business_hours,
+                        // Appointment Confirmation
+                        showAppointmentConfirmation: business.show_appointment_confirmation ?? true,
                         updatedAt: new Date(business.updated_at || now).getTime(),
                     };
                     await db.put('settings', settings);

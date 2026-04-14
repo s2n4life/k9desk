@@ -46,7 +46,19 @@ export function SubscriptionManager() {
     const handlePortal = async () => {
         setIsLoading(true);
         try {
-            window.location.href = '/api/stripe/customer-portal';
+            const res = await fetch('/api/stripe/create-portal-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ origin: window.location.origin }),
+            });
+            const data = await res.json();
+            if (data.url) {
+                window.location.href = data.url;
+            } else if (data.error === 'no_customer') {
+                alert(data.message);
+            } else {
+                throw new Error('Failed to open billing portal');
+            }
         } catch (error) {
             console.error(error);
             alert('Something went wrong opening the customer portal.');

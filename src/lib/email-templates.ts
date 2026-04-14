@@ -72,7 +72,7 @@ export const emailTemplates = {
         <p style="font-size: 16px;">To keep using K9Desk after your trial:</p>
         <ol style="padding-left: 20px; font-size: 16px;">
           <li style="margin-bottom: 10px;">Go to <strong>Settings → Subscription</strong></li>
-          <li style="margin-bottom: 10px;">Choose <strong>Monthly ($29/mo)</strong> or <strong>Yearly ($290/yr - save $58!)</strong></li>
+          <li style="margin-bottom: 10px;">Choose <strong>Monthly ($49/mo)</strong> or <strong>Yearly ($490/yr - 2 months free!)</strong></li>
           <li style="margin-bottom: 10px;">Enter payment details</li>
         </ol>
         
@@ -118,10 +118,10 @@ export const emailTemplates = {
         <p style="font-size: 16px;">Choose your plan:</p>
         <ul style="list-style: none; padding: 0;">
           <li style="background: #f7fafc; padding: 15px; margin-bottom: 10px; border-radius: 8px;">
-            <strong>Monthly:</strong> $29/month
+            <strong>Monthly:</strong> $49/month
           </li>
           <li style="background: #f7fafc; padding: 15px; margin-bottom: 10px; border-radius: 8px;">
-            <strong>Yearly:</strong> $290/year <span style="color: #48bb78; font-weight: bold;">(Save $58!)</span>
+            <strong>Yearly:</strong> $490/year <span style="color: #48bb78; font-weight: bold;">(2 months free!)</span>
           </li>
         </ul>
         
@@ -209,7 +209,7 @@ export const emailTemplates = {
         </ul>
         
         <div style="text-align: center; margin: 30px 0;">
-          <a href="https://billing.stripe.com/p/login/test_123" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Update Payment Method</a>
+          <a href="https://k9desk.com/settings" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Update Payment Method</a>
         </div>
         
         <p style="color: #718096;">Your data is safe and will remain accessible for 30 days, giving you plenty of time to update your payment information.</p>
@@ -246,7 +246,7 @@ export const emailTemplates = {
         <p style="font-size: 16px;">You have <strong style="color: #f56565;">2 days remaining</strong> to update your payment method before your account is locked.</p>
         
         <div style="text-align: center; margin: 30px 0;">
-          <a href="https://billing.stripe.com/p/login/test_123" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Update Payment Now</a>
+          <a href="https://k9desk.com/settings" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Update Payment Now</a>
         </div>
         
         <p style="color: #718096;">Once your payment is updated, full access will be restored immediately.</p>
@@ -285,7 +285,7 @@ export const emailTemplates = {
         </div>
         
         <div style="text-align: center; margin: 30px 0;">
-          <a href="https://billing.stripe.com/p/login/test_123" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Update Payment Method</a>
+          <a href="https://k9desk.com/settings" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Update Payment Method</a>
         </div>
         
         <p style="color: #718096;">Your data will remain safe for 30 days after lockout, but you won't be able to access it until payment is resolved.</p>
@@ -320,7 +320,7 @@ export const emailTemplates = {
         </div>
         
         <div style="text-align: center; margin: 30px 0;">
-          <a href="https://billing.stripe.com/p/login/test_123" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Restore Access Now</a>
+          <a href="https://k9desk.com/settings" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Restore Access Now</a>
         </div>
         
         <p style="font-size: 16px;">Once your payment is updated, you'll regain full access to:</p>
