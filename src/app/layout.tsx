@@ -1,7 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { AppShell } from "@/components/Layout/AppShell";
-import { NotificationProvider } from "@/contexts/NotificationContext";
-import { ImpersonationProvider } from "@/contexts/ImpersonationContext";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
@@ -21,9 +19,6 @@ export const viewport: Viewport = {
   userScalable: false, // Prevent zoom on inputs
 };
 
-import { SyncIndicator } from "@/components/Sync/SyncIndicator";
-import { PaymentFailedBanner } from "@/components/Subscription/PaymentFailedBanner";
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -32,16 +27,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body suppressHydrationWarning>
-
-        <ImpersonationProvider>
-          <NotificationProvider>
-            <AppShell>
-              <PaymentFailedBanner />
-              {children}
-              <SyncIndicator />
-            </AppShell>
-          </NotificationProvider>
-        </ImpersonationProvider>
+        <AppShell>
+          {children}
+        </AppShell>
       </body>
     </html>
   );
