@@ -9,6 +9,11 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 // Disable body parsing for Stripe webhook signature verification
 export const runtime = 'nodejs';
 
+/** Log a webhook event with its type and context message */
+function logWebhookEvent(event: Stripe.Event, message: string) {
+    console.log(`[WEBHOOK] ${message}: ${event.type} (${event.id})`);
+}
+
 /**
  * Handle subscription deleted event
  * User canceled their subscription via Stripe Portal
@@ -339,9 +344,41 @@ export async function POST(req: Request) {
         return new NextResponse('Webhook Error: Invalid signature', { status: 400 });
     }
 
-    console.log('[WEBHOOK] Received event:', event.type);
+    logWebhookEvent(event, 'Received event');
+
+    // Environment validation: Prevent test/prod mixing
+    const isTestMode = event.livemode === false;
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    if (isProduction && isTestMode) {
+        console.warn('[WEBHOOK] Rejecting test mode event in production');
+        return NextResponse.json({ 
+            received: true, 
+            message: 'Test events not processed in production' 
+        });
+    }
+
+    if (!isProduction && !isTestMode) {
+        console.warn('[WEBHOOK] Rejecting live mode event in development');
+        return NextResponse.json({ 
+            received: true, 
+            message: 'Live events not processed in development' 
+        });
+    }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Idempotency check: Prevent duplicate processing
+    const { data: existing } = await supabase
+        .from('webhook_events')
+        .select('event_id')
+        .eq('event_id', event.id)
+        .single();
+
+    if (existing) {
+        console.log('[WEBHOOK] Event already processed:', event.id);
+        return NextResponse.json({ received: true, duplicate: true });
+    }
 
     try {
         switch (event.type) {
@@ -363,8 +400,17 @@ export async function POST(req: Request) {
                 break;
 
             default:
-                console.log('[WEBHOOK] Unhandled event type:', event.type);
+                logWebhookEvent(event, 'Unhandled event type');
         }
+
+        // Mark event as processed (idempotency)
+        await supabase
+            .from('webhook_events')
+            .insert({
+                event_id: event.id,
+                event_type: event.type,
+                livemode: event.livemode
+            });
 
         return NextResponse.json({ received: true });
     } catch (error) {

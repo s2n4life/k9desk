@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { CheckCircle2, Star, ArrowRight, Zap, Shield, Calendar, Users } from 'lucide-react';
+import { Suspense } from 'react';
 
 import { redirect } from 'next/navigation';
 import { AuthRedirectHandler } from '@/components/auth/AuthRedirectHandler';
@@ -13,7 +14,9 @@ export default async function LandingPage({ searchParams }: { searchParams: Prom
 
     return (
         <div className="flex flex-col min-h-screen bg-white text-gray-900">
-            <AuthRedirectHandler />
+            <Suspense fallback={null}>
+                <AuthRedirectHandler />
+            </Suspense>
 
             {/* Hero Section */}
             <section className="relative overflow-hidden bg-brand-primary/5 pt-8 pb-20 lg:pt-16 lg:pb-28">
