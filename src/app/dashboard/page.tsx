@@ -72,6 +72,7 @@ export default function TodayPage() {
   const [customers, setCustomers] = useState<Record<string, Customer>>({});
   const [pets, setPets] = useState<Record<string, Pet>>({});
   const [allServices, setAllServices] = useState<Service[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
   const [kpi, setKpi] = useState({
     completed: 0,
     revenue: 0
@@ -160,6 +161,7 @@ export default function TodayPage() {
   };
 
   useEffect(() => {
+    setIsMounted(true);
     loadData();
   }, [todayStr, isImpersonating, impersonatedBusinessId]);
 
@@ -276,7 +278,7 @@ export default function TodayPage() {
   return (
     <div className="container" style={{ paddingBottom: '100px' }}>
       <Header
-        title={format(new Date(), 'EEE, MMM d')}
+        title={isMounted ? format(new Date(), 'EEE, MMM d') : ''}
         label="Today"
       />
 
