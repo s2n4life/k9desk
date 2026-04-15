@@ -620,6 +620,31 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
                 </div>
             </div>
 
+            {formData.serviceIds.length > 0 && (() => {
+                const baseTotal = formData.serviceIds.reduce((sum, id) => {
+                    const service = settings.services.find(s => s.id === id);
+                    return sum + (service?.price || 0);
+                }, 0);
+                const grandTotal = baseTotal * formData.pets.length;
+                
+                return (
+                    <div className="bg-emerald-50 border-2 border-emerald-500 p-6 rounded-3xl mt-6 shadow-sm">
+                        <div className="flex justify-between items-center text-emerald-900 font-black text-2xl items-end">
+                            <span>Estimated Total</span>
+                            <span>${grandTotal}</span>
+                        </div>
+                        {formData.pets.length > 1 && (
+                            <div className="text-emerald-700 font-medium text-sm mt-2 text-right">
+                                *Based on ${baseTotal} per pet ({formData.pets.length} pets)
+                            </div>
+                        )}
+                        <div className="text-emerald-600 font-medium text-xs mt-2 opacity-80">
+                            Final price may vary based on exact service requirements.
+                        </div>
+                    </div>
+                );
+            })()}
+
             {
                 submitError && (
                     <div className="bg-red-50 text-red-600 p-4 rounded-2xl text-sm font-bold border border-red-100 animate-in shake flex items-center gap-3">

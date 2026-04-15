@@ -34,6 +34,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     const [settings, setSettings] = useState<Settings | null>(null);
     const [otherCustomerPets, setOtherCustomerPets] = useState<Pet[]>([]);
     const [jobNotes, setJobNotes] = useState('');
+    const [groomingNotes, setGroomingNotes] = useState('');
     const [paymentModalOpen, setPaymentModalOpen] = useState(false);
     const [requestPaymentModalOpen, setRequestPaymentModalOpen] = useState(false);
 
@@ -87,6 +88,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
         }
         setJob(j);
         setJobNotes(j.jobNotes || '');
+        setGroomingNotes(j.groomingNotes || '');
         setNewDate(j.scheduledDate);
         setNewTime(j.scheduledTime);
 
@@ -136,6 +138,41 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
         }
     }, [availableSlots, newTime, rescheduleModalOpen]);
 
+    // Live Time Tracker
+    const [liveDuration, setLiveDuration] = useState<string | null>(null);
+
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (job?.state === JobState.InProgress && job.startedAt) {
+            interval = setInterval(() => {
+                const ms = Date.now() - job.startedAt!;
+                const mins = Math.floor(ms / 60000);
+                const secs = Math.floor((ms % 60000) / 1000);
+                const hrs = Math.floor(mins / 60);
+                if (hrs > 0) {
+                    setLiveDuration(`⏱ ${hrs}h ${mins % 60}m ${secs}s`);
+                } else {
+                    setLiveDuration(`⏱ ${mins}m ${secs}s`);
+                }
+            }, 1000);
+        } else if (job?.state === JobState.Completed && job.startedAt && job.completedAt) {
+            const ms = job.completedAt - job.startedAt;
+            const mins = Math.floor(ms / 60000);
+            const hrs = Math.floor(mins / 60);
+            if (hrs > 0) {
+                setLiveDuration(`Duration: ${hrs}h ${mins % 60}m`);
+            } else {
+                setLiveDuration(`Duration: ${mins}m`);
+            }
+        } else {
+            setLiveDuration(null);
+        }
+
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [job?.state, job?.startedAt, job?.completedAt]);
+
     const saveCustomer = async (data: Partial<Customer>) => {
         if (!customer) return;
         const updated = { ...customer, ...data, updatedAt: Date.now() };
@@ -151,6 +188,17 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     const saveJobNotes = async () => {
         if (!job) return;
         const updated = { ...job, jobNotes, updatedAt: Date.now() };
+
+        const { getActiveBusinessIdSync } = await import('@/contexts/ImpersonationContext');
+        const businessId = getActiveBusinessIdSync();
+
+        await saveWithSync('jobs', updated, 'UPDATE', businessId || undefined);
+        setJob(updated);
+    };
+
+    const saveGroomingNotes = async () => {
+        if (!job) return;
+        const updated = { ...job, groomingNotes, updatedAt: Date.now() };
 
         const { getActiveBusinessIdSync } = await import('@/contexts/ImpersonationContext');
         const businessId = getActiveBusinessIdSync();
@@ -534,6 +582,11 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                         </div>
                     </div>
                 </div>
+                {liveDuration && (
+                    <div style={{ marginTop: 'var(--space-3)', padding: 'var(--space-2)', borderRadius: 'var(--radius-sm)', background: job.state === JobState.InProgress ? '#ecfdf5' : 'var(--surface-sunken)', color: job.state === JobState.InProgress ? '#059669' : 'var(--text-secondary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--font-size-sm)' }}>
+                        {liveDuration}
+                    </div>
+                )}
             </div>
 
             {/* Pets & Services Section */}
@@ -587,9 +640,24 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 <span>${totalCost}</span>
             </div>
 
+            {/* Cut Card (Grooming Notes) */}
+            <div style={{ marginBottom: 'var(--space-4)' }}>
+                <label style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, marginBottom: 'var(--space-2)', display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-secondary)' }}>
+                    <Scissors size={18} /> Cut Card
+                </label>
+                <textarea
+                    className="card"
+                    placeholder="Blade #7 body, #10 face, scissor trim ears..."
+                    value={groomingNotes}
+                    onChange={e => setGroomingNotes(e.target.value)}
+                    onBlur={saveGroomingNotes}
+                    style={{ width: '100%', minHeight: 100, fontSize: 'var(--font-size-base)' }}
+                />
+            </div>
+
             {/* Job Visit Notes */}
             <div style={{ marginBottom: 'var(--space-6)' }}>
-                <label style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, marginBottom: 'var(--space-2)', display: 'block', color: 'var(--text-secondary)' }}>Job Visit Notes</label>
+                <label style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, marginBottom: 'var(--space-2)', display: 'block', color: 'var(--text-secondary)' }}>Visit Notes</label>
                 <textarea
                     className="card"
                     placeholder="Add notes about this visit..."

@@ -92,6 +92,14 @@ export class JobStateMachine {
             updatedAt: Date.now(),
         };
 
+        // Feature 6: Auto Job Time Tracking
+        if (action === 'MARK_IN_PROGRESS' || nextState === JobState.InProgress) {
+            updatedJob.startedAt = Date.now();
+        }
+        if (action === 'MARK_COMPLETE' || nextState === JobState.Completed) {
+            updatedJob.completedAt = Date.now();
+        }
+
         const { getActiveBusinessIdSync } = await import('@/contexts/ImpersonationContext');
         const { saveWithSync } = await import('@/lib/db/transactions');
         const businessId = getActiveBusinessIdSync();
