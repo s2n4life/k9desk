@@ -15,6 +15,7 @@ export interface Service {
   id: string;
   name: string;
   price: number;
+  priceTiers?: { size: string; price: number }[]; // e.g. [{size: 'Small', price: 40}, {size: 'Large', price: 70}]
   duration_minutes?: number; // DEPRECATED: No longer used. Scheduling now uses global appointment_duration_minutes from Settings.
   createdAt: number;
 }
@@ -38,6 +39,7 @@ export interface Pet {
   notes?: string; // Persistent notes (allergies, etc)
   size?: string;
   age?: string; // or birthYear if preferred, but user asked for age
+  vaccinations?: { name: string; date: string; expirationDate?: string }[];
   createdAt: number;
   updatedAt: number;
 }
@@ -53,6 +55,9 @@ export interface Job {
   customerNotes?: string; // Copy of customer notes at time of job
   petNotes?: string; // Copy of pet notes at time of job
   jobNotes?: string; // Visit-specific notes
+  groomingNotes?: string; // Cut card: "Blade #7 body, #10 face, scissor ears"
+  startedAt?: number; // Timestamp when "Start Job" was tapped
+  completedAt?: number; // Timestamp when "Finish Job" was tapped
   services?: (Service & { petId?: string })[];
   payment_amount?: number;
   payment_method?: 'cash' | 'check' | 'venmo' | 'zelle' | 'stripe' | 'other';
@@ -61,6 +66,14 @@ export interface Job {
   recurrenceRuleId?: string; // Link to recurrence rule if this is a recurring job
   createdAt: number;
   updatedAt: number;
+}
+
+export interface CommunicationLog {
+  id: string;
+  customerId: string;
+  jobId?: string;
+  type: 'reminder' | 'payment_request' | 'review_request' | 'custom';
+  timestamp: number;
 }
 
 export interface Settings {

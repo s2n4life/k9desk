@@ -72,14 +72,16 @@ export async function hydrateLocalDB(userId: string) {
                 customersRes,
                 petsRes,
                 jobsRes,
-                leadsRes
+                leadsRes,
+                commLogsRes
             ] = await Promise.allSettled([
                 supabase.from('businesses').select('*').eq('id', businessId).order('updated_at', { ascending: false }),
                 supabase.from('services').select('*').eq('business_id', businessId),
                 supabase.from('customers').select('*').eq('business_id', businessId),
                 supabase.from('pets').select('*').eq('business_id', businessId),
                 supabase.from('jobs').select('*').eq('business_id', businessId),
-                supabase.from('leads').select('*').eq('business_id', businessId)
+                supabase.from('leads').select('*').eq('business_id', businessId),
+                supabase.from('communication_log').select('*').eq('business_id', businessId)
             ]);
 
             // 2. Process Business (Critical)
@@ -134,6 +136,7 @@ export async function hydrateLocalDB(userId: string) {
                             id: s.id,
                             name: s.name,
                             price: s.price,
+                            priceTiers: s.price_tiers,
                             duration_minutes: s.duration_minutes,
                             createdAt: new Date(s.created_at).getTime(),
                         });
@@ -178,6 +181,7 @@ export async function hydrateLocalDB(userId: string) {
                             notes: p.notes,
                             size: p.size,
                             age: p.age,
+                            vaccinations: p.vaccinations,
                             createdAt: new Date(p.created_at).getTime(),
                             updatedAt: new Date(p.updated_at || p.created_at).getTime(),
                         });
@@ -201,6 +205,10 @@ export async function hydrateLocalDB(userId: string) {
                             jobNotes: j.notes,
                             customerNotes: j.customer_notes,
                             petNotes: j.pet_notes,
+                            groomingNotes: j.grooming_notes,
+                            startedAt: j.started_at ? new Date(j.started_at).getTime() : undefined,
+                            completedAt: j.completed_at ? new Date(j.completed_at).getTime() : undefined,
+                            services: j.services || [],
                             payment_amount: j.payment_amount,
                             payment_method: j.payment_method,
                             payment_logged_at: j.payment_logged_at ? new Date(j.payment_logged_at).getTime() : undefined,
@@ -231,6 +239,22 @@ export async function hydrateLocalDB(userId: string) {
                             waiverSigned: l.waiver_signed,
                             createdAt: l.created_at,
                             notes: l.notes
+                        });
+                    }
+                }
+            }
+
+            // 8. Process Communication Log
+            if (commLogsRes.status === 'fulfilled') {
+                const { data: comms } = commLogsRes.value;
+                if (comms) {
+                    for (const c of comms) {
+                        await db.put('communication_log', {
+                            id: c.id,
+                            customerId: c.customer_id,
+                            jobId: c.job_id,
+                            type: c.type,
+                            timestamp: new Date(c.created_at).getTime(),
                         });
                     }
                 }

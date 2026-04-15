@@ -53,10 +53,15 @@ interface GroomerDB extends DBSchema {
         value: SyncQueueItem & { failureReason?: string; failedAt: number };
         indexes: { 'by-timestamp': number };
     };
+    communication_log: {
+        key: string;
+        value: any; // CommunicationLog
+        indexes: { 'by-customer': string };
+    };
 }
 
 const DB_NAME = 'groomer-crm-db';
-const DB_VERSION = 7; // Incremented for recurrence_rules
+const DB_VERSION = 8; // Incremented for communication_log
 
 let dbPromise: Promise<IDBPDatabase<GroomerDB>>;
 
@@ -125,7 +130,13 @@ export const getDB = () => {
                 // Dead Letter Queue (v6)
                 if (!db.objectStoreNames.contains('dead_letter')) {
                     const store = db.createObjectStore('dead_letter', { keyPath: 'id' });
-                    store.createIndex('by-timestamp', 'timestamp');
+                    store.createIndex('by-timestamp', 'failedAt');
+                }
+
+                // Communication Log
+                if (!db.objectStoreNames.contains('communication_log')) {
+                    const store = db.createObjectStore('communication_log', { keyPath: 'id' });
+                    store.createIndex('by-customer', 'customerId');
                 }
             },
         });

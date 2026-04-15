@@ -64,7 +64,10 @@ const transformForRemote = (entityType: string, data: any, user: any, businessId
         }
     }
     else if (entityType === 'SERVICE') {
-        // no specific changes
+        if ('priceTiers' in remote) {
+            remote.price_tiers = remote.priceTiers;
+            delete remote.priceTiers;
+        }
     }
     else if (entityType === 'JOB') {
         // Skip validation for DELETE actions - we only need the ID
@@ -107,6 +110,18 @@ const transformForRemote = (entityType: string, data: any, user: any, businessId
         if ('petNotes' in data) {
             remote.pet_notes = data.petNotes;
             delete remote.petNotes;
+        }
+        if ('groomingNotes' in data) {
+            remote.grooming_notes = data.groomingNotes;
+            delete remote.groomingNotes;
+        }
+        if ('startedAt' in data && data.startedAt) {
+            remote.started_at = new Date(data.startedAt).toISOString();
+            delete remote.startedAt;
+        }
+        if ('completedAt' in data && data.completedAt) {
+            remote.completed_at = new Date(data.completedAt).toISOString();
+            delete remote.completedAt;
         }
 
         // Map services to service_ids
@@ -173,6 +188,11 @@ const transformForRemote = (entityType: string, data: any, user: any, businessId
         if ('serviceIds' in remote) { remote.service_ids = remote.serviceIds; delete remote.serviceIds; }
         if ('waiverSigned' in remote) { remote.waiver_signed = remote.waiverSigned; delete remote.waiverSigned; }
         if ('businessId' in remote) { remote.business_id = remote.businessId; delete remote.businessId; }
+    }
+    else if (entityType === 'COMMUNICATION_LOG') {
+        if ('customerId' in remote) { remote.customer_id = remote.customerId; delete remote.customerId; }
+        if ('jobId' in remote) { remote.job_id = remote.jobId; delete remote.jobId; }
+        if ('timestamp' in remote) { remote.created_at = new Date(remote.timestamp).toISOString(); delete remote.timestamp; }
     }
 
     return remote;
@@ -439,6 +459,7 @@ export function useSync() {
                     PROFILE: 'profiles',
                     LEAD: 'leads',
                     RECURRENCE_RULE: 'recurrence_rules',
+                    COMMUNICATION_LOG: 'communication_log'
                 };
 
                 const tableName = tableMap[item.entityType];
