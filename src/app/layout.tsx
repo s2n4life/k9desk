@@ -26,6 +26,20 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.addEventListener('error', function(e) {
+                alert('JS Error: ' + e.message);
+              });
+              window.addEventListener('unhandledrejection', function(e) {
+                alert('Promise Error: ' + (e.reason && e.reason.message ? e.reason.message : String(e.reason)));
+              });
+            `
+          }}
+        />
+      </head>
       <body suppressHydrationWarning>
         <AppShell>
           {children}
