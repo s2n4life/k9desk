@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getDB } from '@/lib/db';
 import { Customer, Pet, Job } from '@/lib/db/schema';
 import { saveWithSync, deleteWithSync } from '@/lib/db/transactions';
-import { ChevronLeft, Plus, Calendar, Edit2, Trash2, MapPin, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, Plus, Calendar, Edit2, Trash2, MapPin, AlertTriangle, Mail } from 'lucide-react';
 import Link from 'next/link';
 import { v4 as uuidv4 } from 'uuid';
 import { Modal } from '@/components/UI/Modal';
@@ -192,6 +192,11 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                     <div>
                         <h2 className="text-h2" style={{ color: 'var(--brand-primary)', marginBottom: 4 }}>{customer.name}</h2>
                         <div style={{ color: 'var(--text-secondary)', fontWeight: 500, fontSize: 'var(--font-size-lg)' }}>{customer.phone}</div>
+                        {customer.email && (
+                            <div style={{ display: 'flex', gap: 'var(--space-2)', color: 'var(--text-secondary)', marginTop: 'var(--space-1)' }}>
+                                <Mail size={16} /> <span style={{ fontSize: 'var(--font-size-sm)' }}>{customer.email}</span>
+                            </div>
+                        )}
                         <div style={{ display: 'flex', gap: 'var(--space-2)', color: 'var(--text-secondary)', marginTop: 'var(--space-2)' }}>
                             <MapPin size={18} /> <span>{customer.address}</span>
                         </div>
@@ -218,7 +223,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                     </div>
                 </div>
                 {customer.notes && (
-                    <div style={{ marginTop: 'var(--space-3)', background: '#FFF4E5', padding: 'var(--space-2)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-sm)', color: '#663C00', display: 'flex', gap: 6 }}>
+                    <div style={{ marginTop: 'var(--space-3)', background: 'var(--color-warning-muted, #FFF4E5)', padding: 'var(--space-2)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-sm)', color: 'var(--color-warning, #663C00)', display: 'flex', gap: 6 }}>
                         <AlertTriangle size={14} style={{ marginTop: 2 }} />
                         <span>{customer.notes}</span>
                     </div>

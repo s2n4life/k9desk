@@ -114,7 +114,7 @@ export function OnboardingModal() {
                 onboardingCompleted: true,
 
                 // Initialize Trial
-                subscription_status: 'trial',
+                subscription_status: 'trialing',
                 trial_start_date: new Date(now).toISOString(),
                 trial_end_date: trialEnd,
 

@@ -23,6 +23,7 @@ export interface Customer {
   id: string;
   name: string;
   phone: string; // Unique identifier
+  email?: string;
   address?: string;
   notes?: string;
   createdAt: number;

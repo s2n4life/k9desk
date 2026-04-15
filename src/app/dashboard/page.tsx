@@ -74,9 +74,7 @@ export default function TodayPage() {
   const [allServices, setAllServices] = useState<Service[]>([]);
   const [kpi, setKpi] = useState({
     completed: 0,
-    requested: 0,
-    confirmed: 0,
-    reviews: 0
+    revenue: 0
   });
 
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
@@ -132,11 +130,21 @@ export default function TodayPage() {
 
       const jobsLast30Days = allJobs.filter(j => j.scheduledDate >= thirtyDaysAgoStr);
 
+      // Sum actual revenue from paid/closed jobs
+      const paidJobs = jobsLast30Days.filter(j => j.state === JobState.Paid || j.state === JobState.Closed);
+      const totalRevenue = paidJobs.reduce((sum, j) => {
+        // Use logged payment_amount, or fall back to service total
+        if (j.payment_amount && j.payment_amount > 0) {
+          return sum + j.payment_amount;
+        }
+        // Fallback: sum services if no payment_amount recorded
+        const serviceTotal = j.services?.reduce((s, svc) => s + (svc.price || 0), 0) || 0;
+        return sum + serviceTotal;
+      }, 0);
+
       setKpi({
         completed: jobsLast30Days.filter(j => j.state === JobState.Completed || j.state === JobState.PaymentRequested || j.state === JobState.Paid || j.state === JobState.Closed).length,
-        requested: jobsLast30Days.filter(j => j.state === JobState.PaymentRequested).length,
-        confirmed: jobsLast30Days.filter(j => j.state === JobState.Paid || j.state === JobState.Closed).length,
-        reviews: jobsLast30Days.filter(j => j.state === JobState.Closed).length
+        revenue: totalRevenue
       });
 
       // Load all services
@@ -275,9 +283,7 @@ export default function TodayPage() {
       <div style={{ marginBottom: 'var(--space-2)' }}>
         <KPIStrip
           completedJobs={kpi.completed}
-          paymentsRequested={kpi.requested}
-          paymentsConfirmed={kpi.confirmed}
-          reviewsSent={kpi.reviews}
+          revenue={kpi.revenue}
         />
       </div>
 

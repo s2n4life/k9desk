@@ -10,12 +10,13 @@ interface CustomerFormProps {
 export const CustomerForm: React.FC<CustomerFormProps> = ({ initialData, onSave, onCancel }) => {
     const [name, setName] = useState(initialData?.name || '');
     const [phone, setPhone] = useState(initialData?.phone || '');
+    const [email, setEmail] = useState(initialData?.email || '');
     const [address, setAddress] = useState(initialData?.address || '');
     const [notes, setNotes] = useState(initialData?.notes || '');
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSave({ name, phone, address, notes });
+        onSave({ name, phone, email, address, notes });
     };
 
     return (
@@ -35,6 +36,13 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ initialData, onSave,
                 value={phone}
                 onChange={e => setPhone(e.target.value)}
                 required
+            />
+            <input
+                className="card"
+                placeholder="Email (optional)"
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
             />
             <input
                 className="card"

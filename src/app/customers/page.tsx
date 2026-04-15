@@ -1,48 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
 import Link from 'next/link';
-import { ChevronRight, Dog, Search, Calendar, History, Users, Building2 } from 'lucide-react';
-import { useImpersonationContextSafe } from '@/contexts/ImpersonationContext';
-
-type Customer = {
-    id: string;
-    name: string;
-    phone: string;
-    email: string;
-    address: string;
-    notes: string;
-    business_id: string;
-    business_name?: string;
-    created_at: string;
-    updated_at: string;
-};
-
-type Pet = {
-    id: string;
-    customer_id: string;
-    name: string;
-    breed: string;
-    notes: string;
-    business_id: string;
-};
-
-type Job = {
-    id: string;
-    customer_id: string;
-    pet_ids: string[];
-    state: string;
-    scheduled_date: string;
-    scheduled_time: string;
-    address: string;
-    notes: string;
-    customer_notes: string;
-    pet_notes: string;
-    business_id: string;
-    created_at: string;
-    updated_at: string;
-};
+import { ChevronRight, Dog, Search, Calendar, History, Users } from 'lucide-react';
+import { useDataLoader } from '@/hooks/useDataLoader';
+import { Customer, Pet, Job, JobState } from '@/lib/db/schema';
 
 export default function CustomersPage() {
     const [loading, setLoading] = useState(true);
@@ -54,113 +16,36 @@ export default function CustomersPage() {
     const [jobDisplayLimit, setJobDisplayLimit] = useState(10);
     const [jobFilter, setJobFilter] = useState<'all' | 'completed' | 'cancelled'>('all');
 
-    const { isImpersonating, impersonatedBusinessId } = useImpersonationContextSafe();
+    const { loadCustomers, loadPets, loadJobs, isImpersonating, impersonatedBusinessId } = useDataLoader();
 
     const loadData = async () => {
         try {
             setLoading(true);
 
-            // Build query for customers
-            let customersQuery = supabase
-                .from('customers')
-                .select(`
-                    *,
-                    businesses:business_id (name)
-                `)
-                .order('name', { ascending: true });
+            const [allCustomers, allPets, allJobs] = await Promise.all([
+                loadCustomers(),
+                loadPets(),
+                loadJobs()
+            ]);
 
-            // Filter by business_id if impersonating
-            if (isImpersonating && impersonatedBusinessId) {
-                console.log('[CUSTOMERS PAGE] Filtering by business_id:', impersonatedBusinessId);
-                customersQuery = customersQuery.eq('business_id', impersonatedBusinessId);
-            }
+            // Sort customers alphabetically
+            allCustomers.sort((a, b) => a.name.localeCompare(b.name));
+            setCustomers(allCustomers);
 
-            const { data: customersData, error: customersError } = await customersQuery;
-
-            if (customersError) {
-                console.error('Error loading customers:', customersError);
-            }
-
-            // Build query for pets
-            let petsQuery = supabase.from('pets').select('*');
-            if (isImpersonating && impersonatedBusinessId) {
-                petsQuery = petsQuery.eq('business_id', impersonatedBusinessId);
-            }
-
-            const { data: petsData, error: petsError } = await petsQuery;
-
-            if (petsError) {
-                console.error('Error loading pets:', petsError);
-            }
-
-            // Build query for jobs
-            let jobsQuery = supabase
-                .from('jobs')
-                .select('*')
-                .order('created_at', { ascending: false });
-
-            if (isImpersonating && impersonatedBusinessId) {
-                jobsQuery = jobsQuery.eq('business_id', impersonatedBusinessId);
-            }
-
-            const { data: jobsData, error: jobsError } = await jobsQuery;
-
-            if (jobsError) {
-                console.error('Error loading jobs:', jobsError);
-            }
-
-            // Map customers with business name
-            const mappedCustomers = (customersData || []).map((c: any) => ({
-                id: c.id,
-                name: c.name,
-                phone: c.phone,
-                email: c.email,
-                address: c.address,
-                notes: c.notes,
-                business_id: c.business_id,
-                business_name: c.businesses?.name,
-                created_at: c.created_at,
-                updated_at: c.updated_at
-            }));
-
-            // Build pet map
+            // Build pet map by customer
             const petMap: Record<string, Pet[]> = {};
-            (petsData || []).forEach((p: any) => {
-                if (!petMap[p.customer_id]) petMap[p.customer_id] = [];
-                petMap[p.customer_id].push({
-                    id: p.id,
-                    customer_id: p.customer_id,
-                    name: p.name,
-                    breed: p.breed,
-                    notes: p.notes,
-                    business_id: p.business_id
-                });
+            allPets.forEach(p => {
+                if (!petMap[p.customerId]) petMap[p.customerId] = [];
+                petMap[p.customerId].push(p);
             });
-
-            // Map jobs
-            const mappedJobs = (jobsData || []).map((j: any) => ({
-                id: j.id,
-                customer_id: j.customer_id,
-                pet_ids: j.pet_ids || [],
-                state: j.state,
-                scheduled_date: j.scheduled_date,
-                scheduled_time: j.scheduled_time,
-                address: j.address,
-                notes: j.notes,
-                customer_notes: j.customer_notes,
-                pet_notes: j.pet_notes,
-                business_id: j.business_id,
-                created_at: j.created_at,
-                updated_at: j.updated_at
-            })).sort((a, b) => {
-                const dateA = new Date(`${a.scheduled_date} ${a.scheduled_time}`);
-                const dateB = new Date(`${b.scheduled_date} ${b.scheduled_time}`);
-                return dateB.getTime() - dateA.getTime();
-            });
-
-            setCustomers(mappedCustomers);
             setPets(petMap);
-            setJobs(mappedJobs);
+
+            // Sort jobs newest first
+            allJobs.sort((a, b) => {
+                if (a.scheduledDate !== b.scheduledDate) return b.scheduledDate.localeCompare(a.scheduledDate);
+                return b.scheduledTime.localeCompare(a.scheduledTime);
+            });
+            setJobs(allJobs);
         } catch (error) {
             console.error('Failed to load customers data', error);
         } finally {
@@ -175,36 +60,36 @@ export default function CustomersPage() {
     // Filter Customers
     const filteredCustomers = customers.filter(c => {
         const term = searchTerm.toLowerCase();
-        // Check name or phone
         if (c.name.toLowerCase().includes(term) || c.phone.includes(term)) return true;
-        // Check pets
         const customerPets = pets[c.id] || [];
         return customerPets.some(p => p.name.toLowerCase().includes(term));
     });
 
+    // Terminal/finished states for Past Jobs tab
+    const FINISHED_STATES: JobState[] = [
+        JobState.Completed, JobState.PaymentRequested, JobState.Paid,
+        JobState.Closed, JobState.Cancelled, JobState.NoShow
+    ];
+
     // Filter Jobs
     const filteredJobs = jobs.filter(j => {
-        // Only show finished or near-finished jobs: Completed, PaymentRequested, Paid, Closed, Cancelled, NoShow
-        const finishedStates = ['completed', 'payment_requested', 'paid', 'closed', 'cancelled', 'no_show'];
-        if (!finishedStates.includes(j.state)) return false;
+        if (!FINISHED_STATES.includes(j.state)) return false;
 
-        // Apply filter
         if (jobFilter === 'completed') {
-            const completedStates = ['completed', 'payment_requested', 'paid', 'closed'];
+            const completedStates = [JobState.Completed, JobState.PaymentRequested, JobState.Paid, JobState.Closed];
             if (!completedStates.includes(j.state)) return false;
         } else if (jobFilter === 'cancelled') {
-            const cancelledStates = ['cancelled', 'no_show'];
+            const cancelledStates = [JobState.Cancelled, JobState.NoShow];
             if (!cancelledStates.includes(j.state)) return false;
         }
-        // 'all' filter shows everything
+
+        if (!searchTerm) return true;
 
         const term = searchTerm.toLowerCase();
-        const customer = customers.find(c => c.id === j.customer_id);
+        const customer = customers.find(c => c.id === j.customerId);
         const customerPets = customer ? (pets[customer.id] || []) : [];
 
-        // Match Customer Name
         if (customer?.name.toLowerCase().includes(term)) return true;
-        // Match Pet Name
         if (customerPets.some(p => p.name.toLowerCase().includes(term))) return true;
 
         return false;
@@ -293,12 +178,6 @@ export default function CustomersPage() {
                                         <Dog size={14} />
                                         <span>{customerPets.map(p => p.name).join(', ') || 'No pets'}</span>
                                     </div>
-                                    {c.business_name && (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                            <Building2 size={14} />
-                                            <span>{c.business_name}</span>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                             <ChevronRight size={20} color="var(--text-tertiary)" />
@@ -366,11 +245,15 @@ export default function CustomersPage() {
                         </div>
 
                         {displayedJobs.map(job => {
-                            const customer = customers.find(c => c.id === job.customer_id);
-                            const jobPets = (pets[job.customer_id] || []).filter(p => job.pet_ids.includes(p.id));
+                            const customer = customers.find(c => c.id === job.customerId);
+                            const jobPets = (pets[job.customerId] || []).filter(p => job.petIds.includes(p.id));
 
-                            // Fallback if data is missing
                             if (!customer) return null;
+
+                            const stateLabel = job.state.replace('_', ' ');
+                            const isSuccess = [JobState.Completed, JobState.Paid, JobState.Closed].includes(job.state);
+                            const isCancelled = job.state === JobState.Cancelled;
+                            const isNoShow = job.state === JobState.NoShow;
 
                             return (
                                 <Link key={job.id} href={`/jobs/${job.id}`} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -378,7 +261,7 @@ export default function CustomersPage() {
                                         <div>
                                             <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
                                                 <Calendar size={12} />
-                                                {new Date(job.scheduled_date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} • {job.scheduled_time}
+                                                {new Date(job.scheduledDate).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} • {job.scheduledTime}
                                             </div>
                                             <div style={{ fontWeight: 600, fontSize: 'var(--font-size-base)' }}>{customer.name}</div>
                                         </div>
@@ -388,14 +271,14 @@ export default function CustomersPage() {
                                                 padding: '2px 8px',
                                                 borderRadius: 10,
                                                 background:
-                                                    job.state === 'cancelled' ? 'var(--surface-sunken)' :
-                                                        job.state === 'no_show' ? '#FFF4E5' :
-                                                            ['completed', 'paid', 'closed'].includes(job.state) ? 'var(--color-success-muted)' :
+                                                    isCancelled ? 'var(--surface-sunken)' :
+                                                        isNoShow ? 'var(--color-warning-muted, #FFF4E5)' :
+                                                            isSuccess ? 'var(--color-success-muted)' :
                                                                 'var(--surface-sunken)',
                                                 color:
-                                                    job.state === 'cancelled' ? 'var(--text-tertiary)' :
-                                                        job.state === 'no_show' ? '#FF8C00' :
-                                                            ['completed', 'paid', 'closed'].includes(job.state) ? 'var(--color-success)' :
+                                                    isCancelled ? 'var(--text-tertiary)' :
+                                                        isNoShow ? 'var(--color-warning, #FF8C00)' :
+                                                            isSuccess ? 'var(--color-success)' :
                                                                 'var(--text-secondary)',
                                                 textTransform: 'uppercase',
                                                 fontWeight: 700,
@@ -404,10 +287,10 @@ export default function CustomersPage() {
                                                 gap: 4
                                             }}
                                         >
-                                            {job.state === 'cancelled' && '✕ '}
-                                            {job.state === 'no_show' && '⚠ '}
-                                            {['completed', 'paid', 'closed'].includes(job.state) && '✓ '}
-                                            {job.state.replace('_', ' ')}
+                                            {isCancelled && '✕ '}
+                                            {isNoShow && '⚠ '}
+                                            {isSuccess && '✓ '}
+                                            {stateLabel}
                                         </div>
                                     </div>
 

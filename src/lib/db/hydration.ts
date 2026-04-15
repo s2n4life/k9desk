@@ -155,6 +155,7 @@ export async function hydrateLocalDB(userId: string) {
                             id: c.id,
                             name: c.name,
                             phone: c.phone,
+                            email: c.email,
                             address: c.address,
                             notes: c.notes,
                             createdAt: new Date(c.created_at).getTime(),

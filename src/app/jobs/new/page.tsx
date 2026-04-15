@@ -60,6 +60,7 @@ const NewJobContent = () => {
     const [cFormId, setCFormId] = useState<string | null>(null); // If editing
     const [cName, setCName] = useState('');
     const [cPhone, setCPhone] = useState('');
+    const [cEmail, setCEmail] = useState('');
     const [cAddress, setCAddress] = useState('');
     const [cNotes, setCNotes] = useState('');
 
@@ -222,6 +223,7 @@ const NewJobContent = () => {
                 setCFormId(null);
                 setCName(lead.ownerName);
                 setCPhone(lead.ownerPhone);
+                setCEmail(lead.ownerEmail || '');
                 setCAddress(lead.ownerAddress || ''); // Add ownerAddress to Lead schema if not there, or generic
                 // Note: schema update added ownerAddress to Lead? I think I missed that in the plan but added it to submit-lead.ts
                 // Let's assume it's there or handle match.
@@ -355,6 +357,7 @@ const NewJobContent = () => {
         setCFormId(null);
         setCName(searchQuery || ''); // Pre-fill with search query if available
         setCPhone('');
+        setCEmail('');
         setCAddress('');
         setCNotes('');
         setCustomerModalOpen(true);
@@ -367,6 +370,7 @@ const NewJobContent = () => {
         setCFormId(c.id);
         setCName(c.name);
         setCPhone(c.phone);
+        setCEmail(c.email || '');
         setCAddress(c.address || '');
         setCNotes(c.notes || '');
         setCustomerModalOpen(true);
@@ -387,6 +391,7 @@ const NewJobContent = () => {
                 ...existing!,
                 name: cName,
                 phone: cPhone,
+                email: cEmail,
                 address: cAddress,
                 notes: cNotes,
                 updatedAt: Date.now()
@@ -408,6 +413,7 @@ const NewJobContent = () => {
                 id: newId,
                 name: cName,
                 phone: cPhone,
+                email: cEmail,
                 address: cAddress,
                 notes: cNotes,
                 createdAt: Date.now(),
@@ -1002,9 +1008,7 @@ const NewJobContent = () => {
             >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                     <input className="card" placeholder="Full Name" value={cName} onChange={e => setCName(e.target.value)} autoFocus />
-                    <input
-                        className="card"
-                        placeholder="Phone Number"
+                    <input className="card" placeholder="Phone Number"
                         type="tel"
                         value={cPhone}
                         onChange={e => {
@@ -1018,6 +1022,7 @@ const NewJobContent = () => {
                             setCPhone(formatted);
                         }}
                     />
+                    <input className="card" placeholder="Email (optional)" type="email" value={cEmail} onChange={e => setCEmail(e.target.value)} />
                     <input className="card" placeholder="Address" value={cAddress} onChange={e => setCAddress(e.target.value)} />
                     <label>
                         <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>Customer Notes (Permanent)</span>

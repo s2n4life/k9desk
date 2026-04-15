@@ -222,7 +222,7 @@ export default async function LandingPage({ searchParams }: { searchParams: Prom
                         <Link href="/privacy" className="hover:text-brand-primary transition-colors">Privacy Policy</Link>
                         <Link href="/contact" className="hover:text-brand-primary transition-colors">Contact Support</Link>
                     </div>
-                    <p className="text-gray-400 text-sm">&copy; {new Date().getFullYear()} K9desk. All rights reserved.</p>
+                    <p className="text-gray-400 text-sm">&copy; 2026 K9desk. All rights reserved.</p>
                 </div>
             </footer>
         </div>
