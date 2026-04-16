@@ -31,13 +31,19 @@ interface GeoJob {
 }
 
 // Component to dynamically fit bounds of all markers
-function MapBounds({ geoJobs }: { geoJobs: GeoJob[] }) {
+function MapBounds({ geoJobs, currentLocation }: { geoJobs: GeoJob[], currentLocation: [number, number] | null }) {
     const map = useMap();
     useEffect(() => {
-        if (geoJobs.length === 0) return;
-        const bounds = L.latLngBounds(geoJobs.map(j => j.coords));
-        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
-    }, [geoJobs, map]);
+        if (geoJobs.length === 0 && !currentLocation) return;
+        
+        const allCoords = geoJobs.map(j => j.coords);
+        if (currentLocation) {
+            allCoords.push(currentLocation);
+        }
+        
+        const bounds = L.latLngBounds(allCoords);
+        map.fitBounds(bounds, { padding: [60, 60], maxZoom: 14 });
+    }, [geoJobs, currentLocation, map]);
     return null;
 }
 
@@ -106,8 +112,8 @@ export default function RouteMap({ jobs, customers, pets }: RouteMapProps) {
 
     return (
         <div style={{ height: 350, width: '100%', borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1px solid var(--border-color)', isolation: 'isolate', zIndex: 1, position: 'relative', marginTop: 'var(--space-4)' }}>
-            <MapContainer center={geoJobs[0].coords} zoom={12} style={{ height: '100%', width: '100%' }}>
-                <MapBounds geoJobs={geoJobs} />
+            <MapContainer center={geoJobs[0]?.coords || currentLocation || [39.828, -98.579]} zoom={12} style={{ height: '100%', width: '100%' }}>
+                <MapBounds geoJobs={geoJobs} currentLocation={currentLocation} />
                 <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     attribution='&copy; OpenStreetMap contributors'
@@ -117,10 +123,14 @@ export default function RouteMap({ jobs, customers, pets }: RouteMapProps) {
                     <Marker 
                         position={currentLocation} 
                         icon={L.divIcon({
-                            html: '<div style="font-size:24px; text-shadow:0 2px 4px rgba(0,0,0,0.5);">⭐</div>',
+                            html: `<div style="display:flex; justify-content:center; align-items:center;">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#ef4444" stroke="#7f1d1d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 32px; height: 32px; filter: drop-shadow(0px 3px 6px rgba(0,0,0,0.4));">
+                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                                </svg>
+                            </div>`,
                             className: 'current-location-star',
-                            iconSize: [24,24],
-                            iconAnchor: [12,12]
+                            iconSize: [32,32],
+                            iconAnchor: [16,16]
                         })}
                     >
                         <Popup>
