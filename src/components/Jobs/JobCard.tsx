@@ -195,18 +195,46 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
                     </button>
                 </div>
             ) : config.button ? (
-                <button
-                    className={clsx('btn', 'btn-primary', styles.actionBtn)}
-                    style={config.btnStyle || { width: '100%' }}
-                    disabled={isProcessing}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setIsProcessing(true);
-                        if (config.action) onAction(config.action);
-                    }}
-                >
-                    {config.button}
-                </button>
+                <div style={job.state === JobState.Scheduled || job.state === JobState.ReminderSent ? { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' } : {}}>
+                    {job.state === JobState.Scheduled && (
+                        <button
+                            className={clsx('btn', 'btn-secondary', styles.actionBtn)}
+                            disabled={isProcessing}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsProcessing(true);
+                                onAction('MARK_IN_PROGRESS');
+                            }}
+                        >
+                            Start Job
+                        </button>
+                    )}
+                    {job.state === JobState.ReminderSent && (
+                         <button
+                            className={clsx('btn', 'btn-secondary', styles.actionBtn)}
+                            disabled={isProcessing}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsProcessing(true);
+                                onAction('MARK_COMPLETE');
+                            }}
+                         >
+                             Finish Job
+                         </button>
+                     )}
+                    <button
+                        className={clsx('btn', 'btn-primary', styles.actionBtn)}
+                        style={{ ...(config.btnStyle || {}), width: '100%' }}
+                        disabled={isProcessing}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setIsProcessing(true);
+                            if (config.action) onAction(config.action);
+                        }}
+                    >
+                        {config.button}
+                    </button>
+                </div>
             ) : null}
 
             <ActionSheet
