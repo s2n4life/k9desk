@@ -10,10 +10,14 @@ import { triggerSMSAction } from '@/lib/sms';
 import { useDataLoader } from '@/hooks/useDataLoader';
 
 import { Header } from '@/components/Navigation/Header';
+import { CalendarModal } from '@/components/Jobs/CalendarModal';
+import { Calendar as CalendarIcon } from 'lucide-react';
 
 export default function UpcomingPage() {
     const [loading, setLoading] = useState(true);
+    const [rawJobs, setRawJobs] = useState<Job[]>([]);
     const [groupedJobs, setGroupedJobs] = useState<Record<string, Job[]>>({});
+    const [isCalendarOpen, setCalendarOpen] = useState(false);
     const [customers, setCustomers] = useState<Record<string, Customer>>({});
     const [pets, setPets] = useState<Record<string, Pet>>({});
     const [settings, setSettings] = useState<Settings | null>(null);
@@ -25,6 +29,7 @@ export default function UpcomingPage() {
         try {
             if (!silent) setLoading(true);
             const allJobs = await loadJobs();
+            setRawJobs(allJobs);
             const allCustomers = await loadCustomers();
             const allPets = await loadPets();
 
@@ -73,13 +78,8 @@ export default function UpcomingPage() {
 
     const handleAction = async (jobId: string, action: any) => {
         try {
-            // Find job and customer from state
-            let job: Job | undefined;
-            // Search through groupedJobs
-            for (const date in groupedJobs) {
-                const found = groupedJobs[date].find(j => j.id === jobId);
-                if (found) { job = found; break; }
-            }
+            // Find job and customer from rawJobs instead of just grouped upcoming
+            let job = rawJobs.find(j => j.id === jobId);
 
             if (job) {
                 const customer = customers[job.customerId];
@@ -101,6 +101,15 @@ export default function UpcomingPage() {
             <Header
                 title="Upcoming"
                 subtitle="Your schedule for the next few days"
+                actionNode={
+                    <button 
+                        onClick={() => setCalendarOpen(true)}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px', borderRadius: '50%', backgroundColor: 'var(--surface-sunken)', border: 'none', cursor: 'pointer' }}
+                        aria-label="Open Calendar"
+                    >
+                        <CalendarIcon size={22} color="var(--brand-primary)" />
+                    </button>
+                }
             />
 
             {Object.keys(groupedJobs).length === 0 ? (
@@ -125,6 +134,15 @@ export default function UpcomingPage() {
                     </div>
                 ))
             )}
+
+            <CalendarModal
+                isOpen={isCalendarOpen}
+                onClose={() => setCalendarOpen(false)}
+                jobs={rawJobs}
+                customers={customers}
+                pets={pets}
+                onJobAction={handleAction}
+            />
         </div>
     );
 }

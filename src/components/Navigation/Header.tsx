@@ -12,6 +12,7 @@ interface HeaderProps {
     subtitle?: string;
     showHelp?: boolean;
     showSettings?: boolean;
+    actionNode?: React.ReactNode;
 }
 
 export function Header({
@@ -19,7 +20,8 @@ export function Header({
     label,
     subtitle,
     showHelp = true,
-    showSettings = true
+    showSettings = true,
+    actionNode
 }: HeaderProps) {
     const [isHelpOpen, setIsHelpOpen] = useState(false);
 
@@ -33,6 +35,7 @@ export function Header({
                 </div>
 
                 <div className={styles.actions}>
+                    {actionNode}
                     {showHelp && (
                         <button
                             className={`${styles.iconBtn} ${styles.helpBtn}`}

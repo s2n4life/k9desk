@@ -43,9 +43,17 @@ export default function NeedsActionPage() {
             allPets.forEach(p => petMap[p.id] = p);
             setPets(petMap);
 
-            const actionable = allJobs.filter(j =>
-                ACTION_STATES.includes(j.state)
-            );
+            const todayStr = format(new Date(), 'yyyy-MM-dd');
+            const actionable = allJobs.filter(j => {
+                if (ACTION_STATES.includes(j.state)) return true;
+                
+                // Orphan Sweep: Catch scheduled/reminder jobs from yesterday or older
+                if (j.scheduledDate < todayStr && [JobState.Scheduled, JobState.ReminderSent].includes(j.state)) {
+                    return true;
+                }
+                
+                return false;
+            });
 
             actionable.sort((a, b) => {
                 if (a.scheduledDate !== b.scheduledDate) return a.scheduledDate.localeCompare(b.scheduledDate);
