@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../UI/Modal';
-import { Share, MoreVertical, PlusSquare, ArrowUp, Monitor, Download, Smartphone, MoreHorizontal, CheckCircle2 } from 'lucide-react';
-import { isIOS, isSafari, isChromeOnIOS, isAndroid, permanentlyDismissPrompt } from '@/lib/pwa-utils';
+import { Share, PlusSquare, Download, Smartphone, CheckCircle2, BellRing, Map, Zap } from 'lucide-react';
+import { isIOS, permanentlyDismissPrompt } from '@/lib/pwa-utils';
 
 interface InstallPwaPromptProps {
     isOpen: boolean;
@@ -34,55 +34,45 @@ export const InstallPwaPrompt: React.FC<InstallPwaPromptProps> = ({ isOpen, onCl
 
     const renderInstructions = () => {
         if (isIOS()) {
-            // Updated instructions based on user feedback for latest iOS (e.g., 17.4+) 
-            // where the 3 dots menu is often the entry point even in Safari or Chrome.
             return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                    <p className="text-p" style={{ color: 'var(--text-secondary)', textAlign: 'center' }}>
-                        Save K9desk to your home screen for full access and the best experience.
-                    </p>
-                    <div className="card" style={{ padding: 'var(--space-4)', background: 'var(--bg-secondary)' }}>
-                        <ol style={{ paddingLeft: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                            <li className="text-p">
-                                Tap the <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>3 dots <MoreHorizontal size={18} style={{ color: 'var(--primary-color)' }} /></span> at the bottom right.
-                            </li>
-                            <li className="text-p">
-                                Click the <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>Share button <Share size={18} style={{ color: 'var(--primary-color)' }} /></span> (rectangle with arrow up).
-                            </li>
-                            <li className="text-p">
-                                Scroll down to find and select <span style={{ fontWeight: 600 }}>"Add to Home Screen"</span>.
-                            </li>
-                            <li className="text-p">
-                                Tap <span style={{ fontWeight: 600, color: 'var(--primary-color)' }}>"Add"</span> in the top right.
-                            </li>
-                        </ol>
-                    </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 mt-6 relative overflow-hidden shadow-inner">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Installation Guide</h4>
+                    <ol className="space-y-4 pl-5 list-decimal text-sm font-medium text-slate-700 marker:text-slate-400 marker:font-bold">
+                        <li className="pl-2">
+                            Tap the <span className="font-bold inline-flex items-center gap-1 text-slate-900 border border-slate-200 px-1 rounded shadow-sm bg-white">Share <Share size={14} className="text-blue-500" /></span> icon <br/><span className="text-xs text-slate-500 font-normal leading-tight block mt-0.5">At the bottom of Safari</span>
+                        </li>
+                        <li className="pl-2">
+                            Scroll down and select <br/><span className="font-bold text-slate-900 inline-flex items-center gap-1 mt-1 border border-slate-200 px-1 rounded shadow-sm bg-white">"Add to Home Screen" <PlusSquare size={14} className="text-slate-500"/></span>
+                        </li>
+                        <li className="pl-2">
+                            Tap <span className="font-bold text-blue-600 bg-blue-50 px-1 rounded">"Add"</span> in the top right corner.
+                        </li>
+                    </ol>
                 </div>
             );
         }
 
         if (deferredPrompt) {
             return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', textAlign: 'center' }}>
-                    <p className="text-p" style={{ color: 'var(--text-secondary)' }}>
-                        Install K9desk on your device for quick access and a better experience.
-                    </p>
+                <div className="mt-8">
                     <button
                         onClick={handleInstallClick}
-                        className="button-primary"
-                        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)' }}
+                        className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-95 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex justify-center items-center gap-2 text-lg border-2 border-indigo-500 shadow-[0_0_20px_rgba(79,70,229,0.3)]"
                     >
-                        <Download size={20} />
-                        Install App
+                        <Download size={22} className="animate-bounce" />
+                        Install App Now
                     </button>
                 </div>
             );
         }
 
         return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', textAlign: 'center' }}>
-                <p className="text-p" style={{ color: 'var(--text-secondary)' }}>
-                    To install K9desk, open your browser's menu and select <span style={{ fontWeight: 600 }}>"Add to Home Screen"</span> or <span style={{ fontWeight: 600 }}>"Install App"</span>.
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 mt-6 relative overflow-hidden shadow-inner">
+                <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">How to install</h4>
+                <p className="text-sm text-slate-600 font-medium leading-relaxed">
+                    Open your browser's menu and select <span className="font-bold text-indigo-700 bg-indigo-50 px-1 rounded">"Add to Home Screen"</span> or <span className="font-bold text-indigo-700 bg-indigo-50 px-1 rounded">"Install App"</span> to finish.
                 </p>
             </div>
         );
@@ -92,13 +82,12 @@ export const InstallPwaPrompt: React.FC<InstallPwaPromptProps> = ({ isOpen, onCl
         <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title="Add to Home Screen"
+            title=""
             footer={
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                <div className="flex flex-col gap-3 w-full">
                     <button
                         onClick={onClose}
-                        className="button-secondary"
-                        style={{ width: '100%' }}
+                        className="w-full py-3 bg-white border border-slate-300 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-colors shadow-sm active:scale-95 duration-100"
                     >
                         Maybe Later
                     </button>
@@ -107,33 +96,45 @@ export const InstallPwaPrompt: React.FC<InstallPwaPromptProps> = ({ isOpen, onCl
                             permanentlyDismissPrompt();
                             onClose();
                         }}
-                        style={{
-                            width: '100%',
-                            background: 'none',
-                            border: 'none',
-                            color: 'var(--text-tertiary)',
-                            fontSize: '12px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '4px'
-                        }}
+                        className="w-full bg-transparent border-none text-slate-400 text-xs cursor-pointer flex items-center justify-center gap-1.5 hover:text-slate-600 transition-colors py-2"
                     >
                         <CheckCircle2 size={14} /> I've already added it (Don't show again)
                     </button>
                 </div>
             }
         >
-            <div style={{ padding: 'var(--space-2) 0' }}>
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    marginBottom: 'var(--space-4)',
-                    color: 'var(--primary-color)'
-                }}>
-                    <Smartphone size={48} />
+            <div className="py-2">
+                {/* Hero Icon */}
+                <div className="flex justify-center mb-6">
+                    <div className="bg-gradient-to-br from-indigo-500 to-blue-600 p-4 rounded-2xl shadow-xl shadow-indigo-200 ring-4 ring-indigo-50 relative">
+                        <Smartphone size={40} className="text-white" strokeWidth={1.5} />
+                        <div className="absolute -top-2 -right-2 bg-pink-500 rounded-full p-1 border-2 border-white animate-pulse">
+                            <BellRing size={12} className="text-white" />
+                        </div>
+                    </div>
                 </div>
+
+                {/* The Strong WHY */}
+                <div className="text-center mb-2 px-2">
+                    <h3 className="text-2xl font-extrabold text-slate-900 mb-2 tracking-tight">Level Up K9Desk</h3>
+                    <p className="text-slate-600 font-medium text-[15px] leading-snug">
+                        Install the app to your Home Screen to unlock native features:
+                    </p>
+                </div>
+
+                {/* Feature Pills */}
+                <div className="flex flex-wrap justify-center gap-2 px-4 mt-5">
+                    <div className="bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                        <BellRing size={14} /> Push Alerts
+                    </div>
+                    <div className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                        <Map size={14} /> Live GPS
+                    </div>
+                    <div className="bg-purple-50 text-purple-700 border border-purple-200 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                        <Zap size={14} /> Fullscreen
+                    </div>
+                </div>
+
                 {renderInstructions()}
             </div>
         </Modal>
