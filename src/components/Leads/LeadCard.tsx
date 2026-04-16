@@ -30,6 +30,21 @@ export function LeadCard({ lead, onAccept, onArchive, onDelete, isArchived, busi
         }
     } catch (e) { }
 
+    // Format requested date
+    let requestedFormat = 'Anytime';
+    try {
+        if (lead.preferredDates && lead.preferredDates[0]) {
+            requestedFormat = lead.preferredDates[0];
+            const parts = requestedFormat.split(' at ');
+            if (parts.length === 2 && parts[0].match(/^\d{4}-\d{2}-\d{2}$/)) {
+                // It's a YYYY-MM-DD from the booking wizard
+                const parsedDate = new Date(parts[0] + 'T12:00:00'); // Add standard time to prevent timezone shift
+                const prettyDate = format(parsedDate, 'MMM d');
+                requestedFormat = `${prettyDate}, ${parts[1]}`;
+            }
+        }
+    } catch (e) { }
+
     // Resolve Services
     const requestedServices = (lead.serviceIds || [])
         .map(id => allServices?.find(s => s.id === id))
@@ -70,7 +85,7 @@ export function LeadCard({ lead, onAccept, onArchive, onDelete, isArchived, busi
                         {createdAtFormat}
                     </div>
                     <div className="text-xs font-semibold text-indigo-700 bg-indigo-50 w-fit px-2 py-1 rounded border border-indigo-100">
-                        {lead.preferredDates[0] ? `Requested: ${lead.preferredDates[0]}` : 'No date requested'}
+                        Requested: {requestedFormat}
                     </div>
                 </div>
             </div>
@@ -204,7 +219,7 @@ export function LeadCard({ lead, onAccept, onArchive, onDelete, isArchived, busi
                 </div>
                 <div className="flex items-center gap-2 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-100 p-2 rounded w-fit">
                     <Calendar size={16} />
-                    <span>Requested: {lead.preferredDates[0] || 'Anytime'}</span>
+                    <span>Requested: {requestedFormat}</span>
                 </div>
             </div>
 
