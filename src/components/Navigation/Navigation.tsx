@@ -12,12 +12,12 @@ const NAV_ITEMS = [
     { href: '/dashboard', label: 'Today', icon: Calendar },
     { href: '/upcoming', label: 'Upcoming', icon: Clock },
     { href: '/needs-action', label: 'Needs Action', icon: AlertCircle },
-    { href: '/customers', label: 'Customers', icon: Users },
+    { href: '/customers', label: 'Clients', icon: Users },
 ];
 
 export function Navigation() {
     const pathname = usePathname();
-    const { leadsCount, needsActionCount } = useNotification();
+    const { leadsCount, needsActionCount, todayCount, upcomingCount } = useNotification();
 
     // Hide navigation on public booking pages and admin pages
     if (pathname?.startsWith('/book/') || pathname?.startsWith('/admin')) return null;
@@ -30,6 +30,8 @@ export function Navigation() {
                     let badgeCount = 0;
                     if (label === 'Leads') badgeCount = leadsCount;
                     if (label === 'Needs Action') badgeCount = needsActionCount;
+                    if (label === 'Today') badgeCount = todayCount;
+                    if (label === 'Upcoming') badgeCount = upcomingCount;
 
                     return (
                         <Link

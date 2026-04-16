@@ -32,6 +32,7 @@ export default async function BookingPage({ params }: { params: Promise<{ busine
                 id,
                 name,
                 price,
+                price_tiers,
                 created_at
             )
         `);
@@ -88,6 +89,7 @@ export default async function BookingPage({ params }: { params: Promise<{ busine
                                 id: s.id,
                                 name: s.name,
                                 price: s.price,
+                                priceTiers: s.price_tiers || undefined,
                                 createdAt: new Date(s.created_at || Date.now()).getTime()
                             }))
                         }}

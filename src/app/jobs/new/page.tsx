@@ -81,6 +81,7 @@ const NewJobContent = () => {
 
     // -- Conversion State --
     const [convertingLead, setConvertingLead] = useState<Lead | null>(null);
+    const [matchNotice, setMatchNotice] = useState<string | null>(null);
 
     // -- Confirmation Modal State --
     const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -179,7 +180,7 @@ const NewJobContent = () => {
                 // MATCH FOUND
                 setSelectedCustomerId(existingCustomer.id);
                 setJobAddress(existingCustomer.address || lead.ownerAddress || '');
-                alert(`Matched existing customer: ${existingCustomer.name}`);
+                setMatchNotice(`Auto-Matched with existing customer: ${existingCustomer.name}`);
 
 
                 // 1.1 Match Pets (Fuzzy by Name)
@@ -258,7 +259,7 @@ const NewJobContent = () => {
                 parsePreferredDate(first);
 
                 // Also add to notes for reference
-                setJobNotes(prev => `${prev}\nPreferred: ${lead.preferredDates.join(', ')}`);
+                setJobNotes(prev => prev ? `${prev}\nPreferred: ${lead.preferredDates.join(', ')}` : `Preferred: ${lead.preferredDates.join(', ')}`);
             }
         }
 
@@ -555,7 +556,16 @@ const NewJobContent = () => {
         if (exists) {
             setSelectedServices(prev => prev.filter(x => !(x.id === s.id && x.petId === petId)));
         } else {
-            setSelectedServices(prev => [...prev, { ...s, petId }]);
+            let actualPrice = s.price;
+            const targetPet = allPets.find(p => p.id === petId);
+            if (targetPet?.size && s.priceTiers && s.priceTiers.length > 0) {
+                const tier = s.priceTiers.find(t => t.size === targetPet.size);
+                if (tier) actualPrice = tier.price;
+                else actualPrice = Math.min(...s.priceTiers.map(t => t.price));
+            } else if (s.priceTiers && s.priceTiers.length > 0) {
+                 actualPrice = Math.min(...s.priceTiers.map(t => t.price));
+            }
+            setSelectedServices(prev => [...prev, { ...s, price: actualPrice, petId }]);
         }
     };
 
@@ -726,7 +736,7 @@ const NewJobContent = () => {
         }
 
         window.dispatchEvent(new CustomEvent('data-changed'));
-        router.push('/');
+        router.push('/dashboard');
     };
 
     // Helper: Get current customer object
@@ -747,6 +757,12 @@ const NewJobContent = () => {
                 <h1 className="text-h2" style={{ marginBottom: 0 }}>New Job</h1>
             </div>
 
+            {matchNotice && (
+                <div style={{ background: 'var(--brand-primary-light)', border: '1px solid var(--brand-primary)', padding: 'var(--space-4)', borderRadius: 'var(--radius-lg)', color: 'var(--brand-primary)', fontWeight: 600, marginBottom: 'var(--space-4)' }}>
+                    {matchNotice}
+                </div>
+            )}
+
             {/* 1. Customer Selection Field (Smart Search) */}
             <div className="card" style={{ marginBottom: 'var(--space-4)', overflow: 'visible', padding: 0 }}>
                 {!selectedCustomerId ? (
@@ -754,7 +770,7 @@ const NewJobContent = () => {
                         <div style={{ display: 'flex', alignItems: 'center', padding: 'var(--space-3)' }}>
                             <Search size={20} color="var(--text-tertiary)" style={{ marginRight: 'var(--space-2)' }} />
                             <input
-                                placeholder="Search Customer..."
+                                placeholder="Search Client..."
                                 style={{ border: 'none', outline: 'none', width: '100%', fontSize: 'var(--font-size-lg)' }}
                                 value={searchQuery}
                                 onChange={e => {
@@ -788,7 +804,7 @@ const NewJobContent = () => {
                                     onClick={openNewCustomerModal}
                                     style={{ padding: 'var(--space-3)', color: 'var(--brand-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}
                                 >
-                                    <Plus size={18} /> Add New Customer
+                                    <Plus size={18} /> Add New Client
                                 </div>
                             </div>
                         )}
@@ -1001,9 +1017,9 @@ const NewJobContent = () => {
             <Modal
                 isOpen={customerModalOpen}
                 onClose={() => setCustomerModalOpen(false)}
-                title={cFormId ? "Edit Customer" : "New Customer"}
+                title={cFormId ? "Edit Client" : "New Client"}
                 footer={(
-                    <button onClick={saveCustomer} className="btn btn-primary" style={{ width: '100%' }}>Save Customer</button>
+                    <button onClick={saveCustomer} className="btn btn-primary" style={{ width: '100%' }}>Save Client</button>
                 )}
             >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
@@ -1067,7 +1083,13 @@ const NewJobContent = () => {
                     <input className="card" placeholder="Pet Name" value={pName} onChange={e => setPName(e.target.value)} autoFocus />
                     <input className="card" placeholder="Breed" value={pBreed} onChange={e => setPBreed(e.target.value)} />
                     <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                        <input className="card" placeholder="Size (e.g. Small, 20lbs)" value={pSize} onChange={e => setPSize(e.target.value)} style={{ flex: 1 }} />
+                        <select className="card" value={pSize} onChange={e => setPSize(e.target.value)} style={{ flex: 1 }}>
+                            <option value="">Unknown Size</option>
+                            <option value="Small">Small</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Large">Large</option>
+                            <option value="X-Large">X-Large</option>
+                        </select>
                         <input className="card" placeholder="Age" value={pAge} onChange={e => setPAge(e.target.value)} style={{ flex: 1 }} />
                     </div>
                     <label>
@@ -1102,7 +1124,7 @@ const NewJobContent = () => {
                                             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginRight: 8 }}>
                                                 <span style={{ fontWeight: 600, fontSize: 'var(--font-size-base)', color: 'var(--text-primary)' }}>{s.name}</span>
                                                 <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-tertiary)' }}>
-                                                    ${s.price}
+                                                    {s.priceTiers && s.priceTiers.length > 0 ? `Starts at $${Math.min(...s.priceTiers.map(t => t.price))}` : `$${s.price}`}
                                                 </span>
                                             </div>
                                             <div style={{ display: 'flex', gap: 8 }}>
@@ -1199,7 +1221,9 @@ const NewJobContent = () => {
                                     </div>
                                     <span style={{ fontWeight: 600, color: isSelected ? '#8b5cf6' : 'var(--text-primary)' }}>{s.name}</span>
                                 </div>
-                                <span style={{ color: isSelected ? '#8b5cf6' : 'var(--text-secondary)' }}>${s.price}</span>
+                                <span style={{ color: isSelected ? '#8b5cf6' : 'var(--text-secondary)' }}>
+                                    {s.priceTiers && s.priceTiers.length > 0 ? `Starts at $${Math.min(...s.priceTiers.map(t => t.price))}` : `$${s.price}`}
+                                </span>
                             </div>
                         );
                     })}
@@ -1221,7 +1245,7 @@ const NewJobContent = () => {
                     isOpen={showConfirmModal}
                     onClose={() => {
                         setShowConfirmModal(false);
-                        router.push('/');
+                        router.push('/dashboard');
                     }}
                     {...confirmModalData}
                 />

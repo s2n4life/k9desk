@@ -28,6 +28,9 @@ export default function AuthForm({ initialMode = 'login' }: { initialMode?: Auth
         if (!/[0-9]/.test(pwd)) {
             return 'Password must contain at least one number';
         }
+        if (!/[!@#$%^&*(),.?":{}|<>]/.test(pwd)) {
+            return 'Password must contain at least one special character';
+        }
         return null;
     };
 
@@ -209,7 +212,7 @@ export default function AuthForm({ initialMode = 'login' }: { initialMode?: Auth
                                 color: 'var(--text-secondary)',
                                 marginTop: 'var(--space-2)'
                             }}>
-                                Must be 8+ characters with uppercase, lowercase, and number
+                                Must be 8+ characters with uppercase, lowercase, number, and special char (@, #, !, etc)
                             </p>
                         )}
                     </div>

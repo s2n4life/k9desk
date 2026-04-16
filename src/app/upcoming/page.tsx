@@ -21,9 +21,9 @@ export default function UpcomingPage() {
 
     const todayStr = format(new Date(), 'yyyy-MM-dd');
 
-    const loadData = async () => {
+    const loadData = async (silent = false) => {
         try {
-            setLoading(true);
+            if (!silent) setLoading(true);
             const allJobs = await loadJobs();
             const allCustomers = await loadCustomers();
             const allPets = await loadPets();
@@ -63,7 +63,7 @@ export default function UpcomingPage() {
         } catch (error) {
             console.error('Failed to load upcoming', error);
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     };
 
@@ -87,7 +87,7 @@ export default function UpcomingPage() {
             }
 
             await JobStateMachine.transition(jobId, action);
-            await loadData();
+            await loadData(true);
         } catch (e) {
             console.error(e);
             alert('Action failed');

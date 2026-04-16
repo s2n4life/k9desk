@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { getDB } from '@/lib/db';
 import { Customer, Pet, Job } from '@/lib/db/schema';
 import { saveWithSync, deleteWithSync } from '@/lib/db/transactions';
-import { ChevronLeft, Plus, Calendar, Edit2, Trash2, MapPin, AlertTriangle, Mail } from 'lucide-react';
+import { ChevronLeft, Plus, Calendar, Edit2, Trash2, MapPin, AlertTriangle, Mail, MessageCircle } from 'lucide-react';
+import { format } from 'date-fns';
 import Link from 'next/link';
 import { v4 as uuidv4 } from 'uuid';
 import { Modal } from '@/components/UI/Modal';
@@ -20,6 +21,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
     const [customer, setCustomer] = useState<Customer | null>(null);
     const [pets, setPets] = useState<Pet[]>([]);
     const [history, setHistory] = useState<Job[]>([]);
+    const [comms, setComms] = useState<any[]>([]);
 
     // Modals
     const [customerModalOpen, setCustomerModalOpen] = useState(false);
@@ -42,6 +44,14 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
         const allJobs = await db.getAllFromIndex('jobs', 'by-customer', id);
         // Sort history descending
         setHistory(allJobs.sort((a, b) => b.scheduledDate.localeCompare(a.scheduledDate)));
+        
+        try {
+            const allComms = await db.getAllFromIndex('communication_log', 'by-customer', id);
+            setComms(allComms.sort((a, b) => b.timestamp - a.timestamp));
+        } catch (err) {
+            console.error('Error loading comms:', err);
+        }
+
         setLoading(false);
     };
 
@@ -230,6 +240,30 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                 )}
             </div>
 
+            {/* Communication History */}
+            {comms.length > 0 && (
+                <div style={{ marginBottom: 'var(--space-6)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
+                        <h3 className="text-h2" style={{ fontSize: 'var(--font-size-lg)', marginBottom: 0 }}>Communication Log</h3>
+                    </div>
+                    <div className="card" style={{ padding: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                        {comms.map(log => (
+                            <div key={log.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-3)', paddingBottom: 'var(--space-2)', borderBottom: '1px solid var(--border-subtle)' }}>
+                                <MessageCircle size={16} color="var(--brand-primary)" style={{ marginTop: 2, flexShrink: 0 }} />
+                                <div>
+                                    <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', textTransform: 'capitalize' }}>
+                                        {log.type.replace('_', ' ')}
+                                    </div>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
+                                        {format(new Date(log.timestamp), 'MMM d, yyyy • h:mm a')}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Pets Section */}
             <div style={{ marginBottom: 'var(--space-6)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
@@ -249,6 +283,41 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                                 <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600 }}>{p.name}</div>
                                 {p.breed && <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>{p.breed}</div>}
                                 {p.notes && <div style={{ fontSize: 'var(--font-size-sm)', marginTop: 4, color: 'var(--color-danger)' }}>⚠️ {p.notes}</div>}
+                                {p.vaccinations && p.vaccinations.length > 0 && (() => {
+                                    const now = new Date();
+                                    const thirtyDaysFromNow = new Date();
+                                    thirtyDaysFromNow.setDate(now.getDate() + 30);
+                                    
+                                    const issues = p.vaccinations.filter(v => {
+                                        if (!v.expirationDate) return false;
+                                        const expDate = new Date(v.expirationDate);
+                                        return expDate < thirtyDaysFromNow;
+                                    });
+
+                                    if (issues.length === 0) return null;
+
+                                    return (
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                                            {issues.map((v, i) => {
+                                                const isExpired = new Date(v.expirationDate!) < now;
+                                                return (
+                                                    <div key={i} style={{ 
+                                                        fontSize: '11px', 
+                                                        fontWeight: 600, 
+                                                        padding: '2px 6px', 
+                                                        borderRadius: 4, 
+                                                        background: isExpired ? '#fee2e2' : '#fef3c7', 
+                                                        color: isExpired ? '#dc2626' : '#d97706',
+                                                        display: 'flex', alignItems: 'center', gap: 4
+                                                    }}>
+                                                        <AlertTriangle size={10} />
+                                                        {v.name} {isExpired ? 'Expired' : 'Expiring'}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })()}
                             </div>
                             <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
                                 <button onClick={() => { setEditingPetId(p.id); setPetModalOpen(true); }} style={{ background: 'none', border: 'none', padding: 4 }}>

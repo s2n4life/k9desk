@@ -523,7 +523,12 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
                                     </div>
                                     <div>
                                         <div className="font-bold text-slate-900">{s.name}</div>
-                                        <div className="text-sm text-slate-500">${s.price}</div>
+                                        <div className="text-sm text-slate-500">
+                                            {s.priceTiers && s.priceTiers.length > 0 
+                                                ? `Starts at $${Math.min(...s.priceTiers.map(t => t.price))}`
+                                                : `$${s.price}`
+                                            }
+                                        </div>
                                     </div>
                                 </div>
                                 <div className={clsx("w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all", isSelected ? "border-blue-500 bg-blue-500 text-white" : "border-slate-200")}>
@@ -623,28 +628,37 @@ export function BookingWizard({ businessId, businessName, settings }: Props) {
             {formData.serviceIds.length > 0 && (() => {
                 const baseTotal = formData.serviceIds.reduce((sum, id) => {
                     const service = settings.services.find(s => s.id === id);
-                    return sum + (service?.price || 0);
+                    if (!service) return sum;
+                    if (service.priceTiers && service.priceTiers.length > 0) {
+                        return sum + Math.min(...service.priceTiers.map(t => t.price));
+                    }
+                    return sum + (service.price || 0);
                 }, 0);
                 const grandTotal = baseTotal * formData.pets.length;
+                
+                const hasTieredService = formData.serviceIds.some(id => {
+                    const s = settings.services.find(s => s.id === id);
+                    return s && s.priceTiers && s.priceTiers.length > 0;
+                });
                 
                 return (
                     <div className="bg-emerald-50 border-2 border-emerald-500 p-6 rounded-3xl mt-6 shadow-sm">
                         <div className="flex justify-between items-center text-emerald-900 font-black text-2xl items-end">
                             <span>Estimated Total</span>
-                            <span>${grandTotal}</span>
+                            <span>{hasTieredService ? `${grandTotal}+` : `$${grandTotal}`}</span>
                         </div>
                         {formData.pets.length > 1 && (
                             <div className="text-emerald-700 font-medium text-sm mt-2 text-right">
-                                *Based on ${baseTotal} per pet ({formData.pets.length} pets)
+                                *Based on ${baseTotal} starting price per pet ({formData.pets.length} pets)
                             </div>
                         )}
                         <div className="text-emerald-600 font-medium text-xs mt-2 opacity-80">
-                            Final price may vary based on exact service requirements.
+                            Final price may vary based on actual pet size and coat condition.
                         </div>
                     </div>
                 );
             })()}
-
+                
             {
                 submitError && (
                     <div className="bg-red-50 text-red-600 p-4 rounded-2xl text-sm font-bold border border-red-100 animate-in shake flex items-center gap-3">

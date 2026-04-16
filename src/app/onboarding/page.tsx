@@ -16,7 +16,7 @@ export default function OnboardingPage() {
             const settings = await db.get('settings', 'default');
             if (settings && settings.businessName && settings.onboardingCompleted) {
                 // Already onboarded, go to dashboard
-                router.replace('/');
+                router.replace('/dashboard');
             }
         };
         checkExisting();
@@ -45,7 +45,7 @@ export default function OnboardingPage() {
             await addToSyncQueue('UPDATE', 'SETTINGS', 'default', settings);
 
             // 3. Redirect to Dashboard
-            router.push('/');
+            router.push('/dashboard');
 
         } catch (error) {
             console.error('Onboarding failed:', error);

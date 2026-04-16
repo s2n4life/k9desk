@@ -156,7 +156,7 @@ export function OnboardingModal() {
             setIsOpen(false);
 
             // Redirect to Today tab (Root)
-            router.push('/');
+            router.push('/dashboard');
 
         } catch (e) {
             console.error('Failed to save settings', e);

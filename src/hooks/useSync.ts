@@ -115,12 +115,12 @@ const transformForRemote = (entityType: string, data: any, user: any, businessId
             remote.grooming_notes = data.groomingNotes;
             delete remote.groomingNotes;
         }
-        if ('startedAt' in data && data.startedAt) {
-            remote.started_at = new Date(data.startedAt).toISOString();
+        if ('startedAt' in data) {
+            remote.started_at = data.startedAt ? new Date(data.startedAt).toISOString() : null;
             delete remote.startedAt;
         }
-        if ('completedAt' in data && data.completedAt) {
-            remote.completed_at = new Date(data.completedAt).toISOString();
+        if ('completedAt' in data) {
+            remote.completed_at = data.completedAt ? new Date(data.completedAt).toISOString() : null;
             delete remote.completedAt;
         }
 

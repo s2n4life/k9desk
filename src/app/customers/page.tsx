@@ -102,7 +102,7 @@ export default function CustomersPage() {
     return (
         <div className="container" style={{ paddingBottom: '100px', paddingTop: 'var(--space-6)' }}>
             <header style={{ marginBottom: 'var(--space-6)' }}>
-                <h1 className="text-h1">Customers & Jobs</h1>
+                <h1 className="text-h1">Clients & Jobs</h1>
 
                 {/* Search Bar */}
                 <div style={{ position: 'relative', marginTop: 'var(--space-4)' }}>
@@ -110,7 +110,7 @@ export default function CustomersPage() {
                     <input
                         className="card input-with-icon"
                         style={{ width: '100%', height: 48, border: 'none' }}
-                        placeholder={activeTab === 'customers' ? "Search by customer, phone, or dog..." : "Search past jobs..."}
+                        placeholder={activeTab === 'customers' ? "Search by client, phone, or dog..." : "Search past jobs..."}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -137,7 +137,7 @@ export default function CustomersPage() {
                         }}
                     >
                         <Users size={16} />
-                        Customers
+                        Clients
                     </button>
                     <button
                         onClick={() => setActiveTab('jobs')}
@@ -185,7 +185,7 @@ export default function CustomersPage() {
                     );
                 })}
                 {activeTab === 'customers' && filteredCustomers.length === 0 && (
-                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-tertiary)' }}>No customers found</div>
+                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-tertiary)' }}>No clients found</div>
                 )}
 
 

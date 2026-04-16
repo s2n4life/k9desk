@@ -11,12 +11,16 @@ import { getDB } from '@/lib/db';
 interface NotificationContextType {
     leadsCount: number;
     needsActionCount: number;
+    todayCount: number;
+    upcomingCount: number;
     refreshCounts: () => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType>({
     leadsCount: 0,
     needsActionCount: 0,
+    todayCount: 0,
+    upcomingCount: 0,
     refreshCounts: async () => { },
 });
 
@@ -25,6 +29,8 @@ export const useNotification = () => useContext(NotificationContext);
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
     const [leadsCount, setLeadsCount] = useState(0);
     const [needsActionCount, setNeedsActionCount] = useState(0);
+    const [todayCount, setTodayCount] = useState(0);
+    const [upcomingCount, setUpcomingCount] = useState(0);
     const [toast, setToast] = useState<{ message: string, subMessage?: string, isVisible: boolean }>({
         message: '',
         isVisible: false
@@ -73,6 +79,25 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
             // Needs Action badge only counts actionable jobs (leads are separate in Leads tab)
             setNeedsActionCount(actionableJobsCount);
+
+            // Today count and Upcoming count
+            const { format } = await import('date-fns');
+            const todayStr = format(new Date(), 'yyyy-MM-dd');
+            const TERMINAL_STATES = [JobState.Closed, JobState.Cancelled, JobState.NoShow];
+            const ACTION_STATES = [JobState.Completed, JobState.PaymentRequested, JobState.Paid];
+
+            const todayJobsCount = allJobs.filter(j =>
+                (j.scheduledDate === todayStr || j.state === JobState.InProgress) &&
+                !ACTION_STATES.includes(j.state) &&
+                !TERMINAL_STATES.includes(j.state)
+            ).length;
+            setTodayCount(todayJobsCount);
+
+            const upcomingJobsCount = allJobs.filter(j =>
+                j.scheduledDate > todayStr &&
+                (j.state === JobState.Scheduled || j.state === JobState.ReminderSent || j.state === JobState.InProgress)
+            ).length;
+            setUpcomingCount(upcomingJobsCount);
 
         } catch (error) {
             console.error('Error fetching notification counts:', error);
@@ -155,8 +180,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const value = React.useMemo(() => ({
         leadsCount,
         needsActionCount,
+        todayCount,
+        upcomingCount,
         refreshCounts: fetchCounts
-    }), [leadsCount, needsActionCount, fetchCounts]);
+    }), [leadsCount, needsActionCount, todayCount, upcomingCount, fetchCounts]);
 
     return (
         <NotificationContext.Provider value={value}>

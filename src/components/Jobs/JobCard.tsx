@@ -14,10 +14,10 @@ interface JobCardProps {
     onAction: (action: string) => void;
 }
 
-const STATE_CONFIG: Record<JobState, { label: string; color: string; button?: string; action?: string }> = {
-    [JobState.Scheduled]: { label: 'Scheduled', color: 'var(--text-tertiary)', button: 'Send Reminder', action: 'SEND_REMINDER' },
-    [JobState.ReminderSent]: { label: 'Sent', color: 'var(--color-info)', button: 'Start Job', action: 'MARK_IN_PROGRESS' }, // Can also be Mark Complete
-    [JobState.InProgress]: { label: 'In Progress', color: 'var(--brand-secondary)', button: 'Finish Job', action: 'MARK_COMPLETE' },
+const STATE_CONFIG: Record<JobState, { label: string; color: string; button?: string; action?: string; btnStyle?: React.CSSProperties }> = {
+    [JobState.Scheduled]: { label: 'Scheduled', color: 'var(--text-tertiary)', button: 'Send Reminder', action: 'SEND_REMINDER', btnStyle: { background: '#3b82f6', color: 'white', border: 'none' } },
+    [JobState.ReminderSent]: { label: 'Sent', color: 'var(--color-info)', button: 'Start Job', action: 'MARK_IN_PROGRESS', btnStyle: { background: '#f97316', color: 'white', border: 'none' } },
+    [JobState.InProgress]: { label: 'In Progress', color: 'var(--brand-secondary)', button: 'Finish Job', action: 'MARK_COMPLETE', btnStyle: { background: '#22c55e', color: 'white', border: 'none' } },
     [JobState.Completed]: { label: 'Done', color: 'var(--color-success)' },
     [JobState.PaymentRequested]: { label: 'Waiting for Payment', color: 'var(--color-warning)' },
     [JobState.Paid]: { label: 'Paid', color: 'var(--color-success)' },
@@ -130,7 +130,8 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
             {job.state === JobState.Completed ? (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
                     <button
-                        className={clsx('btn', 'btn-secondary')}
+                        className={clsx('btn', 'btn-primary')}
+                        style={{ width: '100%', background: '#10b981', color: 'white', border: 'none' }}
                         disabled={isProcessing}
                         onClick={(e) => {
                             e.stopPropagation();
@@ -156,7 +157,7 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
                 <div style={{ marginTop: 'var(--space-4)' }}>
                     <button
                         className={clsx('btn', 'btn-primary')}
-                        style={{ width: '100%' }}
+                        style={{ width: '100%', background: '#10b981', color: 'white', border: 'none' }}
                         disabled={isProcessing}
                         onClick={(e) => {
                             e.stopPropagation();
@@ -171,6 +172,7 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
                     <button
                         className={clsx('btn', 'btn-primary')}
+                        style={{ background: '#a855f7', color: 'white', border: 'none' }}
                         disabled={isProcessing}
                         onClick={(e) => {
                             e.stopPropagation();
@@ -195,6 +197,7 @@ export function JobCard({ job, customerName, petNames, onAction }: JobCardProps)
             ) : config.button ? (
                 <button
                     className={clsx('btn', 'btn-primary', styles.actionBtn)}
+                    style={config.btnStyle || { width: '100%' }}
                     disabled={isProcessing}
                     onClick={(e) => {
                         e.stopPropagation();

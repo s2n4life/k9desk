@@ -65,6 +65,9 @@ import { Header } from '@/components/Navigation/Header';
 // }
 
 import { useDataLoader } from '@/hooks/useDataLoader';
+import dynamic from 'next/dynamic';
+
+const RouteMap = dynamic(() => import('@/components/Dashboard/RouteMap'), { ssr: false });
 
 export default function TodayPage() {
   const [loading, setLoading] = useState(true);
@@ -89,9 +92,9 @@ export default function TodayPage() {
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
 
-  const loadData = async () => {
+  const loadData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       // Load data using impersonation-aware hook
       const allJobs = await loadJobs();
       const allCustomers = await loadCustomers();
@@ -156,7 +159,7 @@ export default function TodayPage() {
     } catch (error) {
       console.error('Failed to load data', error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -210,7 +213,7 @@ export default function TodayPage() {
           triggerSMSAction(job, customer, action, { settings });
         }
         await JobStateMachine.transition(jobId, action);
-        await loadData();
+        await loadData(true);
         return;
       }
 
@@ -222,13 +225,13 @@ export default function TodayPage() {
           triggerSMSAction(job, customer, action, { settings });
         }
         await JobStateMachine.transition(jobId, action);
-        await loadData();
+        await loadData(true);
         return;
       }
 
       // All other state transitions (MARK_IN_PROGRESS, MARK_COMPLETE, SKIP_REVIEW, etc.)
       await JobStateMachine.transition(jobId, action);
-      await loadData();
+      await loadData(true);
     } catch (e) {
       console.error('Transition failed', e);
       alert('Action failed');
@@ -287,6 +290,8 @@ export default function TodayPage() {
           completedJobs={kpi.completed}
           revenue={kpi.revenue}
         />
+        {/* Render Map */}
+        <RouteMap jobs={jobs} customers={customers} pets={pets} />
       </div>
 
       <div style={{

@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@supabase/supabase-js';
+import webpush from 'web-push';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -118,6 +119,62 @@ export async function submitLead(formData: any) {
             businessId: data?.business_id,
             status: data?.status
         });
+
+        // Trigger Push Notification to Groomer
+        try {
+            const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+            const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
+
+            if (vapidPublicKey && vapidPrivateKey) {
+                webpush.setVapidDetails(
+                    'mailto:support@k9desk.com',
+                    vapidPublicKey,
+                    vapidPrivateKey
+                );
+
+                // Get Business Owner
+                const { data: business } = await supabase
+                    .from('businesses')
+                    .select('owner_id')
+                    .eq('id', businessId)
+                    .single();
+
+                if (business?.owner_id) {
+                    const { data: subs } = await supabase
+                        .from('push_subscriptions')
+                        .select('*')
+                        .eq('user_id', business.owner_id);
+
+                    if (subs && subs.length > 0) {
+                        const pushPayload = JSON.stringify({
+                            title: 'New Lead Request!',
+                            body: `${ownerName} is requesting an appointment.`,
+                            url: '/leads'
+                        });
+
+                        const sendPromises = subs.map(sub => {
+                            const pushSub = {
+                                endpoint: sub.endpoint,
+                                keys: { p256dh: sub.p256dh, auth: sub.auth_key }
+                            };
+                            // Fire and forget
+                            return webpush.sendNotification(pushSub, pushPayload).catch(async (e) => {
+                                console.error('Push delivery failed for subscription:', e);
+                                // Clean up expired/revoked subscriptions
+                                if (e.statusCode === 410 || e.statusCode === 404) {
+                                    await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+                                }
+                            });
+                        });
+                        
+                        // Let it run in background asynchronously
+                        Promise.allSettled(sendPromises);
+                    }
+                }
+            }
+        } catch (pushErr) {
+            console.error('[LeadSubmission] Failed to dispatch push:', pushErr);
+        }
 
         return { success: true, data };
     } catch (err) {

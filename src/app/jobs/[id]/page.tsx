@@ -22,6 +22,7 @@ import { ActionSheet } from '@/components/UI/ActionSheet';
 import { RecurringBadge } from '@/components/Jobs/RecurringBadge';
 import { RecurringManagementModal } from '@/components/Jobs/RecurringManagementModal';
 import { RecurringToggle } from '@/components/Jobs/RecurringToggle';
+import { PetForm } from '@/components/Pets/PetForm';
 
 export default function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const router = useRouter();
@@ -83,7 +84,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
         const j = await db.get('jobs', id);
         if (!j) {
             alert('Job not found');
-            router.push('/');
+            router.push('/dashboard');
             return;
         }
         setJob(j);
@@ -226,7 +227,18 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
         if (exists) {
             newServices = currentServices.filter(x => !(x.id === s.id && x.petId === petId));
         } else {
-            newServices = [...currentServices, { ...s, petId }];
+            const pet = pets.find(p => p.id === petId);
+            let finalPrice = s.price;
+            if (s.priceTiers && s.priceTiers.length > 0) {
+                if (pet?.size) {
+                    const tier = s.priceTiers.find(t => t.size === pet.size);
+                    if (tier) finalPrice = tier.price;
+                    else finalPrice = Math.min(...s.priceTiers.map(t => t.price));
+                } else {
+                    finalPrice = Math.min(...s.priceTiers.map(t => t.price));
+                }
+            }
+            newServices = [...currentServices, { ...s, petId, price: finalPrice }];
         }
         updateJobServices(newServices);
     };
@@ -261,19 +273,35 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
         setCreateServiceMode(false);
     };
 
-    const savePet = async () => {
-        if (!pName) return;
+    const savePetFromForm = async (data: Partial<Pet>) => {
+        if (!data.name) return;
         if (editingPetId) {
             const db = await getDB();
             const existing = await db.get('pets', editingPetId);
             if (existing) {
-                const updated = { ...existing, name: pName, breed: pBreed, size: pSize, age: pAge, notes: pNotes, updatedAt: Date.now() };
+                const updated = { 
+                    ...existing, 
+                    ...data,
+                    updatedAt: Date.now() 
+                };
 
                 const { getActiveBusinessIdSync } = await import('@/contexts/ImpersonationContext');
                 const businessId = getActiveBusinessIdSync();
 
                 await saveWithSync('pets', updated, 'UPDATE', businessId || undefined);
                 setPets(prev => prev.map(p => p.id === editingPetId ? updated : p));
+                
+                // Update job service prices if size changed
+                if (job && data.size !== existing.size) {
+                    const newServices = (job.services || []).map(js => {
+                        if (js.petId === editingPetId && js.priceTiers && js.priceTiers.length > 0) {
+                            const tier = js.priceTiers.find(t => t.size === data.size);
+                            return { ...js, price: tier ? tier.price : Math.min(...js.priceTiers.map(t => t.price)) };
+                        }
+                        return js;
+                    });
+                    updateJobServices(newServices);
+                }
             }
         }
         setPetModalOpen(false);
@@ -344,6 +372,16 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
             if (action === 'SEND_REMINDER' || action === 'SEND_REVIEW_REQUEST') {
                 const petNames = pets.map(p => p.name);
                 await triggerSMSAction(job, customer!, action, { settings, petNames });
+
+                const { getActiveBusinessIdSync } = await import('@/contexts/ImpersonationContext');
+                const businessId = getActiveBusinessIdSync();
+                await saveWithSync('communication_log', {
+                    id: crypto.randomUUID(),
+                    customerId: customer!.id,
+                    jobId: job.id,
+                    type: action === 'SEND_REMINDER' ? 'reminder' : 'review_request',
+                    timestamp: Date.now()
+                }, 'CREATE', businessId || undefined);
             }
             await JobStateMachine.transition(id, action, {});
             loadData();
@@ -608,6 +646,41 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                                     {p.breed} {p.size ? `• ${p.size}` : ''} {p.age ? `• ${p.age}` : ''}
                                 </div>
                                 {p.notes && <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-danger)', marginTop: 4 }}>⚠️ {p.notes}</div>}
+                                {p.vaccinations && p.vaccinations.length > 0 && (() => {
+                                    const now = new Date();
+                                    const thirtyDaysFromNow = new Date();
+                                    thirtyDaysFromNow.setDate(now.getDate() + 30);
+                                    
+                                    const issues = p.vaccinations.filter(v => {
+                                        if (!v.expirationDate) return false;
+                                        const expDate = new Date(v.expirationDate);
+                                        return expDate < thirtyDaysFromNow;
+                                    });
+
+                                    if (issues.length === 0) return null;
+
+                                    return (
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                                            {issues.map((v, i) => {
+                                                const isExpired = new Date(v.expirationDate!) < now;
+                                                return (
+                                                    <div key={i} style={{ 
+                                                        fontSize: '11px', 
+                                                        fontWeight: 600, 
+                                                        padding: '2px 6px', 
+                                                        borderRadius: 4, 
+                                                        background: isExpired ? '#fee2e2' : '#fef3c7', 
+                                                        color: isExpired ? '#dc2626' : '#d97706',
+                                                        display: 'flex', alignItems: 'center', gap: 4
+                                                    }}>
+                                                        <AlertTriangle size={10} />
+                                                        {v.name} {isExpired ? 'Expired' : 'Expiring'}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         </div>
 
@@ -841,6 +914,16 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                             amount,
                             selectedPaymentMethods
                         });
+
+                        const { getActiveBusinessIdSync } = await import('@/contexts/ImpersonationContext');
+                        const businessId = getActiveBusinessIdSync();
+                        await saveWithSync('communication_log', {
+                            id: crypto.randomUUID(),
+                            customerId: customer!.id,
+                            jobId: job!.id,
+                            type: 'payment_request',
+                            timestamp: Date.now()
+                        }, 'CREATE', businessId || undefined);
                     } catch (error) {
                         console.error('Failed to request payment:', error);
                         alert('Failed to request payment: ' + (error as Error).message);
@@ -1033,44 +1116,14 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 isOpen={petModalOpen}
                 onClose={() => setPetModalOpen(false)}
                 title="Edit Pet"
-                footer={(
-                    <div style={{ display: 'flex', gap: 'var(--space-2)', width: '100%' }}>
-                        <button
-                            onClick={deletePet}
-                            className="btn btn-secondary"
-                            style={{
-                                flex: 1,
-                                background: 'var(--color-danger)',
-                                color: 'white',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: 2,
-                                padding: '12px 16px'
-                            }}
-                        >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}>
-                                <Trash2 size={16} /> Delete Pet
-                            </div>
-                            <div style={{ fontSize: '11px', opacity: 0.9, fontWeight: 400 }}>Permanent</div>
-                        </button>
-                        <button onClick={savePet} className="btn btn-primary" style={{ flex: 1 }}>Save Pet</button>
-                    </div>
-                )}
+                footer={<></>}
             >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                    <input className="card" placeholder="Pet Name" value={pName} onChange={e => setPName(e.target.value)} />
-                    <input className="card" placeholder="Breed" value={pBreed} onChange={e => setPBreed(e.target.value)} />
-                    <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                        <input className="card" placeholder="Size" value={pSize} onChange={e => setPSize(e.target.value)} style={{ flex: 1 }} />
-                        <input className="card" placeholder="Age" value={pAge} onChange={e => setPAge(e.target.value)} style={{ flex: 1 }} />
-                    </div>
-                    <label>
-                        <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>Notes</span>
-                        <textarea className="card" placeholder="Notes..." value={pNotes} onChange={e => setPNotes(e.target.value)} style={{ width: '100%', minHeight: 80 }} />
-                    </label>
-                </div>
+                <PetForm
+                    initialData={pets.find(p => p.id === editingPetId) || {}}
+                    onSave={savePetFromForm}
+                    onCancel={() => setPetModalOpen(false)}
+                    onDelete={deletePet}
+                />
             </Modal>
 
             {/* ActionSheet for More Actions */}

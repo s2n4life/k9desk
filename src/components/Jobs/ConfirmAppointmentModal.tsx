@@ -63,7 +63,7 @@ export function ConfirmAppointmentModal({
 
                 <div className={styles.header}>
                     <div className={styles.icon}>⚠️</div>
-                    <h2 className={styles.title}>Confirm Appointment with Customer</h2>
+                    <h2 className={styles.title}>Confirm Appointment with Client</h2>
                     <p className={styles.subtitle}>
                         Make sure <strong>{customerName}</strong> knows their appointment is scheduled!
                     </p>
@@ -104,7 +104,7 @@ export function ConfirmAppointmentModal({
                     </>
                 ) : (
                     <div className={styles.noPhone}>
-                        <p>No phone number on file for this customer.</p>
+                        <p>No phone number on file for this client.</p>
                         <button onClick={handleSkip} className={styles.skipButton}>
                             Close
                         </button>

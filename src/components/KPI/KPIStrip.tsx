@@ -1,4 +1,6 @@
 import styles from './KPIStrip.module.css';
+import Link from 'next/link';
+import { ChevronRight } from 'lucide-react';
 
 interface KPIProps {
     completedJobs: number;
@@ -24,6 +26,19 @@ export function KPIStrip({ completedJobs, revenue }: Partial<KPIProps>) {
                     <span className={styles.label}>Collected</span>
                 </div>
             </div>
+            <Link href="/earnings" style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                gap: '8px',
+                marginTop: '12px',
+                padding: '8px',
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                fontSize: '13px', fontWeight: 600, color: 'var(--brand-primary)',
+                textDecoration: 'none'
+            }}>
+                View Full Earnings Report <ChevronRight size={14} />
+            </Link>
         </div>
     );
 }

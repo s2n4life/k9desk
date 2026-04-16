@@ -6,7 +6,7 @@ import { Settings, Service } from '@/lib/db/schema';
 import { saveWithSync, deleteWithSync } from '@/lib/db/transactions';
 import { supabase } from '@/lib/supabaseClient';
 import Link from 'next/link';
-import { ChevronLeft, Save, Plus, Trash2, Edit2, ChevronDown, ChevronRight, CreditCard, Store, List, Star, MapPin, X, Check, LogOut, Clock, AlertTriangle } from 'lucide-react';
+import { Bell, ChevronLeft, Save, Plus, Trash2, Edit2, ChevronDown, ChevronRight, CreditCard, Store, List, Star, MapPin, X, Check, LogOut, Clock, AlertTriangle } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { useSync } from '@/hooks/useSync';
 import { useRouter } from 'next/navigation';
@@ -58,12 +58,111 @@ export default function SettingsPage() {
     const [isServicesExpanded, setIsServicesExpanded] = useState(false);
     const [isPaymentExpanded, setIsPaymentExpanded] = useState(false);
     const [isReviewExpanded, setIsReviewExpanded] = useState(false);
+
+    // Push State
+    const [pushEnabled, setPushEnabled] = useState(false);
+    const [pushLoading, setPushLoading] = useState(false);
+
+    useEffect(() => {
+        if ('serviceWorker' in navigator && 'PushManager' in window) {
+            navigator.serviceWorker.ready.then(registration => {
+                registration.pushManager.getSubscription().then(sub => {
+                    setPushEnabled(!!sub);
+                });
+            });
+        }
+    }, []);
+
+    const urlBase64ToUint8Array = (base64String: string) => {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding)
+            .replace(/\-/g, '+')
+            .replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    };
+
+    const handlePushToggle = async (enabled: boolean) => {
+        if (!('serviceWorker' in navigator && 'PushManager' in window)) {
+            alert('Push notifications are not supported in this browser.');
+            return;
+        }
+
+        setPushLoading(true);
+        try {
+            let registration = await navigator.serviceWorker.getRegistration();
+            if (!registration) {
+                console.log('No service worker found, attempting manual registration...');
+                try {
+                    registration = await navigator.serviceWorker.register('/sw.js');
+                } catch (e) {
+                    throw new Error('Failed to register Service Worker: ' + (e as Error).message);
+                }
+            }
+            
+            // Wait for it to be ready, but don't hang forever
+            const readyReg = await Promise.race([
+                navigator.serviceWorker.ready,
+                new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Service Worker ready timeout')), 5000))
+            ]);
+
+            if (enabled) {
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    alert('Permission denied. Please enable notifications in your browser settings.');
+                    setPushLoading(false);
+                    return;
+                }
+
+                // Public VAPID Key from Env
+                const applicationServerKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+                if (!applicationServerKey) {
+                   console.error('VAPID public key missing');
+                   return;
+                }
+
+                const subscription = await readyReg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(applicationServerKey)
+                });
+
+                const res = await fetch('/api/push/subscribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ subscription })
+                });
+
+                if (res.ok) {
+                    setPushEnabled(true);
+                } else {
+                    alert('Failed to save subscription.');
+                }
+            } else {
+                const subscription = await readyReg.pushManager.getSubscription();
+                if (subscription) {
+                    await subscription.unsubscribe();
+                }
+                setPushEnabled(false);
+            }
+        } catch (err) {
+            console.error('Push Toggle Error:', err);
+            alert('Error updating notification preferences: ' + (err as Error).message);
+        } finally {
+            setPushLoading(false);
+        }
+    };
     const [isServiceAreaExpanded, setIsServiceAreaExpanded] = useState(false);
 
     // UI State for Service Editing
     const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
     const [editName, setEditName] = useState('');
     const [editPrice, setEditPrice] = useState('');
+    const [editIsSizeBased, setEditIsSizeBased] = useState(false);
+    const [editPriceTiers, setEditPriceTiers] = useState<Record<string, string>>({ Small: '', Medium: '', Large: '', 'X-Large': '' });
 
     // UI State for Business Name Editing
     const [isEditingBusinessName, setIsEditingBusinessName] = useState(false);
@@ -72,6 +171,8 @@ export default function SettingsPage() {
     const [isAddingService, setIsAddingService] = useState(false);
     const [newName, setNewName] = useState('');
     const [newPrice, setNewPrice] = useState('');
+    const [newIsSizeBased, setNewIsSizeBased] = useState(false);
+    const [newPriceTiers, setNewPriceTiers] = useState<Record<string, string>>({ Small: '', Medium: '', Large: '', 'X-Large': '' });
 
     const [bookingBaseUrl, setBookingBaseUrl] = useState('');
     const [slug, setSlug] = useState('');
@@ -311,10 +412,18 @@ export default function SettingsPage() {
         if (!newName) return;
         const price = parseFloat(newPrice || '0');
 
+        let priceTiers;
+        if (newIsSizeBased) {
+            priceTiers = Object.entries(newPriceTiers)
+                .filter(([_, val]) => val !== '')
+                .map(([size, val]) => ({ size, price: parseFloat(val) }));
+        }
+
         const newService: Service = {
             id: uuidv4(),
             name: newName,
-            price,
+            price: newIsSizeBased ? 0 : price,
+            priceTiers: newIsSizeBased && priceTiers && priceTiers.length > 0 ? priceTiers : undefined,
             createdAt: Date.now()
         };
 
@@ -324,6 +433,8 @@ export default function SettingsPage() {
         setIsAddingService(false);
         setNewName('');
         setNewPrice('');
+        setNewIsSizeBased(false);
+        setNewPriceTiers({ Small: '', Medium: '', Large: '', 'X-Large': '' });
     };
 
     const handleDeleteService = async (id: string) => {
@@ -336,14 +447,32 @@ export default function SettingsPage() {
         setEditingServiceId(service.id);
         setEditName(service.name);
         setEditPrice(service.price.toString());
+        setEditIsSizeBased(!!service.priceTiers && service.priceTiers.length > 0);
+        
+        const initialTiers: Record<string, string> = { Small: '', Medium: '', Large: '', 'X-Large': '' };
+        if (service.priceTiers) {
+            service.priceTiers.forEach(t => {
+                initialTiers[t.size] = t.price.toString();
+            });
+        }
+        setEditPriceTiers(initialTiers);
     };
 
     const saveEditService = async () => {
         if (!editingServiceId) return;
+
+        let priceTiers;
+        if (editIsSizeBased) {
+            priceTiers = Object.entries(editPriceTiers)
+                .filter(([_, val]) => val !== '')
+                .map(([size, val]) => ({ size, price: parseFloat(val) }));
+        }
+
         const updatedService: Service = {
             id: editingServiceId,
             name: editName,
-            price: parseFloat(editPrice || '0'),
+            price: editIsSizeBased ? 0 : parseFloat(editPrice || '0'),
+            priceTiers: editIsSizeBased && priceTiers && priceTiers.length > 0 ? priceTiers : undefined,
             createdAt: Date.now()
         };
         const original = services.find(s => s.id === editingServiceId);
@@ -579,6 +708,33 @@ export default function SettingsPage() {
                     </button>
                 </section>
             )}
+
+            {/* Push Notifications Section */}
+            <section className="card" style={{ marginBottom: 'var(--space-4)', padding: 'var(--space-6)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
+                    <h3 className="text-h3" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 0 }}>
+                        <Bell size={20} />
+                        Push Notifications
+                    </h3>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={pushEnabled}
+                            onChange={(e) => handlePushToggle(e.target.checked)}
+                            className="sr-only peer"
+                            disabled={pushLoading}
+                        />
+                        <div 
+                            className="w-11 h-6 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"
+                            style={{ backgroundColor: pushEnabled ? 'var(--brand-primary, #4f46e5)' : '#e5e7eb' }}
+                        ></div>
+                    </label>
+                </div>
+                <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
+                    Get real-time alerts when a new client submits a lead request. {(!shouldShowPrompt() && typeof window !== 'undefined' && !(window.navigator as any).standalone && /iPhone|iPad|iPod/.test(navigator.userAgent)) ? <b style={{color: 'var(--color-warning)'}}>Must Add to Home Screen first on iOS.</b> : ''}
+                </p>
+                {pushLoading && <p style={{ fontSize: '12px', color: 'var(--brand-primary)', marginTop: 4 }}>Updating preferences...</p>}
+            </section>
 
             {/* Business Info Section */}
             <section className="card" style={{ marginBottom: 'var(--space-4)', overflow: 'hidden' }}>
@@ -893,22 +1049,57 @@ export default function SettingsPage() {
                                         autoFocus
                                     />
 
-                                    <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-                                        <div style={{ position: 'relative', flex: 1 }}>
-                                            <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: '18px' }}>$</span>
-                                            <input
-                                                className="input"
-                                                type="text"
-                                                inputMode="decimal"
-                                                placeholder="Price"
-                                                value={newPrice}
-                                                onChange={e => {
-                                                    const val = e.target.value.replace(/[^0-9.]/g, '');
-                                                    setNewPrice(val);
-                                                }}
-                                                style={{ width: '100%', paddingLeft: '32px', height: '54px', fontSize: '18px' }}
+                                    {/* Line 2: Price or Size Based */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                                        <label className="relative inline-flex items-center cursor-pointer mb-2">
+                                            <input 
+                                                type="checkbox" 
+                                                className="sr-only peer" 
+                                                checked={newIsSizeBased} 
+                                                onChange={e => setNewIsSizeBased(e.target.checked)} 
                                             />
-                                        </div>
+                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                            <span className="ml-3 text-sm font-medium text-slate-700">Size-based Pricing</span>
+                                        </label>
+
+                                        {!newIsSizeBased ? (
+                                            <div style={{ position: 'relative', width: '100%' }}>
+                                                <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: '18px' }}>$</span>
+                                                <input
+                                                    className="input"
+                                                    type="text"
+                                                    inputMode="decimal"
+                                                    placeholder="Price"
+                                                    value={newPrice}
+                                                    onChange={e => {
+                                                        const val = e.target.value.replace(/[^0-9.]/g, '');
+                                                        setNewPrice(val);
+                                                    }}
+                                                    style={{ width: '100%', paddingLeft: '32px', height: '54px', fontSize: '18px' }}
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-2 gap-3 mt-1">
+                                                {['Small', 'Medium', 'Large', 'X-Large'].map(size => (
+                                                    <div key={size} style={{ position: 'relative' }}>
+                                                        <label className="text-xs font-bold text-slate-500 mb-1 block uppercase tracking-wide">{size}</label>
+                                                        <span style={{ position: 'absolute', left: '12px', bottom: '16px', color: 'var(--text-tertiary)' }}>$</span>
+                                                        <input
+                                                            className="input"
+                                                            type="text"
+                                                            inputMode="decimal"
+                                                            placeholder="0"
+                                                            value={newPriceTiers[size] || ''}
+                                                            onChange={e => {
+                                                                const val = e.target.value.replace(/[^0-9.]/g, '');
+                                                                setNewPriceTiers(prev => ({...prev, [size]: val}));
+                                                            }}
+                                                            style={{ paddingLeft: '28px', height: '48px', width: '100%' }}
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Line 3: Actions */}
@@ -948,23 +1139,57 @@ export default function SettingsPage() {
                                                 placeholder="Service Name"
                                             />
 
-                                            {/* Line 2: Price */}
-                                            <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-                                                <div style={{ position: 'relative', flex: 1 }}>
-                                                    <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: '18px' }}>$</span>
-                                                    <input
-                                                        className="input"
-                                                        type="text"
-                                                        inputMode="decimal"
-                                                        value={editPrice}
-                                                        onChange={e => {
-                                                            const val = e.target.value.replace(/[^0-9.]/g, '');
-                                                            setEditPrice(val);
-                                                        }}
-                                                        style={{ width: '100%', paddingLeft: '32px', height: '54px', fontSize: '18px' }}
-                                                        placeholder="0"
+                                            {/* Line 2: Price or Size Based */}
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                                                <label className="relative inline-flex items-center cursor-pointer mb-2 mt-2">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        className="sr-only peer" 
+                                                        checked={editIsSizeBased} 
+                                                        onChange={e => setEditIsSizeBased(e.target.checked)} 
                                                     />
-                                                </div>
+                                                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                                    <span className="ml-3 text-sm font-medium text-slate-700">Size-based Pricing</span>
+                                                </label>
+
+                                                {!editIsSizeBased ? (
+                                                    <div style={{ position: 'relative', width: '100%' }}>
+                                                        <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: '18px' }}>$</span>
+                                                        <input
+                                                            className="input"
+                                                            type="text"
+                                                            inputMode="decimal"
+                                                            value={editPrice}
+                                                            onChange={e => {
+                                                                const val = e.target.value.replace(/[^0-9.]/g, '');
+                                                                setEditPrice(val);
+                                                            }}
+                                                            style={{ width: '100%', paddingLeft: '32px', height: '54px', fontSize: '18px' }}
+                                                            placeholder="0"
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <div className="grid grid-cols-2 gap-3 mt-1">
+                                                        {['Small', 'Medium', 'Large', 'X-Large'].map(size => (
+                                                            <div key={size} style={{ position: 'relative' }}>
+                                                                <label className="text-xs font-bold text-slate-500 mb-1 block uppercase tracking-wide">{size}</label>
+                                                                <span style={{ position: 'absolute', left: '12px', bottom: '16px', color: 'var(--text-tertiary)' }}>$</span>
+                                                                <input
+                                                                    className="input"
+                                                                    type="text"
+                                                                    inputMode="decimal"
+                                                                    placeholder="0"
+                                                                    value={editPriceTiers[size] || ''}
+                                                                    onChange={e => {
+                                                                        const val = e.target.value.replace(/[^0-9.]/g, '');
+                                                                        setEditPriceTiers(prev => ({...prev, [size]: val}));
+                                                                    }}
+                                                                    style={{ paddingLeft: '28px', height: '48px', width: '100%' }}
+                                                                />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
 
                                             {/* Line 3: Actions */}
@@ -977,9 +1202,19 @@ export default function SettingsPage() {
                                         </div>
                                     ) : (
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                            <div style={{ overflow: 'hidden', marginRight: '8px' }}>
+                                            <div style={{ overflow: 'hidden', marginRight: '8px', flex: 1 }}>
                                                 <div style={{ fontWeight: 600, fontSize: 'var(--font-size-lg)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{service.name}</div>
-                                                <div style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-base)' }}>${service.price}</div>
+                                                {service.priceTiers && service.priceTiers.length > 0 ? (
+                                                    <div className="flex flex-wrap gap-2 mt-1.5">
+                                                        {service.priceTiers.map(t => (
+                                                            <div key={t.size} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-medium border border-slate-200">
+                                                                {t.size}: ${t.price}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <div style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-base)' }}>${service.price}</div>
+                                                )}
                                             </div>
                                             <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
                                                 <button onClick={() => startEditService(service)} style={{ color: 'var(--text-secondary)' }}>

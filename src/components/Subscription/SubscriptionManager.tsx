@@ -177,18 +177,29 @@ export function SubscriptionManager() {
                 </div>
 
                 <h2 className="text-h2" style={{ marginBottom: '16px' }}>
-                    {isLocked ? 'Access Locked' : `Trial Ends in ${daysLeft} ${daysLeft === 1 ? 'Day' : 'Days'}`}
+                    {isLocked ? (settings?.subscription_status === 'past_due' ? 'Action Required' : 'Your Trial Has Expired') : `Trial Ends in ${daysLeft} ${daysLeft === 1 ? 'Day' : 'Days'}`}
                 </h2>
 
-                <p style={{ color: 'var(--text-secondary)', marginBottom: '32px', lineHeight: 1.5 }}>
+                <div style={{ color: 'var(--text-secondary)', marginBottom: '32px', lineHeight: 1.5, textAlign: 'left' }}>
+                    <p style={{ textAlign: 'center', marginBottom: '16px' }}>
                     {isLocked
                         ? (
                             settings?.subscription_status === 'past_due'
-                                ? <>Your payment method needs to be updated. <br />To keep your schedule, client history, and payments in one place, update your payment method below.</>
-                                : <>Your free trial has ended. <br />To keep your schedule, client history, and payments in one place, choose a plan below.</>
+                                ? <>Your payment method needs to be updated.<br />Instantly restore your account by updating your billing info below.</>
+                                : <>Don't lose your schedule and client history.<br />Choose a plan to instantly unlock your account and keep growing:</>
                         )
-                        : "Your free trial is ending soon. To keep your schedule, client history, and payments in one place, upgrade your plan now."}
-                </p>
+                        : "Your free trial is ending soon. Upgrade now to secure your account and client history:"}
+                    </p>
+
+                    {(!isLocked || settings?.subscription_status !== 'past_due') && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px', color: 'var(--text-primary)', background: 'var(--surface-sunken)', padding: '16px', borderRadius: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>✔️ <b>Unlimited Jobs & Client CRM</b></div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>✔️ <b>Public Booking Lead Intake</b></div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>✔️ <b>Daily Route Mapping & Earnings</b></div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>✔️ <b>1-Click Call & SMS Integration</b></div>
+                        </div>
+                    )}
+                </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
                     <button
@@ -228,7 +239,7 @@ export function SubscriptionManager() {
                             alignItems: 'center'
                         }}
                     >
-                        <span>Yearly — $490 <span style={{ fontSize: '12px', color: 'var(--success)', marginLeft: '4px' }}>(2 months free)</span></span>
+                        <span>Yearly — $490 <span style={{ fontSize: '12px', color: 'var(--success)', marginLeft: '4px' }}>(Save $98)</span></span>
                         {billingCycle === 'yearly' && <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--brand-primary)' }} />}
                     </button>
                 </div>
@@ -242,7 +253,7 @@ export function SubscriptionManager() {
                     {isLoading ? <span className="animate-spin">...</span> : (
                         settings?.subscription_status === 'past_due' ? <ExternalLink size={22} /> : <CreditCard size={22} />
                     )}
-                    {settings?.subscription_status === 'past_due' ? 'Update Payment Method' : (isLocked ? 'Upgrade Now' : 'Upgrade Plan')}
+                    {settings?.subscription_status === 'past_due' ? 'Update Payment Method' : 'Secure Account & Upgrade'}
                 </button>
 
                 <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '16px' }}>
