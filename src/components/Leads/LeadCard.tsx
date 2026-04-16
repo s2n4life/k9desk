@@ -16,7 +16,7 @@ interface LeadCardProps {
     allServices?: Service[];
 }
 
-export function LeadCard({ lead, onAccept, onArchive, onDelete, isArchived, businessName }: LeadCardProps) {
+export function LeadCard({ lead, onAccept, onArchive, onDelete, isArchived, businessName, allServices }: LeadCardProps) {
     const [isOpen, setIsOpen] = useState(false);
 
     // Format pets display
