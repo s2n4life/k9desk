@@ -1,9 +1,10 @@
 import { clsx } from 'clsx';
-import { Calendar, Dog, MapPin, User, CheckCircle, XCircle, Trash2, Phone, Mail, MessageCircle } from 'lucide-react';
+import { Calendar, Dog, MapPin, User, CheckCircle, XCircle, Trash2, Phone, Mail, MessageCircle, Scissors, Navigation } from 'lucide-react';
 import { useState } from 'react';
 import styles from '../Jobs/JobCard.module.css'; // Reusing job card styles for consistency
-import { Lead } from '@/lib/db/schema';
+import { Lead, Service } from '@/lib/db/schema';
 import Link from 'next/link';
+import { format } from 'date-fns';
 
 interface LeadCardProps {
     lead: Lead;
@@ -12,6 +13,7 @@ interface LeadCardProps {
     onDelete: (leadId: string) => void;
     isArchived?: boolean;
     businessName?: string;
+    allServices?: Service[];
 }
 
 export function LeadCard({ lead, onAccept, onArchive, onDelete, isArchived, businessName }: LeadCardProps) {
@@ -19,6 +21,19 @@ export function LeadCard({ lead, onAccept, onArchive, onDelete, isArchived, busi
 
     // Format pets display
     const petsDisplay = lead.petDetails.map(p => p.name).join(', ');
+
+    // Format createdAt
+    let createdAtFormat = 'Unknown';
+    try {
+        if (lead.createdAt) {
+            createdAtFormat = format(new Date(lead.createdAt), 'MMM d, h:mm a');
+        }
+    } catch (e) { }
+
+    // Resolve Services
+    const requestedServices = (lead.serviceIds || [])
+        .map(id => allServices?.find(s => s.id === id))
+        .filter(Boolean) as Service[];
 
     // SMS Pre-fill logic
     const firstName = lead.ownerName.split(' ')[0];
@@ -50,8 +65,13 @@ export function LeadCard({ lead, onAccept, onArchive, onDelete, isArchived, busi
                     </div>
                 </div>
                 {/* Mini badge for Date */}
-                <div className="mt-2 text-xs font-semibold text-slate-500 bg-slate-100 w-fit px-2 py-1 rounded">
-                    {lead.preferredDates[0] ? `Pref: ${lead.preferredDates[0]}` : 'No date pref'}
+                <div className="mt-2 flex flex-wrap gap-2">
+                    <div className="text-xs font-semibold text-slate-500 bg-slate-100 w-fit px-2 py-1 rounded border border-slate-200">
+                        {createdAtFormat}
+                    </div>
+                    <div className="text-xs font-semibold text-indigo-700 bg-indigo-50 w-fit px-2 py-1 rounded border border-indigo-100">
+                        {lead.preferredDates[0] ? `Requested: ${lead.preferredDates[0]}` : 'No date requested'}
+                    </div>
                 </div>
             </div>
         );
@@ -110,7 +130,7 @@ export function LeadCard({ lead, onAccept, onArchive, onDelete, isArchived, busi
                     <a
                         href={`tel:${lead.ownerPhone}`}
                         onClick={(e) => e.stopPropagation()}
-                        className="bg-slate-100 p-2 rounded-lg text-slate-700 hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 text-[10px] font-bold w-20 shadow-sm border border-slate-200"
+                        className="bg-slate-100 p-2 rounded-lg text-slate-700 hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 text-[10px] font-bold w-24 shadow-sm border border-slate-200"
                     >
                         <Phone size={12} className="text-blue-600" />
                         CALL
@@ -118,10 +138,19 @@ export function LeadCard({ lead, onAccept, onArchive, onDelete, isArchived, busi
                     <a
                         href={smsHref}
                         onClick={(e) => e.stopPropagation()}
-                        className="bg-slate-100 p-2 rounded-lg text-slate-700 hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 text-[10px] font-bold w-20 shadow-sm border border-slate-200"
+                        className="bg-slate-100 p-2 rounded-lg text-slate-700 hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 text-[10px] font-bold w-24 shadow-sm border border-slate-200"
                     >
                         <MessageCircle size={12} className="text-green-600" />
                         TEXT
+                    </a>
+                    <a
+                        href={`https://maps.google.com/?q=${encodeURIComponent(lead.ownerAddress || lead.serviceAreaZip || '')}`}
+                        target="_blank" rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="bg-slate-100 p-2 rounded-lg text-slate-700 hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 text-[10px] font-bold w-24 shadow-sm border border-slate-200"
+                    >
+                        <Navigation size={12} className="text-purple-600" />
+                        NAVIGATE
                     </a>
                 </div>
             </div>
@@ -141,6 +170,22 @@ export function LeadCard({ lead, onAccept, onArchive, onDelete, isArchived, busi
                 </div>
             </div>
 
+            {/* Services */}
+            {requestedServices.length > 0 && (
+                <div className="bg-blue-50 p-3 rounded-lg mb-4 border border-blue-100">
+                    <h4 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2 flex items-center gap-1">
+                        <Scissors size={12} /> Requested Services
+                    </h4>
+                    <div className="space-y-2">
+                        {requestedServices.map((svc) => (
+                            <div key={svc.id} className="text-sm font-bold text-slate-700">
+                                • {svc.name}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Notes */}
             {lead.notes && (
                 <div className="bg-yellow-50 p-3 rounded-lg mb-4 border border-yellow-100">
@@ -152,9 +197,15 @@ export function LeadCard({ lead, onAccept, onArchive, onDelete, isArchived, busi
             )}
 
             {/* Date Pref */}
-            <div className="flex items-center gap-2 mb-4 text-sm font-medium text-indigo-600 bg-indigo-50 p-2 rounded w-fit">
-                <Calendar size={16} />
-                <span>Pref: {lead.preferredDates[0]}</span>
+            <div className="flex flex-wrap gap-2 mb-4">
+                <div className="flex items-center gap-2 text-sm font-medium text-slate-600 bg-slate-100 border border-slate-200 p-2 rounded w-fit">
+                    <Calendar size={16} />
+                    <span>Incoming: {createdAtFormat}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-100 p-2 rounded w-fit">
+                    <Calendar size={16} />
+                    <span>Requested: {lead.preferredDates[0] || 'Anytime'}</span>
+                </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginTop: 'var(--space-4)' }}>

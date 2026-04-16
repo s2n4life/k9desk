@@ -9,10 +9,12 @@ import { updateBusinessSlug } from '@/actions/update-slug';
 import { Header } from '@/components/Navigation/Header';
 
 import { useDataLoader } from '@/hooks/useDataLoader';
-import { Lead } from '@/lib/db/schema';
+import { Lead, Service } from '@/lib/db/schema';
+import { getDB } from '@/lib/db';
 
 export default function LeadsPage() {
     const [leads, setLeads] = useState<Lead[]>([]);
+    const [allServices, setAllServices] = useState<Service[]>([]);
     const [loading, setLoading] = useState(true);
     const [debugInfo, setDebugInfo] = useState({ userId: '', businessId: '', fetchError: '' });
 
@@ -61,6 +63,12 @@ export default function LeadsPage() {
                         setSlug(business.slug || business.id);
                     }
                 }
+                
+                // 3. Load generic services for name mapping
+                const db = await getDB();
+                const svcs = await db.getAll('services');
+                setAllServices(svcs || []);
+                
             } catch (err: any) {
                 console.error('Error fetching leads:', err);
             } finally {
@@ -392,6 +400,7 @@ export default function LeadsPage() {
                             onDelete={handleDelete}
                             isArchived={activeTab === 'archived'}
                             businessName={businessName}
+                            allServices={allServices}
                         />
                     ))}
                 </div>
