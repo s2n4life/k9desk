@@ -262,6 +262,7 @@ export async function hydrateLocalDB(userId: string) {
 
             console.log('[Hydration] Complete.');
             localStorage.setItem('crm_has_hydrated', 'true');
+            localStorage.setItem('crm_last_sync_timestamp', Date.now().toString());
             return true;
         } catch (error) {
             console.error('[Hydration] Internal failure:', error);
@@ -321,5 +322,125 @@ export async function syncLeadsToLocal(businessId: string) {
         }
         console.log(`[SyncLeads] Synced ${leads.length} leads to local DB`);
         window.dispatchEvent(new CustomEvent('leads-synced'));
+    }
+}
+
+export async function deltaSyncLocalDB(businessId: string): Promise<boolean> {
+    if (!businessId) return false;
+    
+    // Check if hydrated
+    const hasHydrated = localStorage.getItem('crm_has_hydrated');
+    if (hasHydrated !== 'true') return false; // Not hydrated yet, don't attempt delta sync
+    
+    // Check last sync
+    const lastSyncStr = localStorage.getItem('crm_last_sync_timestamp');
+    if (!lastSyncStr) return false;
+    
+    // Parse last sync (subtract 5 seconds for safety buffer)
+    const lastSyncDate = new Date(parseInt(lastSyncStr) - 5000).toISOString();
+    
+    console.log('[DeltaSync] Starting pull for updates after:', lastSyncDate);
+
+    const db = await getDB();
+    const syncQueueCount = await db.count('syncQueue');
+    if (syncQueueCount > 0) {
+        console.warn(`[DeltaSync] Aborting. Found ${syncQueueCount} pending local changes. PUSH BEFORE PULL.`);
+        return false;
+    }
+    
+    if (!navigator.onLine) {
+        return false;
+    }
+
+    try {
+        const [
+            servicesRes,
+            customersRes,
+            petsRes,
+            jobsRes,
+            leadsRes
+        ] = await Promise.allSettled([
+            supabase.from('services').select('*').eq('business_id', businessId).or(`updated_at.gt.${lastSyncDate},created_at.gt.${lastSyncDate}`),
+            supabase.from('customers').select('*').eq('business_id', businessId).or(`updated_at.gt.${lastSyncDate},created_at.gt.${lastSyncDate}`),
+            supabase.from('pets').select('*').eq('business_id', businessId).or(`updated_at.gt.${lastSyncDate},created_at.gt.${lastSyncDate}`),
+            supabase.from('jobs').select('*').eq('business_id', businessId).or(`updated_at.gt.${lastSyncDate},created_at.gt.${lastSyncDate}`),
+            supabase.from('leads').select('*').eq('business_id', businessId).or(`updated_at.gt.${lastSyncDate},created_at.gt.${lastSyncDate}`),
+        ]);
+
+        let hasUpdates = false;
+
+        // Process Services
+        if (servicesRes.status === 'fulfilled' && servicesRes.value.data?.length) {
+            hasUpdates = true;
+            for (const s of servicesRes.value.data) {
+                await db.put('services', {
+                    id: s.id, name: s.name, price: s.price, priceTiers: s.price_tiers,
+                    duration_minutes: s.duration_minutes, createdAt: new Date(s.created_at).getTime(),
+                });
+            }
+        }
+        
+        // Process Customers
+        if (customersRes.status === 'fulfilled' && customersRes.value.data?.length) {
+            hasUpdates = true;
+            for (const c of customersRes.value.data) {
+                await db.put('customers', {
+                    id: c.id, name: c.name, phone: c.phone, email: c.email, address: c.address, notes: c.notes,
+                    createdAt: new Date(c.created_at).getTime(), updatedAt: new Date(c.updated_at || c.created_at).getTime()
+                });
+            }
+        }
+        
+        // Process Pets
+        if (petsRes.status === 'fulfilled' && petsRes.value.data?.length) {
+            hasUpdates = true;
+            for (const p of petsRes.value.data) {
+                await db.put('pets', {
+                    id: p.id, customerId: p.customer_id, name: p.name, breed: p.breed, notes: p.notes,
+                    size: p.size, age: p.age, vaccinations: p.vaccinations,
+                    createdAt: new Date(p.created_at).getTime(), updatedAt: new Date(p.updated_at || p.created_at).getTime()
+                });
+            }
+        }
+        
+        // Process Jobs
+        if (jobsRes.status === 'fulfilled' && jobsRes.value.data?.length) {
+            hasUpdates = true;
+            for (const j of jobsRes.value.data) {
+                await db.put('jobs', {
+                    id: j.id, customerId: j.customer_id, petIds: j.pet_ids || [], state: j.state.toLowerCase(),
+                    scheduledDate: j.scheduled_date, scheduledTime: j.scheduled_time, address: j.address,
+                    jobNotes: j.notes, customerNotes: j.customer_notes, petNotes: j.pet_notes, groomingNotes: j.grooming_notes,
+                    startedAt: j.started_at ? new Date(j.started_at).getTime() : undefined,
+                    completedAt: j.completed_at ? new Date(j.completed_at).getTime() : undefined, services: j.services || [],
+                    payment_amount: j.payment_amount, payment_method: j.payment_method, payment_logged_at: j.payment_logged_at ? new Date(j.payment_logged_at).getTime() : undefined,
+                    createdAt: new Date(j.created_at).getTime(), updatedAt: new Date(j.updated_at || j.created_at).getTime()
+                });
+            }
+        }
+        
+        // Process Leads
+        if (leadsRes.status === 'fulfilled' && leadsRes.value.data?.length) {
+            hasUpdates = true;
+            for (const l of leadsRes.value.data) {
+                await db.put('leads', {
+                    id: l.id, businessId: businessId, status: l.status, ownerName: l.owner_name,
+                    ownerPhone: l.owner_phone, ownerEmail: l.owner_email, ownerAddress: l.owner_address,
+                    serviceAreaZip: l.service_area_zip, petDetails: l.pet_details, preferredDates: l.preferred_dates,
+                    serviceIds: l.service_ids, waiverSigned: l.waiver_signed, createdAt: l.created_at, notes: l.notes
+                });
+            }
+        }
+
+        if (hasUpdates) {
+            console.log('[DeltaSync] Applied background updates successfully.');
+            window.dispatchEvent(new CustomEvent('background-sync-pulled'));
+        }
+
+        localStorage.setItem('crm_last_sync_timestamp', Date.now().toString());
+        return true;
+    } catch (e) {
+        console.error('[DeltaSync] Failed to delta pull:', e);
+        return false;
     }
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { getDB } from '@/lib/db';
 import { supabase } from '@/lib/supabaseClient';
 import { SyncQueueItem } from '@/lib/db/schema';
-import { hydrateLocalDB, syncLeadsToLocal } from '@/lib/db/hydration';
+import { hydrateLocalDB, syncLeadsToLocal, deltaSyncLocalDB } from '@/lib/db/hydration';
 import { captureLog } from '@/lib/admin/sentinel';
 import { useImpersonationContextSafe, getActiveBusinessIdSync } from '@/contexts/ImpersonationContext';
 
@@ -712,6 +712,17 @@ export function useSync() {
             }
             setStatus('idle');
 
+            // --- DELTA PULL ENGINE ---
+            // Actively fetch upstream changes if local mutations are fully cleared
+            const finalCount = await db.count('syncQueue');
+            if (finalCount === 0 && navigator.onLine) {
+                const targetBusinessId = impersonatedId || getActiveBusinessIdSync() || user?.id;
+                if (targetBusinessId) {
+                    // deltaSyncLocalDB will internally verify localStorage rules
+                    await deltaSyncLocalDB(targetBusinessId);
+                }
+            }
+
         } catch (e: any) {
             console.error('Sync process failed:', e);
             setStatus('error');
@@ -738,9 +749,19 @@ export function useSync() {
         // 3. Poll every 30 seconds
         const interval = setInterval(processQueue, 30000);
 
+        // 4. Background to Foreground Delta Pull
+        // Instantly synchronizes if user unlocks phone or switches back to app
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                processQueue();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
         return () => {
             window.removeEventListener('online', handleSyncTrigger);
             window.removeEventListener('trigger-sync', handleSyncTrigger);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
             clearInterval(interval);
         };
     }, []);
