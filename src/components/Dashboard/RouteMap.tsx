@@ -42,7 +42,12 @@ function MapBounds({ geoJobs, currentLocation }: { geoJobs: GeoJob[], currentLoc
         }
         
         const bounds = L.latLngBounds(allCoords);
-        map.fitBounds(bounds, { padding: [60, 60], maxZoom: 14 });
+        // Delay slightly to prevent colliding with initial map load animations
+        setTimeout(() => {
+            if (map && map.flyToBounds) {
+                map.flyToBounds(bounds, { padding: [60, 60], maxZoom: 14, duration: 1.5 });
+            }
+        }, 100);
     }, [geoJobs, currentLocation, map]);
     return null;
 }
