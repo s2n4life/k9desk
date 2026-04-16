@@ -38,7 +38,7 @@ const nextConfig: NextConfig = {
           // Restrict browser features
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()',
+            value: 'camera=(), microphone=(), geolocation=(self)',
           },
           // Content Security Policy (CSP)
           {
