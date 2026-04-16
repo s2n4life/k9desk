@@ -120,8 +120,9 @@ export default function RouteMap({ jobs, customers, pets }: RouteMapProps) {
             <MapContainer center={geoJobs[0]?.coords || currentLocation || [39.828, -98.579]} zoom={12} style={{ height: '100%', width: '100%' }}>
                 <MapBounds geoJobs={geoJobs} currentLocation={currentLocation} />
                 <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
                     attribution='&copy; OpenStreetMap contributors'
+                    crossOrigin="anonymous"
                 />
                 
                 {currentLocation && (
